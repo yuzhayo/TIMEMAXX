@@ -126,10 +126,11 @@ export function nativeWindowValid(window) {
     : caption?.mode === 'native' && allowed(caption, ['mode', 'height', 'background', 'foreground'])
       && Number.isInteger(caption.height) && caption.height > 0 && caption.height < window.minHeight
       && explicitColor(caption.background) && explicitColor(caption.foreground);
-  return allowed(window, ['title', 'width', 'height', 'minWidth', 'minHeight', 'background', 'caption'])
+  return allowed(window, ['title', 'width', 'height', 'minWidth', 'minHeight', 'background', 'caption', 'startup'])
     && typeof window.title === 'string' && window.title.trim().length > 0
     && ['width', 'height', 'minWidth', 'minHeight'].every((key) => Number.isInteger(window[key]) && window[key] > 0)
     && window.minWidth <= window.width && window.minHeight <= window.height && explicitColor(window.background)
+    && (!own(window, 'startup') || ['configured', 'workAreaHeight'].includes(window.startup))
     && Boolean(captionValid);
 }
 

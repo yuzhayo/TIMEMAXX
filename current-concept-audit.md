@@ -17,6 +17,10 @@ The map below remains the comparison target; do not recreate/reconfirm the skele
 Run from `frame/`: `npm.cmd start` for normal mode or `npm.cmd run inspect` for
 development inspection. Normal startup shows the black frame, filename/status and
 shared icon-only Load/Save buttons. Undo/Redo start disabled until an edit exists.
+`window.startup: "workAreaHeight"` opens the native window at the current monitor's
+usable height (taskbar excluded), using its configured width and centering it
+horizontally. This default applies on each launch; window-position persistence is
+not implemented. On smaller displays, native width/minimum bounds fit the work area.
 Rotation and Size controls start disabled until a photo is loaded. The Action Bar
 uses one shared adjustment sub-parent for `[decrease] [value] [increase]`; each
 value opens its configured slider popup.
@@ -24,18 +28,27 @@ JSON defines ±180° bounds, 0.1° precision/step and 90° button increments.
 Rotation keeps its editable degree value while Size shows its percentage value.
 Rotation changes photo preview/export only; future prepared layers remain independent.
 The active arrangement is Load/Save in Action Bar, Undo/Redo in Windows Bar,
-with only Close/X visible among the Windows Bar window-action buttons.
-Minimize and Maximize remain configured with `enabled: false`.
+with vertical maximize/restore and Close/X visible among the window-action buttons.
+Minimize remains configured with `enabled: false`. `FrameWindow.cjs` owns the
+height-only toggle and its saved restore bounds. Startup displays the restore icon;
+the first restore uses the ordinary configured window size, and later toggles
+restore the actual previous bounds. Window width is preserved when maximizing
+vertically. Windows Bar uses the same generic sibling layout as Action Bar to keep
+Placement, maximize/restore and Close/X spaced without overlap.
+The updated native button was clicked through two maximize/restore cycles: width
+stayed unchanged, prior bounds were restored, and full-width Windows maximize
+remained off. Startup/restore captures are in
+`frame/.runtime/checks/vertical-maximize/`. Native config/syntax checks and the UI
+build passed; no broad test suite was run.
 Undo/Redo are at the far left, followed immediately by the left-aligned filename.
 The filename is a transparent pass-through label over the draggable Windows Bar.
 Load/Save are one baked `FileControls.jsx` group with equal wider boxes and centered
 icons, 1% from Action Bar's right edge. Close/X is 1% from Windows Bar's right edge;
 its box retains the Undo/Redo dimensions. Filename/history/Rotation remain unchanged.
-Windows Bar and Action Bar each use 5% of window height. Buttons use 8% top/bottom
-parent-relative insets and 84% height, so the rows have equal control heights and
-proportional padding. Action Bar was tightened while retaining essentially the same control height;
-Frame/body starts at 10% and takes the remaining height above the content-sized
-Bottom Bar; its old fixed 83% allocation is no longer the rendered height.
+Windows Bar uses 3% and Action Bar uses 5% of window height. Buttons use 8%
+top/bottom parent-relative insets and 84% height. Frame/body starts at 8% and
+takes the remaining height above the content-sized Bottom Bar; its declared
+85% footprint is not the runtime height.
 The native control overlay is off; these custom buttons call normal native
 window operations. X shares the exact MUI renderer and preset used by Load/Save.
 Loading/replacing an image resets photo history. No fake edits are seeded.
