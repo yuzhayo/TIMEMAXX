@@ -32,12 +32,41 @@ icons. Minimize/maximize/X boxes exactly match Undo/Redo in their common parent.
 Windows Bar and Action Bar each use 5% of window height. Buttons use 8% top/bottom
 parent-relative insets and 84% height, so the rows have equal control heights and
 proportional padding. Action Bar was tightened while retaining essentially the same control height;
-Frame/body now starts at 10% and uses 83% height, leaving the status bar readable.
+Frame/body starts at 10% and takes the remaining height above the content-sized
+Bottom Bar; its old fixed 83% allocation is no longer the rendered height.
 The native control overlay is off; these custom buttons call normal native
 window operations. X shares the exact MUI renderer and preset used by Load/Save.
 Loading/replacing an image resets photo history. No fake edits are seeded.
 The working rule is to close an existing target-app instance and launch the current
 build after finishing changes and focused verification, leaving it open for the user.
+
+## Text-only Bottom Bar
+
+Bottom Bar is the single outlet for operation/progress/success/error text and
+readable diagnostic summaries. It contains no buttons, selectors or toast stack.
+It defaults to one text line, wraps and expands upward for longer messages, and
+shrinks again for shorter text. Frame/body reflows rather than being covered.
+Existing diagnostic records, deduplication and local logging remain intact.
+Development-only layout inspection remains a separate developer surface.
+
+`presets.status.geometry.paddingY` is **1% per side** of the text outlet's height;
+1–2% is the requested range. Font, line height, horizontal placement and error
+color remain configured. `FrameInfo.jsx` measures its own text and resolves that
+percentage without preferred-height callbacks. Generic section `sizing` supports
+`content` and `remaining`; omitted sizing keeps fixed percentage height. Declared
+bounds still establish section ordering, horizontal placement and validation
+footprints, not the runtime heights of content/remaining sections.
+
+Focused verification: 27 Bottom Bar/contract tests passed, UI build passed, and
+native Bottom Bar plus guardrail proofs passed at default/minimum sizes. The bar
+measured **17.91px** for one line and **33.81px** for two lines at both sizes.
+The proof creates its own photo fixture, checks actual Load success/cancellation,
+upward growth/shrink, unchanged top bars, preview reflow, JSON changes to 2%
+padding, errors/diagnostics in the bar, logging and invalid-padding isolation.
+Native captures under `frame/.runtime/checks/bottom-bar/` were inspected. OS picker
+interaction, other codecs and a broad export/rotation suite were not rerun.
+Previous normal frame PID **17072** closed normally. Updated normal frame PID
+**4956**, with owned worker PID **7260**, was verified and left running.
 
 ## Baked feature blocks: Rotation
 
@@ -139,20 +168,11 @@ frame/
 │       │   ├── PhotoWheelInput.mjs     Frame-scoped wheel/modified-wheel interaction
 │       │   └── DropTarget.jsx          Drop feedback and image-drop handoff
 │       ├── bottom-bar/
-│       │   ├── ZoomOutButton.jsx       Invoke view-only zoom out
-│       │   ├── ViewZoomValue.jsx       Show inspection zoom percentage
-│       │   ├── ZoomInButton.jsx        Invoke view-only zoom in
-│       │   ├── FitViewButton.jsx       Restore inspection view
-│       │   ├── FrameInfo.jsx           Show published frame/file-operation status
-│       │   └── ExportSizeSelector.jsx  Select supported output resolution
+│       │   └── FrameInfo.jsx           One expanding text outlet for operation messages and diagnostics
 │       └── overlays/
-│           ├── information/
-│           │   ├── InformationDialog.jsx Information/shortcut surface with configured parts
-│           │   └── CloseButton.jsx    Close information overlay
-│           └── notices/
-│               ├── NoticeStack.jsx    Arrange configured notice instances
-│               ├── Notice.jsx         Render message/severity from config/state
-│               └── DismissButton.jsx  Dismiss its configured notice instance
+│           └── information/
+│               ├── InformationDialog.jsx Information/shortcut surface with configured parts
+│               └── CloseButton.jsx    Close information overlay
 ├── logic/
 │   ├── FrameSession.mjs                Coordinate session lifetime/subscriptions and UI state
 │   ├── WindowActions.mjs               Renderer window actions, native state and subscriptions
@@ -186,10 +206,12 @@ frame/
 - Controls obtain the resolved instance config and shared session/actions through
   a consistent injected interface/context. Do not make a movable control depend
   on its parent ID, filename, or folder-specific relative import to shared logic.
-- InformationDialog/NoticeStack are real overlay surfaces, not section-specific
-  assembly registries. Their children are still mounted by the unified mechanism
-  into declared outlets; they must not manually import/list CloseButton, Notice
-  or DismissButton. Config owns those relationships and parts.
+- InformationDialog is a pending information surface, not a section-specific
+  assembly registry. Its children follow the unified mechanism and configured
+  relationships. Notifications use the text-only Bottom Bar, not an overlay.
+  Former bottom-control/notice skeleton files remain untouched and unimplemented;
+  they are no longer the Bottom Bar target. Future view/output controls need an
+  approved location elsewhere before implementation.
 - ConfigValidation owns structural matching and uses shared config/appearance
   mechanisms from `@APPS/components/` where they fit the contract. Do not create a
   competing palette/resolver. ComponentDiscovery gathers facts; WindowLayout
@@ -335,7 +357,8 @@ duplicate IDs or invalid visuals are logged and isolated, not thrown through the
 whole app. Skip the affected control or invalid section subtree; valid parts keep
 running. No guessed parent, silent corrections or hardcoded visual substitutes.
 
-Persist structured diagnostics and show readable non-blocking summaries. Include
+Persist structured diagnostics and show readable non-blocking summaries in the
+Bottom Bar, never as toast/floating banners. Include
 issue code, component/instance ID, file/config paths, expected and actual values,
 action taken, timestamps and repeat count. Deduplicate identical issues per run.
 For example: `undo: found in windows-bar/, config assigns actionBar; skipped`.
@@ -438,7 +461,9 @@ re-audit unrelated files or repeatedly reconfirm an already-correct skeleton.
 - [ ] A test sender can set/clear a layer; photo movement and replacement preserve
       independent layer placement, and export uses the accepted revision.
 - [ ] Native default/minimum screenshots include caption areas, overlays and long
-      text; action bar stays on one row, bottom controls align, no redundant title/VIEW.
+      text; action bar stays on one row, Bottom Bar remains text-only, no redundant title/VIEW.
+- [x] Bottom Bar defaults to one line with 1% top/bottom padding, expands/shrinks
+      for multiline messages, preserves preview space, and replaces diagnostic banners.
 
 ## Retained engine/input requirements for later work
 

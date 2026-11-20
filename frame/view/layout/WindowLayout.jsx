@@ -2,7 +2,6 @@ import React, { useSyncExternalStore } from 'react';
 import Box from '@mui/material/Box';
 import { configuredAppearance as appearance, configuredSx, configuredBounds, boundsStyle } from '@ui/appearance.mjs';
 import LayoutInspector from './LayoutInspector.jsx';
-import { diagnosticSummary } from './LayoutDiagnostics.mjs';
 
 // LOGIC — isolate a render-time control failure at its owning instance.
 class ComponentBoundary extends React.Component {
@@ -18,23 +17,41 @@ class ComponentBoundary extends React.Component {
 // UI — unified assembly consumes validated results only, never named-control imports.
 export default function WindowLayout({ plan, session, diagnostics, inspection, generation }) {
   const state = useSyncExternalStore(session.subscribe, session.getSnapshot);
-  const issues = useSyncExternalStore(diagnostics.subscribe, diagnostics.getSnapshot);
+  const issues = state.diagnostics ?? [];
   const settings = plan.development;
   const inspect = inspection && settings;
+  // Generic height policies: fixed percentages, remaining space, or intrinsic child content.
+  const flow = plan.sections.some((section) => section.sizing);
+  const rows = new Map(), tracks = [];
+  let edge = 0;
+  if (flow) for (const section of [...plan.sections].sort((a, b) => a.bounds.y - b.bounds.y)) {
+    if (section.bounds.y > edge) tracks.push(`${section.bounds.y - edge}%`);
+    tracks.push(section.sizing === 'content' ? 'auto' : section.sizing === 'remaining' ? 'minmax(0, 1fr)' : `${section.bounds.height}%`);
+    rows.set(section.id, tracks.length);
+    edge = section.bounds.y + section.bounds.height;
+  }
   return (
-    <main className="frame-root" data-ready="true" style={{ backgroundColor: plan.window?.background }}>
+    <main className="frame-root" data-ready="true" style={{ backgroundColor: plan.window?.background,
+      ...(flow ? { display: 'grid', gridTemplateRows: tracks.join(' '), alignContent: 'start' } : {}),
+    }}>
       {plan.sections.map((section) => (
         <Box component="section" key={section.id} id={section.id} aria-label={section.label}
           className={`frame-section${section.draggable ? ' frame-drag' : ''}`}
-          sx={{ ...boundsStyle(section.bounds), ...configuredSx(section) }}>
+          sx={{ ...boundsStyle(section.bounds), ...configuredSx(section),
+            ...(flow ? { position: 'relative', top: 'auto', height: 'auto', gridRow: rows.get(section.id) } : {}),
+            ...(section.sizing === 'content' ? { containerType: 'inline-size' } : {}),
+          }}>
           {inspect && <LayoutInspector node={section} settings={settings} />}
-          <div className={section.nativeSafeArea ? 'native-safe-area' : 'frame-section-content'} data-section-content={section.id}>
+          <div className={section.nativeSafeArea ? 'native-safe-area' : 'frame-section-content'} data-section-content={section.id}
+            style={section.sizing === 'content' ? { height: 'auto', containerType: 'inline-size' } : undefined}>
             {plan.instances.filter((node) => node.parentId === section.id).map((node) => {
               const Component = node.Component;
               return <div key={`${node.id}-${generation}`} className="frame-slot"
                 data-drag-region={node.interaction?.dragRegion ?? 'no-drag'}
                 data-instance={node.id} data-component={node.componentId} data-parent={node.parentId} data-source={node.filePath}
-                style={{ ...configuredBounds(node), pointerEvents: node.interaction?.pointerEvents ?? 'auto' }}>
+                style={{ ...configuredBounds(node), pointerEvents: node.interaction?.pointerEvents ?? 'auto',
+                  ...(section.sizing === 'content' ? { position: 'relative', top: 'auto', height: 'auto', containerType: 'inline-size' } : {}),
+                }}>
                 <ComponentBoundary node={node} diagnostics={diagnostics}>
                   <Component config={node} state={state} actions={session} />
                 </ComponentBoundary>
@@ -44,7 +61,6 @@ export default function WindowLayout({ plan, session, diagnostics, inspection, g
           </div>
         </Box>
       ))}
-      {issues.length > 0 && plan.diagnosticVisual && <output role="status" className="diagnostic-summary" style={{ ...boundsStyle(plan.diagnosticVisual.bounds), ...appearance(plan.diagnosticVisual) }}>{diagnosticSummary(issues)}</output>}
       {inspect && <output className="layout-summary" data-history={JSON.stringify(state)} style={{ ...boundsStyle(settings.summary.bounds), ...appearance(settings.summary) }}>
         <span>Inspection · {JSON.stringify(state.document)} · {issues.length} diagnostic(s)</span>
         {plan.instances.map((node) => <span key={node.id}>{node.componentId} / {node.id} → {node.parentId} · {node.filePath}</span>)}

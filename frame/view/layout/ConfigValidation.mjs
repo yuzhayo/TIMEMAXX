@@ -55,7 +55,7 @@ const groups = {
 const groupKeys = Object.keys(groups);
 const stateKeys = ['hover', 'focusVisible', 'active', 'disabled', 'selected', 'error'];
 const visualKeys = ['preset', ...groupKeys, 'states'];
-const sectionKeys = ['id', 'parentId', 'label', 'folder', 'enabled', 'nativeSafeArea', 'draggable', 'bounds', ...visualKeys];
+const sectionKeys = ['id', 'parentId', 'label', 'folder', 'enabled', 'nativeSafeArea', 'draggable', 'sizing', 'bounds', ...visualKeys];
 const instanceKeys = ['id', 'componentId', 'parentId', 'enabled', 'label', 'bounds', 'aspectRatio', 'parts', 'interaction', ...visualKeys];
 
 function boundsProblem(bounds, path) {
@@ -111,7 +111,7 @@ function mergeVisual(base, patch) {
 
 export function validateFrameConfig(raw, catalog, diagnostics) {
   const report = (code, path, expected, actual, meta = {}) => diagnostics.report({ code, configPath: path, expected, actual, ...meta });
-  const result = { sections: [], instances: [], development: null, diagnosticVisual: null, window: null, document: null, history: null, output: null, rotation: null };
+  const result = { sections: [], instances: [], development: null, window: null, document: null, history: null, output: null, rotation: null };
 
   function checkKeys(value, keys, path, meta, code = 'INVALID_VISUAL') {
     if (!object(value)) { report(code, path, 'object', value, meta); return false; }
@@ -168,7 +168,7 @@ export function validateFrameConfig(raw, catalog, diagnostics) {
     return valid;
   }
 
-  if (!checkKeys(raw, ['schemaVersion', 'window', 'document', 'history', 'output', 'rotation', 'presets', 'sections', 'instances', 'diagnostics', 'development'], 'config', { action: 'layout isolated' }, 'INVALID_CONFIG_ROOT') || raw.schemaVersion !== 1) {
+  if (!checkKeys(raw, ['schemaVersion', 'window', 'document', 'history', 'output', 'rotation', 'presets', 'sections', 'instances', 'development'], 'config', { action: 'layout isolated' }, 'INVALID_CONFIG_ROOT') || raw.schemaVersion !== 1) {
     if (object(raw) && raw.schemaVersion !== 1) report('INVALID_CONFIG_ROOT', 'schemaVersion', 1, raw.schemaVersion, { action: 'layout isolated' });
     return result;
   }
@@ -260,6 +260,9 @@ export function validateFrameConfig(raw, catalog, diagnostics) {
       report('INVALID_SECTION', path, 'valid section identity, folder and flags', node, meta); return;
     }
     if (!checkBounds(node.bounds, `${path}.bounds`, meta, 'INVALID_SECTION')) return;
+    if (own(node, 'sizing') && !['content', 'remaining'].includes(node.sizing)) {
+      report('INVALID_SECTION', `${path}.sizing`, 'content | remaining; omit for fixed percentage height', node.sizing, meta); return;
+    }
     if (duplicateIds.has(node.id) || duplicateFolders.has(node.folder)) { report('DUPLICATE_SECTION', path, 'unique section ID/folder', node.id, meta); return; }
     const visual = resolveVisual(node, path, meta);
     if (visual && node.enabled) result.sections.push({ ...node, ...visual, configPath: path });
@@ -360,7 +363,6 @@ export function validateFrameConfig(raw, catalog, diagnostics) {
     return visual ? { ...node, ...visual } : null;
   }
 
-  result.diagnosticVisual = auxiliary(raw.diagnostics, 'diagnostics', true, 'records available through diagnostic bridge');
   const dev = raw.development;
   if (checkKeys(dev, ['inspectionEnabled', 'inspector', 'label', 'summary'], 'development', { action: 'inspection unavailable' }, 'INVALID_INSPECTION_CONFIG')) {
     if (typeof dev.inspectionEnabled !== 'boolean') report('INVALID_INSPECTION_CONFIG', 'development.inspectionEnabled', 'boolean', dev.inspectionEnabled, { action: 'inspection unavailable' });

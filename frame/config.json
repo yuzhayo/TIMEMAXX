@@ -45,16 +45,15 @@
     "rotationTrack": { "preset": "base", "colors": { "background": "#9aa5b2" }, "geometry": { "radius": 3 } },
     "rotationThumb": { "preset": "button", "colors": { "background": "#e4e9ef" }, "geometry": { "radius": 20 }, "states": { "active": { "colors": { "background": "#ffc44d" } } } },
     "fileName": { "preset": "base", "colors": { "foreground": "#9aa5b2" }, "content": { "horizontalAlign": "flex-start", "textAlign": "left" } },
-    "status": { "preset": "base", "colors": { "foreground": "#9aa5b2" }, "content": { "whiteSpace": "normal", "horizontalAlign": "flex-start", "textAlign": "left" } },
+    "status": { "preset": "base", "colors": { "foreground": "#9aa5b2" }, "geometry": { "paddingY": 1 }, "content": { "whiteSpace": "normal", "horizontalAlign": "flex-start", "textAlign": "left" }, "states": { "error": { "colors": { "foreground": "#ffe2a0" } } } },
     "inspector": { "preset": "base", "colors": { "border": "#df8af5" }, "geometry": { "borderWidth": 1 } },
-    "inspectorLabel": { "preset": "base", "colors": { "background": "transparent", "foreground": "#f2d3ff" }, "geometry": { "fontSize": 10 }, "content": { "whiteSpace": "normal", "horizontalAlign": "flex-start", "verticalAlign": "flex-start", "textAlign": "left" } },
-    "diagnostic": { "preset": "base", "colors": { "background": "#352b13", "foreground": "#ffe2a0", "border": "#826a2d" }, "geometry": { "borderWidth": 1 }, "content": { "whiteSpace": "normal", "horizontalAlign": "flex-start", "textAlign": "left" } }
+    "inspectorLabel": { "preset": "base", "colors": { "background": "transparent", "foreground": "#f2d3ff" }, "geometry": { "fontSize": 10 }, "content": { "whiteSpace": "normal", "horizontalAlign": "flex-start", "verticalAlign": "flex-start", "textAlign": "left" } }
   },
   "sections": [
     { "id": "windowsBar", "parentId": "window", "label": "Windows bar", "folder": "windows-bar", "enabled": true, "nativeSafeArea": false, "draggable": true, "bounds": { "x": 0, "y": 0, "width": 100, "height": 5 }, "preset": "bar" },
     { "id": "actionBar", "parentId": "window", "label": "Action bar", "folder": "action-bar", "enabled": true, "nativeSafeArea": false, "draggable": false, "bounds": { "x": 0, "y": 5, "width": 100, "height": 5 }, "preset": "bar" },
-    { "id": "frameBody", "parentId": "window", "label": "Frame body", "folder": "frame-body", "enabled": true, "nativeSafeArea": false, "draggable": false, "bounds": { "x": 0, "y": 10, "width": 100, "height": 83 }, "preset": "base", "colors": { "background": "#0e1116" } },
-    { "id": "bottomBar", "parentId": "window", "label": "Bottom bar", "folder": "bottom-bar", "enabled": true, "nativeSafeArea": false, "draggable": false, "bounds": { "x": 0, "y": 93, "width": 100, "height": 7 }, "preset": "bar" }
+    { "id": "frameBody", "parentId": "window", "label": "Frame body", "folder": "frame-body", "enabled": true, "nativeSafeArea": false, "draggable": false, "sizing": "remaining", "bounds": { "x": 0, "y": 10, "width": 100, "height": 83 }, "preset": "base", "colors": { "background": "#0e1116" } },
+    { "id": "bottomBar", "parentId": "window", "label": "Bottom bar", "folder": "bottom-bar", "enabled": true, "nativeSafeArea": false, "draggable": false, "sizing": "content", "bounds": { "x": 0, "y": 93, "width": 100, "height": 7 }, "preset": "bar" }
   ],
   "instances": [
     { "id": "undo", "componentId": "history.undo", "parentId": "windowsBar", "enabled": true, "label": "Undo", "bounds": { "x": 1.5, "y": 8, "width": 4.5, "height": 84 }, "preset": "button" },
@@ -63,7 +62,7 @@
     { "id": "save", "componentId": "file.action", "parentId": "actionBar", "enabled": true, "label": "Save image", "action": "save", "icon": "save", "bounds": { "x": 90, "y": 8, "width": 8, "height": 84 }, "preset": "fileAction" },
     { "id": "fileName", "componentId": "photo.fileName", "parentId": "windowsBar", "enabled": true, "label": "Current image", "bounds": { "x": 13, "y": 15, "width": 64, "height": 70 }, "preset": "fileName", "interaction": { "pointerEvents": "none", "dragRegion": "inherit" } },
     { "id": "photoPreview", "componentId": "photo.preview", "parentId": "frameBody", "enabled": true, "label": "Photo preview", "bounds": { "x": 0, "y": 0, "width": 100, "height": 100 }, "preset": "base", "presentation": { "insetX": 1, "insetY": 1 }, "colors": { "border": "#64707b" }, "geometry": { "borderWidth": 1 } },
-    { "id": "fileStatus", "componentId": "file.status", "parentId": "bottomBar", "enabled": true, "label": "File operation status", "bounds": { "x": 2, "y": 10, "width": 96, "height": 80 }, "preset": "status" },
+    { "id": "fileStatus", "componentId": "file.status", "parentId": "bottomBar", "enabled": true, "label": "Application messages", "bounds": { "x": 2, "y": 0, "width": 96, "height": 100 }, "preset": "status" },
     { "id": "windowMinimize", "componentId": "window.action", "parentId": "windowsBar", "enabled": true, "label": "Minimize window", "action": "minimize", "icon": "minimize", "bounds": { "x": 81, "y": 8, "width": 4.5, "height": 84 }, "preset": "fileAction" },
     { "id": "windowMaximize", "componentId": "window.action", "parentId": "windowsBar", "enabled": true, "label": "Maximize or restore window", "action": "toggleMaximize", "icon": "maximize", "maximizedIcon": "restore", "bounds": { "x": 87, "y": 8, "width": 4.5, "height": 84 }, "preset": "fileAction" },
     { "id": "windowClose", "componentId": "window.action", "parentId": "windowsBar", "enabled": true, "label": "Close window", "action": "close", "icon": "close", "bounds": { "x": 93, "y": 8, "width": 4.5, "height": 84 }, "preset": "fileAction" },
@@ -83,7 +82,6 @@
     } },
     { "id": "rotationSeparator", "componentId": "layout.separator", "parentId": "actionBar", "enabled": true, "label": "Rotation group separator", "bounds": { "x": 38, "y": 18, "width": 0.15, "height": 64 }, "preset": "base", "colors": { "background": "#43505f" } }
   ],
-  "diagnostics": { "preset": "diagnostic", "bounds": { "x": 2, "y": 82, "width": 96, "height": 9 } },
   "development": {
     "inspectionEnabled": false,
     "inspector": { "preset": "inspector" },
