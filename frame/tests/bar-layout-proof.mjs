@@ -48,7 +48,7 @@ try {
     await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     const result = await page.evaluate(() => {
       const read = (id) => {
-        const element = document.getElementById(['load', 'save'].includes(id) ? `fileControls-${id}` : id), rect = element.getBoundingClientRect();
+        const element = document.getElementById(['load', 'save', 'reset'].includes(id) ? `fileControls-${id}` : id), rect = element.getBoundingClientRect();
         const style = getComputedStyle(element), icon = element.querySelector('svg')?.getBoundingClientRect();
         return { x: rect.x, y: rect.y, right: rect.right, width: rect.width, height: rect.height, textAlign: style.textAlign,
           pointerEvents: style.pointerEvents, background: style.backgroundColor,
@@ -56,7 +56,7 @@ try {
           dy: icon ? icon.y + icon.height / 2 - rect.y - rect.height / 2 : 0 };
       };
       const bars = Object.fromEntries(['windowsBar', 'actionBar'].map((id) => { const rect = document.getElementById(id).getBoundingClientRect(); return [id, { y: rect.y, height: rect.height, bottom: rect.bottom }]; }));
-      return { width: innerWidth, height: innerHeight, bars, nodes: Object.fromEntries(['undo', 'redo', 'fileName', 'load', 'save', 'windowClose'].map((id) => [id, read(id)])) };
+      return { width: innerWidth, height: innerHeight, bars, nodes: Object.fromEntries(['undo', 'redo', 'fileName', 'load', 'save', 'reset', 'windowClose'].map((id) => [id, read(id)])) };
     });
     const { nodes } = result;
     assert.ok(nodes.undo.x < width * 0.03);
@@ -68,16 +68,18 @@ try {
       assert.ok(Math.abs(nodes[id].width - nodes.undo.width) < 1, `${id} width matches Undo`);
       assert.ok(Math.abs(nodes[id].height - nodes.undo.height) < 1, `${id} height matches Undo`);
     }
-    assert.ok(nodes.load.x > width * 0.75 && nodes.load.right < nodes.save.x);
-    assert.ok(Math.abs(nodes.load.width - width * 0.08) < 1 && Math.abs(nodes.save.width - nodes.load.width) < 1);
-    assert.ok(nodes.save.right > width * 0.97 && nodes.save.right <= width);
+    assert.ok(nodes.load.x > width * 0.7 && nodes.load.right < nodes.save.x);
+    assert.ok(nodes.save.right < nodes.reset.x);
+    assert.ok(nodes.reset.right > width * 0.97 && nodes.reset.right <= width);
+    assert.ok(Math.abs(nodes.load.width - width * 0.075) < 1);
+    assert.ok(Math.abs(nodes.reset.width - nodes.load.width) < 1);
     assert.ok(Math.abs(result.bars.windowsBar.height - result.bars.actionBar.height) < 1);
     assert.ok(Math.abs(nodes.load.height - nodes.undo.height) < 1 && Math.abs(nodes.save.height - nodes.undo.height) < 1);
     const headerInset = nodes.undo.y - result.bars.windowsBar.y;
     const actionInset = nodes.load.y - result.bars.actionBar.y;
     assert.ok(Math.abs(headerInset - actionInset) < 1, 'Both rows share proportional vertical padding');
     assert.ok(Math.abs(actionInset - (result.bars.actionBar.bottom - nodes.load.y - nodes.load.height)) < 1, 'Action Bar top/bottom padding is symmetric');
-    for (const id of ['undo', 'redo', 'load', 'save', 'windowClose']) assert.ok(Math.abs(nodes[id].dx) < 1 && Math.abs(nodes[id].dy) < 1, `${id} icon centered`);
+    for (const id of ['undo', 'redo', 'load', 'save', 'reset', 'windowClose']) assert.ok(Math.abs(nodes[id].dx) < 1 && Math.abs(nodes[id].dy) < 1, `${id} icon centered`);
     assert.equal(await page.locator('#windowMinimize, #windowMaximize').count(), 0);
     metrics.push({ name, ...result });
     await page.screenshot({ path: path.join(artifacts, `bars-${name}.png`) });

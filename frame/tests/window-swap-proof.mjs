@@ -110,11 +110,11 @@ try {
    const edges = await page.evaluate(() => {
      const rect = (selector) => document.querySelector(selector).getBoundingClientRect();
      const action = rect('#actionBar [data-section-content]'), windows = rect('#windowsBar [data-section-content]');
-     const group = rect('#fileControls'), save = rect('#fileControls-save'), close = rect('#windowClose');
-     return { group: (action.right - group.right) / action.width * 100, save: (action.right - save.right) / action.width * 100,
+     const group = rect('#fileControls'), last = rect('#fileControls-reset'), close = rect('#windowClose');
+     return { group: (action.right - group.right) / action.width * 100, last: (action.right - last.right) / action.width * 100,
        close: (windows.right - close.right) / windows.width * 100 };
    });
-   for (const gap of Object.values(edges)) assert.ok(Math.abs(gap - 1) < 0.02, 'Group, Save and X finish 1% from their bar edge');
+   for (const gap of Object.values(edges)) assert.ok(Math.abs(gap - 1) < 0.02, 'Group, its last file button and X finish 1% from their bar edge');
     await page.screenshot({ path: path.join(artifacts, `swapped-${name}.png`) });
     const native = await app.evaluate(async ({ BrowserWindow, desktopCapturer }) => {
       const win = BrowserWindow.getAllWindows()[0];

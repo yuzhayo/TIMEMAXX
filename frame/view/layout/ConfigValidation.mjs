@@ -1,5 +1,5 @@
 // LOGIC — validate complete discovery/config facts before producing mountable nodes.
-import { rotationSettingsProblem } from '../../logic/PhotoOperations.mjs';
+import { rotationSettingsProblem, sizeSettingsProblem } from '../../logic/PhotoOperations.mjs';
 const object = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const own = (value, key) => object(value) && Object.hasOwn(value, key);
 const allowed = (value, keys) => object(value) && Object.keys(value).every((key) => keys.includes(key));
@@ -111,7 +111,7 @@ function mergeVisual(base, patch) {
 
 export function validateFrameConfig(raw, catalog, diagnostics) {
   const report = (code, path, expected, actual, meta = {}) => diagnostics.report({ code, configPath: path, expected, actual, ...meta });
-  const result = { sections: [], instances: [], development: null, window: null, document: null, history: null, output: null, rotation: null };
+  const result = { sections: [], instances: [], development: null, window: null, document: null, history: null, output: null, rotation: null, size: null };
 
   function checkKeys(value, keys, path, meta, code = 'INVALID_VISUAL') {
     if (!object(value)) { report(code, path, 'object', value, meta); return false; }
@@ -168,7 +168,7 @@ export function validateFrameConfig(raw, catalog, diagnostics) {
     return valid;
   }
 
-  if (!checkKeys(raw, ['schemaVersion', 'window', 'document', 'history', 'output', 'rotation', 'presets', 'sections', 'instances', 'development'], 'config', { action: 'layout isolated' }, 'INVALID_CONFIG_ROOT') || raw.schemaVersion !== 1) {
+  if (!checkKeys(raw, ['schemaVersion', 'window', 'document', 'history', 'output', 'rotation', 'size', 'presets', 'sections', 'instances', 'development'], 'config', { action: 'layout isolated' }, 'INVALID_CONFIG_ROOT') || raw.schemaVersion !== 1) {
     if (object(raw) && raw.schemaVersion !== 1) report('INVALID_CONFIG_ROOT', 'schemaVersion', 1, raw.schemaVersion, { action: 'layout isolated' });
     return result;
   }
@@ -184,6 +184,11 @@ export function validateFrameConfig(raw, catalog, diagnostics) {
     const problem = rotationSettingsProblem(raw.rotation);
     if (!problem) result.rotation = raw.rotation;
     else report('INVALID_ROTATION_SETTINGS', `rotation${problem.property ? `.${problem.property}` : ''}`, problem.expected, problem.actual, { action: 'rotation controls unavailable; other controls preserved' });
+  }
+  if (own(raw, 'size')) {
+    const problem = sizeSettingsProblem(raw.size);
+    if (!problem) result.size = raw.size;
+    else report('INVALID_SIZE_SETTINGS', `size${problem.property ? `.${problem.property}` : ''}`, problem.expected, problem.actual, { action: 'size controls unavailable; other controls preserved' });
   }
 
   // Each preset has one explicit resolution state. Failure never means “try again”.

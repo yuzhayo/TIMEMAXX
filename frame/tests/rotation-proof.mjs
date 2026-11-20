@@ -184,7 +184,7 @@ try {
     const order = Object.values(n);
     for (let i = 1; i < order.length; i++) assert.ok(order[i - 1].right < order[i].x);
     for (const node of order) assert.ok(Math.abs(node.center - n.load.center) < 1);
-    assert.ok(n.left.x < width * 0.03 && n.load.x > width * 0.8);
+    assert.ok(n.left.x < width * 0.03 && n.load.x > width * 0.7);
     assert.ok(Math.abs(metric.degreeDelta) < 1);
     assert.ok(Math.abs(metric.parts.railHeight - metric.parts.control.height * 0.12) < 0.1);
     assert.ok(Math.abs(metric.parts.thumbWidth - metric.parts.control.width * 0.08) < 0.1);

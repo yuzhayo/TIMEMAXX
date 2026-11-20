@@ -5,15 +5,15 @@ import { configuredSx, configuredBounds, fill } from '@ui/appearance.mjs';
 
 export const componentId = 'file.controls';
 export const configKeys = ['labels', 'icons'];
-export const partKeys = ['load', 'save'];
+export const partKeys = ['load', 'save', 'reset'];
 
 // LOGIC — one baked file feature owns its parts; file operations retain their shared owner.
 export function validateConfig(config, report) {
   let valid = true;
   for (const group of ['labels', 'icons']) {
     const values = config[group];
-    if (!values || typeof values !== 'object' || Array.isArray(values)) { report(group, 'load/save options object', values); valid = false; continue; }
-    for (const key of Object.keys(values)) if (!partKeys.includes(key)) { report(`${group}.${key}`, 'load | save', values[key]); valid = false; }
+    if (!values || typeof values !== 'object' || Array.isArray(values)) { report(group, 'load/save/reset options object', values); valid = false; continue; }
+    for (const key of Object.keys(values)) if (!partKeys.includes(key)) { report(`${group}.${key}`, 'load | save | reset', values[key]); valid = false; }
     for (const name of partKeys) {
       if (group === 'icons' ? !hasActionIcon(values[name]) : typeof values[name] !== 'string' || !values[name].trim()) {
         report(`${group}.${name}`, group === 'icons' ? 'registered shared action icon' : 'nonempty accessible label', values[name]); valid = false;
@@ -25,16 +25,20 @@ export function validateConfig(config, report) {
     if (!part.size || part.bounds) { report(`parts.${name}`, 'size-only button allocation in the file row', part); valid = false; }
   }
   if (config.content.direction !== 'row' || config.content.wrap !== 'nowrap') {
-    report('content', 'one non-wrapping row for Load/Save', config.content); valid = false;
+    report('content', 'one non-wrapping row for Load/Save/Reset', config.content); valid = false;
   }
-  if (partKeys.reduce((width, name) => width + (config.parts[name].size?.width ?? 0), config.geometry.gap) > 100) {
-    report('parts', 'button widths plus gap contained in the row', config.parts); valid = false;
+  if (partKeys.reduce((width, name) => width + (config.parts[name].size?.width ?? 0), config.geometry.gap * (partKeys.length - 1)) > 100) {
+    report('parts', 'button widths plus gaps contained in the row', config.parts); valid = false;
   }
   return valid;
 }
 
 export default function FileControls({ config, state, actions }) {
-  const disabled = (name) => state.busy || typeof actions[name] !== 'function' || (name === 'save' && !state.document);
+  const disabled = (name) => {
+    if (state.busy) return true;
+    if (name === 'reset') return !state.photo || typeof actions.reset !== 'function';
+    return typeof actions[name] !== 'function' || (name === 'save' && !state.document);
+  };
   const activate = (name) => actions[name]({
     componentId: config.componentId, instanceId: config.id, parentId: config.parentId,
     filePath: config.filePath, configPath: `${config.configPath}.parts.${name}`,

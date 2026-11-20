@@ -1,0 +1,133 @@
+// LOGIC — photo geometry rules shared by file loading and future editing controls.
+export function centeredFill(photo, frame) {
+  return { scale: Math.max(frame.width / photo.width, frame.height / photo.height), x: 0, y: 0, rotation: 0 };
+}
+
+export function exportTransform(document) {
+  const transform = Object.fromEntries(['scale', 'x', 'y', 'rotation'].map((key) => [key, document[key]]));
+  if (!Object.values(transform).every(Number.isFinite) || transform.scale <= 0) throw new Error('Photo transform must be finite with a positive scale');
+  return transform;
+}
+
+export function rotationSettingsProblem(settings) {
+  const keys = ['min', 'max', 'step', 'precision', 'buttonStep'];
+  const problem = (property, expected) => ({ property, expected, actual: property ? settings[property] : settings });
+  if (settings === null || typeof settings !== 'object' || Array.isArray(settings)) return problem('', 'rotation policy object');
+  for (const key of Object.keys(settings)) if (!keys.includes(key)) return problem(key, 'supported rotation policy property');
+  for (const key of keys) if (!Number.isFinite(settings[key])) return problem(key, 'finite number');
+  if (settings.max - settings.min !== 360 || settings.min > 0 || settings.max < 0) return problem('max', '360-degree interval containing zero');
+  if (!Number.isInteger(settings.precision) || settings.precision < 0 || settings.precision > 100) return problem('precision', 'integer 0–100');
+  for (const key of ['step', 'buttonStep']) if (settings[key] <= 0 || settings[key] > 360 || Number(settings[key].toFixed(settings.precision)) !== settings[key]) return problem(key, 'positive, representable degree increment up to 360');
+  if (Math.abs(360 / settings.step - Math.round(360 / settings.step)) > 0.000001) return problem('step', 'step evenly dividing the rotation interval');
+  for (const key of ['min', 'max']) if (Number(settings[key].toFixed(settings.precision)) !== settings[key]) return problem(key, 'bound representable at configured precision');
+  return null;
+}
+
+export const rotationSettingsValid = (settings) => rotationSettingsProblem(settings) === null;
+
+// LOGIC — photo size policy has one owner, like the rotation policy.
+export function sizeSettingsProblem(settings) {
+  const keys = ['min', 'max', 'step', 'precision'];
+  const problem = (property, expected, actual) => ({ property, expected, actual: property ? settings[property] : settings });
+  if (settings === null || typeof settings !== 'object' || Array.isArray(settings)) return problem('', 'size policy object');
+  for (const key of Object.keys(settings)) if (!keys.includes(key)) return problem(key, 'supported size policy property');
+  for (const key of keys) if (!Number.isFinite(settings[key])) return problem(key, 'finite number');
+  if (settings.min <= 0) return problem('min', 'positive minimum percent', settings.min);
+  if (settings.max <= settings.min) return problem('max', 'maximum above the minimum', settings.max);
+  if (settings.step <= 0 || settings.step > settings.max - settings.min) return problem('step', 'positive step inside the range', settings.step);
+  if (!Number.isInteger(settings.precision) || settings.precision < 0 || settings.precision > 10) return problem('precision', 'integer 0-10', settings.precision);
+  return null;
+}
+
+export const sizeSettingsValid = (settings) => sizeSettingsProblem(settings) === null;
+
+// LOGIC — the centered fill scale is the 100% reference for photo size.
+export function fitScale(photo, frame) {
+  return Math.max(frame.width / photo.width, frame.height / photo.height);
+}
+
+export function sizePercentOf(document, photo, frame, precision = 0) {
+  if (!photo || !frame) return null;
+  const base = fitScale(photo, frame);
+  if (!Number.isFinite(base) || base <= 0) return null;
+  return Number(((document.scale / base) * 100).toFixed(precision));
+}
+
+export function scaleFromPercent(percent, photo, frame) {
+  return fitScale(photo, frame) * percent / 100;
+}
+
+// Draft grammar is shared with the field; rotation rounding/wrapping has one owner.
+export function parseRotationDraft(text) {
+  return /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(text.trim()) ? Number(text) : NaN;
+}
+
+export function normalizeRotation(value, settings) {
+  if (!Number.isFinite(value) || !rotationSettingsValid(settings)) throw new Error('Invalid rotation value or policy');
+  const rounded = Number(value.toFixed(settings.precision));
+  const wrapped = rounded >= settings.min && rounded <= settings.max ? rounded
+    : ((rounded - settings.min) % 360 + 360) % 360 + settings.min;
+  const normalized = Number(wrapped.toFixed(settings.precision));
+  return Object.is(normalized, -0) ? 0 : normalized;
+}
+
+// LOGIC — rotation commands own calculations; history owns gesture grouping.
+export function createPhotoOperations({ history, photoState, settings, size, output, publish }) {
+  const canEdit = () => {
+    const snapshot = photoState?.snapshot(history.snapshot().document);
+    return Boolean(snapshot?.photo) && !snapshot.busy;
+  };
+  const current = () => history.snapshot().document;
+  const photoOf = () => photoState?.snapshot(current())?.photo ?? null;
+  const frameOf = () => output?.frame ?? null;
+  const percentOf = () => {
+    const photo = photoOf(), frame = frameOf();
+    return photo && frame && size ? sizePercentOf(current(), photo, frame, size.precision) : null;
+  };
+  const updateRotation = (value) => {
+    if (!canEdit() || !Number.isFinite(value) || !settings) return current()?.rotation;
+    const next = { ...current(), rotation: normalizeRotation(value, settings) };
+    publish(history.updateEdit(next));
+    return next.rotation;
+  };
+  const updateSize = (percent) => {
+    if (!canEdit() || !Number.isFinite(percent) || !size) return percentOf();
+    const photo = photoOf(), frame = frameOf();
+    if (!photo || !frame) return percentOf();
+    const clamped = Math.min(size.max, Math.max(size.min, percent));
+    publish(history.updateEdit({ ...current(), scale: scaleFromPercent(clamped, photo, frame) }));
+    return percentOf();
+  };
+  const operations = {
+    beginRotation: () => { if (canEdit()) history.beginEdit(); },
+    updateRotation,
+    stepRotation: (direction) => [-1, 1].includes(direction) ? updateRotation(current().rotation + direction * settings.step) : current()?.rotation,
+    finishRotation: () => { publish(history.finishEdit()); return current()?.rotation; },
+    cancelRotation: () => { publish(history.cancelEdit()); return current()?.rotation; },
+    rotateBy: (delta) => {
+      if (!canEdit() || !Number.isFinite(delta) || !settings) return;
+      publish(history.commit({ ...current(), rotation: normalizeRotation(current().rotation + delta, settings) }));
+    },
+  };
+  if (size) Object.assign(operations, {
+    beginSize: () => { if (canEdit()) history.beginEdit(); },
+    updateSize,
+    stepSize: (direction) => {
+      const percent = percentOf();
+      if (percent === null || ![-1, 1].includes(direction)) return percent;
+      // LOGIC — a button step is one discrete history entry, like the rotation buttons.
+      const photo = photoOf(), frame = frameOf();
+      const clamped = Math.min(size.max, Math.max(size.min, percent + direction * size.step));
+      publish(history.commit({ ...current(), scale: scaleFromPercent(clamped, photo, frame) }));
+      return percentOf();
+    },
+    finishSize: () => { publish(history.finishEdit()); return percentOf(); },
+    cancelSize: () => { publish(history.cancelEdit()); return percentOf(); },
+  });
+  operations.reset = () => {
+    const photo = photoOf(), frame = frameOf();
+    if (!canEdit() || !photo || !frame) return;
+    publish(history.commit(centeredFill(photo, frame)));
+  };
+  return operations;
+}

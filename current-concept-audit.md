@@ -42,6 +42,35 @@ Loading/replacing an image resets photo history. No fake edits are seeded.
 The working rule is to close an existing target-app instance and launch the current
 build after finishing changes and focused verification, leaving it open for the user.
 
+## Baked size controls and Reset
+
+`action-bar/SizeControls.jsx` is one baked `photo.sizeControls` instance
+(`sizeControls`) with parts decrease/slider/value/increase, placed between the
+Rotation group and the file group. `PhotoOperations.mjs` owns the size policy
+(`size` in JSON: 10–400%, 5% step) plus `fitScale`, `sizePercentOf` and
+`scaleFromPercent`; the centered-fill scale is the 100% reference. The shared
+`frame.controls` group gained a third part, `reset`, which restores the fitted
+document through the same shared operation owner.
+
+A slider drag is one grouped history step; the +/- buttons are discrete commits,
+like the rotation buttons. Undo/Redo settle pending edits through the same owner.
+
+Focused verification: 30 contract/rotation logic tests, UI build and the new
+`tests/size-controls-proof.mjs` passed. It checks the fitted 100% start, button
+steps, slider drag, value readout, live preview, one-step Undo/Redo, Reset
+restoring the fitted document, an exact 1200×1600 export after Reset, and
+default/minimum native captures under `frame/.runtime/checks/size-controls/`.
+Window-swap, file-action, rotation and Bottom Bar proofs were rerun and passed.
+`tests/bar-layout-proof.mjs` layout assertions passed, but its native
+foreground-mouse portion could not run in this environment ("proof window is not
+foreground"), so that drag proof is unverified in this pass.
+
+Two defects were found and fixed during this slice: the size value box claimed
+100% of the group and squeezed the slider to zero width, and the +/- buttons
+opened a live edit so Undo committed instead of stepping back.
+Previous normal frame PID **17096** closed normally. Updated normal frame PID
+**13116**, with owned worker PID **7776**, was verified and left running.
+
 ## Baked file controls and right margins
 
 `action-bar/FileControls.jsx` replaces the individual `FileActionButton.jsx`
@@ -178,7 +207,8 @@ frame/
 │       │   ├── WindowActionButton.jsx  Configured minimize/maximize/restore/close behavior
 │       │   └── InfoButton.jsx          Open information overlay
 │       ├── action-bar/
-│       │   ├── FileControls.jsx        Baked Load/Save group; invokes file actions and shared buttons
+│       │   ├── FileControls.jsx        Baked Load/Save/Reset group; invokes file actions and shared buttons
+│       │   ├── SizeControls.jsx        Baked photo size group; decrease/slider/value/increase
 │       │   ├── SizeLabel.jsx           Accessible photo-size label
 │       │   ├── DecreaseSizeButton.jsx  Invoke shared photo-size decrease
 │       │   ├── PhotoSizeSlider.jsx     Size interaction and grouped edit completion
@@ -413,7 +443,8 @@ black output and 1200×1600 / 2400×3200 / 3024×4032 export sizes.
 
 | Owner | Implemented responsibility |
 | --- | --- |
-| `FileControls.jsx` | One baked file-behavior registration/instance, two named parts, component-owned labels/icons/row validation and delegation to the shared MUI renderer. |
+| `FileControls.jsx` | One baked file-behavior registration/instance, three named parts (load/save/reset), component-owned labels/icons/row validation and delegation to the shared MUI renderer. |
+| `SizeControls.jsx` / `PhotoOperations.mjs` | One baked photo-size registration/instance; shared size policy, fit/percent/scale rules and history-grouped size commands. |
 | `components/ActionButton.jsx` (under `@APPS`) | One rendering/icon mechanism shared by file and window action registrations; no native/file behavior or app-specific appearance. |
 | `WindowActionButton.jsx` / `WindowActions.mjs` / `FrameWindow.cjs` | Config-driven window-button behavior, renderer event subscription and whitelisted native window operations; normal close/worker cleanup. |
 | `ImageFileActions.mjs` | Busy/cancel/error/save sequencing; coordinates state/history through their methods. |
@@ -437,8 +468,7 @@ uses its own declared owners; no old controller or stamp runtime was copied in.
    mismatch isolation passed. Controls are restored to Action Bar after the proof.
    The five demonstrated audit defects are repaired; targeted bad-config checks
    confirm isolation/logging instead of crashes or silent fallback.
-3. **File slice complete:** one baked FileControls instance and shared part preset,
-   native Load/Save, real preview and independent Rust photo/black PNG/JPEG export.
+3. **File slice complete:** one baked FileControls instance and shared part preset,   native Load/Save, real preview and independent Rust photo/black PNG/JPEG export.
    Shared-preset changes, per-part appearance, group enabling/mismatch isolation,
    cancellation, replacement and original protection are verified.
    The relocation test arrangement is retained: Load/Save in Action Bar and
