@@ -29,7 +29,7 @@ export function createFrameSession(config, services = {}) {
     for (const listener of listeners) listener();
   };
   const files = photoState && services.transport ? createImageFileActions({ transport: services.transport, photoState, history, output: services.output, publish: () => publish(true), diagnostics: services.diagnostics }) : null;
-  const photoOperations = services.rotation
+  const photoOperations = photoState && services.output
     ? createPhotoOperations({ history, photoState, settings: services.rotation, size: services.size ?? null, output: services.output, publish }) : null;
   if (services.transport?.windowAction && services.transport?.onWindowState) {
     windowActions = createWindowActions({ transport: services.transport, initialState: services.windowState, publish: () => publish(true), diagnostics: services.diagnostics });

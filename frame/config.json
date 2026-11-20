@@ -40,6 +40,8 @@
       }
     },
     "fileAction": { "preset": "button", "colors": { "background": "transparent" }, "geometry": { "iconWidth": 49, "iconHeight": 62 } },
+    "placement": { "preset": "button", "geometry": { "paddingX": 6, "iconWidth": 14, "iconHeight": 60 }, "content": { "horizontalAlign": "space-between", "textAlign": "left" } },
+    "placementMenu": { "preset": "button", "geometry": { "radius": 0, "paddingX": 8, "paddingY": 8 }, "content": { "direction": "column", "horizontalAlign": "stretch", "verticalAlign": "flex-start", "textAlign": "left", "overflow": "visible" } },
     "adjustmentValue": { "preset": "button", "geometry": { "fontSize": 13 }, "states": { "error": { "colors": { "foreground": "#ff9f9f" } } } },
     "rotationRail": { "preset": "base", "colors": { "background": "#43505f" }, "geometry": { "radius": 3 } },
     "rotationTrack": { "preset": "base", "colors": { "background": "#9aa5b2" }, "geometry": { "radius": 3 } },
@@ -70,6 +72,10 @@
     { "id": "fileStatus", "componentId": "file.status", "parentId": "bottomBar", "enabled": true, "label": "Application messages", "bounds": { "x": 2, "y": 0, "width": 96, "height": 100 }, "preset": "status" },
     { "id": "windowMinimize", "componentId": "window.action", "parentId": "windowsBar", "enabled": false, "label": "Minimize window", "action": "minimize", "icon": "minimize", "bounds": { "x": 81, "y": 8, "width": 4.5, "height": 84 }, "preset": "fileAction" },
     { "id": "windowMaximize", "componentId": "window.action", "parentId": "windowsBar", "enabled": false, "label": "Maximize or restore window", "action": "toggleMaximize", "icon": "maximize", "maximizedIcon": "restore", "bounds": { "x": 87, "y": 8, "width": 4.5, "height": 84 }, "preset": "fileAction" },
+    { "id": "placement", "componentId": "photo.placement", "parentId": "windowsBar", "enabled": true, "label": "Placement", "bounds": { "x": 78, "y": 8, "width": 15.5, "height": 84 }, "preset": "placement",
+      "options": [{ "id": "placementFit", "value": "fit", "label": "Fit" }, { "id": "placementFill", "value": "fill", "label": "Fill" }, { "id": "placementCenter", "value": "center", "label": "Center" }],
+      "parts": { "menu": { "preset": "placementMenu", "surfacePadding": "0.65em 1em" } }
+    },
     { "id": "windowClose", "componentId": "window.action", "parentId": "windowsBar", "enabled": true, "label": "Close window", "action": "close", "icon": "close", "bounds": { "x": 94.5, "y": 8, "width": 4.5, "height": 84 }, "preset": "fileAction" },
     { "id": "rotationControls", "componentId": "photo.rotationControls", "parentId": "actionBar", "enabled": true, "label": "Photo rotation controls", "unit": "°", "icons": { "decrease": "rotateLeft", "increase": "rotateRight" },
       "labels": { "decrease": "Rotate left 90 degrees", "value": "Photo rotation in degrees", "slider": "Photo rotation slider", "increase": "Rotate right 90 degrees" },

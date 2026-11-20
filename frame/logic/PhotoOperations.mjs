@@ -1,6 +1,28 @@
 // LOGIC — photo geometry rules shared by file loading and future editing controls.
 export function centeredFill(photo, frame) {
-  return { scale: Math.max(frame.width / photo.width, frame.height / photo.height), x: 0, y: 0, rotation: 0 };
+  return { scale: placementScale(photo, frame, 0, 'fill'), x: 0, y: 0, rotation: 0 };
+}
+
+export const placementModes = Object.freeze(['fit', 'fill', 'center']);
+
+// LOGIC — Fit/Fill account for current rotation; Center changes position only.
+export function placementScale(photo, frame, rotation, mode) {
+  if (!photo || !frame || !Number.isFinite(rotation) || !['fit', 'fill'].includes(mode)) throw new Error('Invalid photo placement scale request');
+  const radians = rotation * Math.PI / 180;
+  const cosine = Math.abs(Math.cos(radians));
+  const sine = Math.abs(Math.sin(radians));
+  if (mode === 'fill') {
+    return Math.max((cosine * frame.width + sine * frame.height) / photo.width,
+      (sine * frame.width + cosine * frame.height) / photo.height);
+  }
+  return Math.min(frame.width / (cosine * photo.width + sine * photo.height),
+    frame.height / (sine * photo.width + cosine * photo.height));
+}
+
+export function placedDocument(document, photo, frame, mode) {
+  if (!placementModes.includes(mode)) throw new Error('Unsupported photo placement');
+  if (mode === 'center') return { ...document, x: 0, y: 0 };
+  return { ...document, scale: placementScale(photo, frame, document.rotation, mode), x: 0, y: 0 };
 }
 
 export function exportTransform(document) {
@@ -43,7 +65,7 @@ export const sizeSettingsValid = (settings) => sizeSettingsProblem(settings) ===
 
 // LOGIC — the centered fill scale is the 100% reference for photo size.
 export function fitScale(photo, frame) {
-  return Math.max(frame.width / photo.width, frame.height / photo.height);
+  return placementScale(photo, frame, 0, 'fill');
 }
 
 export function sizePercentOf(document, photo, frame, precision = 0) {
@@ -98,7 +120,8 @@ export function createPhotoOperations({ history, photoState, settings, size, out
     publish(history.updateEdit({ ...current(), scale: scaleFromPercent(clamped, photo, frame) }));
     return percentOf();
   };
-  const operations = {
+  const operations = {};
+  if (settings) Object.assign(operations, {
     beginRotation: () => { if (canEdit()) history.beginEdit(); },
     updateRotation,
     stepRotation: (direction) => [-1, 1].includes(direction) ? updateRotation(current().rotation + direction * settings.step) : current()?.rotation,
@@ -108,7 +131,7 @@ export function createPhotoOperations({ history, photoState, settings, size, out
       if (!canEdit() || !Number.isFinite(delta) || !settings) return;
       publish(history.commit({ ...current(), rotation: normalizeRotation(current().rotation + delta, settings) }));
     },
-  };
+  });
   if (size) Object.assign(operations, {
     beginSize: () => { if (canEdit()) history.beginEdit(); },
     updateSize,
@@ -128,6 +151,13 @@ export function createPhotoOperations({ history, photoState, settings, size, out
     const photo = photoOf(), frame = frameOf();
     if (!canEdit() || !photo || !frame) return;
     publish(history.commit(centeredFill(photo, frame)));
+  };
+  operations.placePhoto = (mode) => {
+    const photo = photoOf(), frame = frameOf();
+    if (!canEdit() || !photo || !frame || !placementModes.includes(mode)) return current();
+    const next = placedDocument(current(), photo, frame, mode);
+    publish(history.commit(next));
+    return next;
   };
   return operations;
 }

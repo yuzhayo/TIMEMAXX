@@ -155,6 +155,14 @@ second Electron instance) at `frame/.runtime/checks/shared-adjustment/live.png`;
 both adapters mounted through the shared row with no Bottom Bar diagnostic. No new
 UI test or fixed-pixel assertion was added.
 
+## Placement control
+
+`windows-bar/PlacementDropdown.jsx` is a configured action selector immediately
+before Close/X. Fit and Fill preserve rotation, recalculate scale from rotated
+photo/frame geometry and center the photo; Center changes x/y only. The dropdown
+owns labels/menu interaction, while `PhotoOperations.mjs` owns all placement math
+and commits each effective action through `PhotoHistory`.
+
 ## Exact target files and ownership
 
 Paths below are relative to `frame/`. This maps every skeleton file to its job;
@@ -194,6 +202,7 @@ frame/
 │       │   ├── UndoButton.jsx          Invoke photo-history Undo
 │       │   ├── RedoButton.jsx          Invoke photo-history Redo
 │       │   ├── WindowActionButton.jsx  Configured minimize/maximize/restore/close behavior
+│       │   ├── PlacementDropdown.jsx   Fit/Fill/Center action selection before Close/X
 │       │   └── InfoButton.jsx          Open information overlay
 │       ├── action-bar/
 │       │   ├── FileControls.jsx        Baked Load/Save/Reset group; invokes file actions and shared buttons
@@ -205,7 +214,6 @@ frame/
 │       │   ├── PhotoSizeValue.jsx      Show current photo-size percentage
 │       │   ├── RotationControls.jsx    Thin Rotation behavior adapter for shared AdjustmentControls
 │       │   ├── ActionSeparator.jsx     Independent Action Bar separator outside feature outlines
-│       │   ├── PlacementDropdown.jsx   Fit/Fill/Center action selection
 │       │   └── ResetButton.jsx         Invoke shared photo reset
 │       ├── frame-body/
 │       │   ├── PhotoPreview.jsx        Canvas lifetime and interaction subscriptions
@@ -499,7 +507,7 @@ re-audit unrelated files or repeatedly reconfirm an already-correct skeleton.
 - [x] Undo's actual button color/height follow JSON and Redo remains unchanged.
 - [x] Rotation color/height changes JSON only and affects the actual field; number
       and degree symbol remain aligned, while implemented Load/Save stay unchanged.
-      Reset/Placement remain empty skeletons, so their visual independence is not claimed.
+      Reset and Placement are implemented through their own configured owners.
 - [x] Resizing the Action Bar changes child height by its configured percentage and leaves Bottom Bar unchanged.
 - [x] Moving Undo/Redo between folders plus JSON relocates them with no parent code
       or behavior edits; current physical files/parent IDs place them in Windows Bar.
