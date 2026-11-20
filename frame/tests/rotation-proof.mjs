@@ -113,7 +113,7 @@ try {
   await page.mouse.move(500, 400);
   const loadBefore = await page.locator('#load').evaluate((element) => { const b = element.getBoundingClientRect(); return { width: b.width, height: b.height, color: getComputedStyle(element).color }; });
   const customized = structuredClone(config), group = customized.instances.find((node) => node.id === 'rotationControls');
-  group.parts.field.bounds.y = 20; group.parts.field.bounds.height = 60;
+  group.parts.field.size.height = 60;
   group.parts.input.colors = { foreground: '#91e4c3' };
   group.parts.degree.colors = { foreground: '#91e4c3' };
   await configure(customized);
@@ -161,7 +161,7 @@ try {
     }
     await page.mouse.move(width / 2, height / 2);
     const metric = await page.evaluate(() => {
-      const read = (id) => { const e = document.getElementById(['load', 'save'].includes(id) ? id : `rotationControls-${id}`), b = e.getBoundingClientRect(); return { x: b.x, y: b.y, width: b.width, height: b.height, right: b.right, center: b.y + b.height / 2 }; };
+      const read = (id) => { const e = document.getElementById(id === 'separator' ? 'rotationSeparator' : ['load', 'save'].includes(id) ? id : `rotationControls-${id}`), b = e.getBoundingClientRect(); return { x: b.x, y: b.y, width: b.width, height: b.height, right: b.right, center: b.y + b.height / 2 }; };
       const ids = ['left', 'field', 'slider', 'right', 'separator', 'load', 'save'];
       const nodes = Object.fromEntries(ids.map((id) => [id, read(id)]));
       const field = document.querySelector('#rotationControls-input').getBoundingClientRect(), unit = document.querySelector('#rotationControls-field [data-part="degree"]').getBoundingClientRect();
@@ -173,7 +173,7 @@ try {
     });
     const n = metric.nodes;
     const parentWidth = await page.locator('[data-rotation-content]').evaluate((element) => element.clientWidth);
-    assert.ok(n.field.width <= parentWidth * 0.16 + 1, 'Content-sized degree field stays within its maximum allocation');
+    assert.ok(n.field.width <= parentWidth * 0.22 + 1, 'Content-sized degree field stays within its maximum allocation');
     for (const id of ['left', 'right']) {
       assert.ok(Math.abs(n[id].width - n[id].height) < 0.1, `${id} true square at ${name}`);
       assert.equal(await page.locator(`#rotationControls-${id}`).getAttribute('data-button-renderer'), 'shared-action');

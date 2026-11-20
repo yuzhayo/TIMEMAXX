@@ -9,7 +9,7 @@ import { parseRotationDraft } from '@frame/logic/PhotoOperations.mjs';
 export const componentId = 'photo.rotationControls';
 export const requires = ['rotation', 'output'];
 export const configKeys = ['unit', 'textSizing', 'labels', 'icons'];
-export const partKeys = ['left', 'field', 'input', 'degree', 'slider', 'control', 'rail', 'track', 'thumb', 'right', 'separator'];
+export const partKeys = ['left', 'field', 'input', 'degree', 'slider', 'control', 'rail', 'track', 'thumb', 'right'];
 
 // LOGIC — one feature contract; the generic layout validates common visuals/bounds.
 export function validateConfig(config, report) {
@@ -21,8 +21,8 @@ export function validateConfig(config, report) {
     return true;
   };
   if (typeof config.unit !== 'string' || !config.unit.trim()) { report('unit', 'nonempty degree unit', config.unit); valid = false; }
-  if (keys(config.labels, ['left', 'input', 'slider', 'right', 'separator'], 'labels')) {
-    for (const name of ['left', 'input', 'slider', 'right', 'separator']) if (typeof config.labels[name] !== 'string' || !config.labels[name].trim()) { report(`labels.${name}`, 'accessible label', config.labels[name]); valid = false; }
+  if (keys(config.labels, ['left', 'input', 'slider', 'right'], 'labels')) {
+    for (const name of ['left', 'input', 'slider', 'right']) if (typeof config.labels[name] !== 'string' || !config.labels[name].trim()) { report(`labels.${name}`, 'accessible label', config.labels[name]); valid = false; }
   } else valid = false;
   if (keys(config.icons, ['left', 'right'], 'icons')) {
     for (const name of ['left', 'right']) if (!hasActionIcon(config.icons[name])) { report(`icons.${name}`, 'registered shared action icon', config.icons[name]); valid = false; }
@@ -33,27 +33,30 @@ export function validateConfig(config, report) {
     if (sizing.maxCharacters < sizing.minDigits) { report('textSizing.maxCharacters', 'at least minDigits', sizing.maxCharacters); valid = false; }
     for (const name of ['paddingCh', 'gapCh']) if (!Number.isFinite(sizing[name]) || sizing[name] < 0) { report(`textSizing.${name}`, 'nonnegative input-font character units', sizing[name]); valid = false; }
   } else valid = false;
-  for (const name of ['left', 'field', 'slider', 'control', 'right', 'separator']) {
+  for (const name of ['control']) {
     const part = config.parts[name];
     if (!part.bounds) { report(`parts.${name}.bounds`, 'explicit parent-relative bounds', undefined); valid = false; }
     if (part.size) { report(`parts.${name}.size`, 'bounds-only positioned part', part.size); valid = false; }
   }
-  for (const name of ['input', 'degree', 'rail', 'track', 'thumb']) {
+  for (const name of ['left', 'field', 'input', 'degree', 'slider', 'rail', 'track', 'thumb', 'right']) {
     const part = config.parts[name];
     if (!part.size) { report(`parts.${name}.size`, 'explicit parent-relative size', undefined); valid = false; }
     if (part.bounds) { report(`parts.${name}.bounds`, 'size-only text or MUI-managed part', part.bounds); valid = false; }
   }
-  for (const name of ['input', 'degree', 'rail', 'track']) if (config.parts[name].size?.width !== 100) {
+  for (const name of ['input', 'degree', 'slider', 'rail', 'track']) if (config.parts[name].size?.width !== 100) {
     report(`parts.${name}.size.width`, '100% of its text allocation or control range', config.parts[name].size?.width); valid = false;
   }
   for (const name of partKeys) if (!['left', 'right'].includes(name) && config.parts[name].aspectRatio !== undefined) {
     report(`parts.${name}.aspectRatio`, 'aspect ratio belongs to the rotation button parts', config.parts[name].aspectRatio); valid = false;
   }
+  if (config.content.direction !== 'row' || config.content.wrap !== 'nowrap') {
+    report('content', 'one non-wrapping row for the baked rotation controls', config.content); valid = false;
+  }
   return valid;
 }
 
 export default function RotationControls({ config, state, actions }) {
-  const { left, field, input, degree, slider, control, rail, track, thumb, right, separator } = config.parts;
+  const { left, field, input, degree, slider, control, rail, track, thumb, right } = config.parts;
   const settings = state.rotationSettings;
   const value = state.document?.rotation;
   const disabled = !state.photo || state.busy || !actions.updateRotation;
@@ -120,26 +123,37 @@ export default function RotationControls({ config, state, actions }) {
   const ch = textWidth(input, '0');
   const padding = Math.ceil(sizing.paddingCh * ch), gap = Math.ceil(sizing.gapCh * ch);
   const fieldWidth = numberWidth + unitWidth + 2 * padding + gap + 2 * field.geometry.borderWidth;
+  // A fixed, font-sized editing cell prevents live values from moving the slider.
+  const reservedFieldWidth = Math.ceil(textWidth(input, '0'.repeat(sizing.maxCharacters))) + unitWidth + 2 * padding + gap + 2 * field.geometry.borderWidth;
   const invalid = !disabled && !Number.isFinite(parseRotationDraft(draft));
   const id = (name) => `${config.id}-${name}`;
   const buttonConfig = (name, part) => ({ ...part, id: id(name), label: config.labels[name], icon: config.icons[name] });
   const textBounds = (part, x, width) => ({ position: 'absolute', left: `${x}px`, top: `${(100 - part.size.height) / 2}%`, width: `${width}px`, height: `${part.size.height}%` });
   const managedPart = (part) => ({ ...configuredSx(part), height: `${part.size.height}cqh` });
-  const slot = (name, part, children) => <Box data-part={name} sx={{ ...configuredBounds(part), containerType: 'size' }}>{children}</Box>;
+  const slot = (name, part, children) => <Box data-part={name} sx={{
+    ...configuredBounds({ ...part, bounds: { x: 0, y: 0, width: part.size.width, height: part.size.height } }),
+    position: 'relative', left: 'auto', top: 'auto', flexShrink: 0, containerType: 'size',
+  }}>{children}</Box>;
 
   // UI — one baked feature; JSON owns the outline, proportional padding and every part.
   return <Box id={config.id} role="group" aria-label={config.label} sx={{ ...fill, ...configuredSx(config) }}>
-    <Box data-rotation-content="true" sx={{ ...fill, position: 'relative', containerType: 'size' }}>
+    <Box data-rotation-content="true" sx={{ ...fill, position: 'relative', containerType: 'size',
+      display: 'flex', flexDirection: config.content.direction, flexWrap: config.content.wrap,
+      alignItems: config.content.verticalAlign, justifyContent: config.content.horizontalAlign, columnGap: `${config.geometry.gap}%`,
+    }}>
       {slot('left', left, <ActionButton config={buttonConfig('left', left)} disabled={disabled} onClick={() => actions.rotateBy(-settings.buttonStep)} />)}
-      <Box id={id('field')} data-part="field" sx={{ ...configuredBounds(field), width: `min(${fieldWidth}px, ${field.bounds.width}%)`, containerType: 'size' }}>
-        <Box aria-disabled={disabled} sx={{ ...fill, ...configuredSx(field), position: 'relative', containerType: 'size' }}>
+      <Box data-part="field" sx={{ width: `min(${reservedFieldWidth}px, ${field.size.width}cqw)`, height: `${field.size.height}%`,
+        flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', containerType: 'size',
+      }}>
+        <Box id={id('field')} aria-disabled={disabled} sx={{ ...fill, ...configuredSx(field), width: `min(${fieldWidth}px, 100%)`, position: 'relative', containerType: 'size' }}>
           <InputBase value={draft} disabled={disabled} error={invalid} onChange={changeInput} onBlur={finishInput} onKeyDown={inputKeyDown}
             sx={{ ...textBounds(input, padding, numberWidth), '&.Mui-focused': configuredAppearance(input, 'focusVisible'), ...configuredSx(input) }}
             slotProps={{ input: { id: id('input'), 'aria-label': config.labels.input, 'aria-invalid': invalid, inputMode: 'decimal', autoComplete: 'off', className: 'configured-native-input', 'data-part': 'input' } }} />
           <Box component="span" aria-hidden="true" aria-disabled={disabled} data-part="degree" sx={{ ...textBounds(degree, padding + numberWidth + gap, unitWidth), ...configuredSx(degree) }}>{config.unit}</Box>
         </Box>
       </Box>
-      {slot('slider', slider, <Box id={id('slider')} aria-disabled={disabled} sx={{ ...fill, ...configuredSx(slider), position: 'relative', containerType: 'size' }}>
+      <Box data-part="slider" sx={{ flexGrow: slider.size.width / 100, flexShrink: 1, flexBasis: 0, minWidth: 0, height: `${slider.size.height}%`, containerType: 'size' }}>
+        <Box id={id('slider')} aria-disabled={disabled} sx={{ ...fill, ...configuredSx(slider), position: 'relative', containerType: 'size' }}>
         <Slider aria-label={config.labels.slider} disabled={disabled} value={value ?? settings.min}
           min={settings.min} max={settings.max} step={settings.step} shiftStep={settings.step}
           onChange={changeSlider} onChangeCommitted={finishSlider} onBlur={sliderKeyUp} onKeyUp={sliderKeyUp} onKeyDown={sliderKeyDown}
@@ -150,9 +164,9 @@ export default function RotationControls({ config, state, actions }) {
             track: { 'data-part': 'track', 'aria-disabled': disabled, sx: { ...managedPart(track), maxWidth: `${track.size.width}%` } },
             thumb: { 'data-part': 'thumb', sx: { ...managedPart(thumb), width: `${thumb.size.width}cqw`, '&::before, &::after': { display: 'none' } } },
           }} />
-      </Box>)}
+        </Box>
+      </Box>
       {slot('right', right, <ActionButton config={buttonConfig('right', right)} disabled={disabled} onClick={() => actions.rotateBy(settings.buttonStep)} />)}
-      {slot('separator', separator, <Box id={id('separator')} role="separator" aria-label={config.labels.separator} aria-orientation="vertical" sx={{ ...fill, ...configuredSx(separator) }} />)}
     </Box>
   </Box>;
 }

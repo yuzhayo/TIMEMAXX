@@ -41,18 +41,19 @@ build after finishing changes and focused verification, leaving it open for the 
 
 ## Baked feature blocks: Rotation
 
-Rotation is now one baked feature sub-parent, not five independent Action Bar
-instances. Its UI and local interaction owner is:
+Rotation is one baked feature sub-parent containing its four controls. The
+separator is a separate Action Bar sibling, outside the group's outline.
+Rotation's UI and local interaction owner is:
 `frame/view/window/action-bar/RotationControls.jsx`.
 
 ```text
 Action Bar
-└── RotationControls
-    ├── Rotate left
-    ├── Degree input
-    ├── Slider
-    ├── Rotate right
-    └── Separator
+├── RotationControls
+│   ├── Rotate left
+│   ├── Degree input
+│   ├── Slider
+│   └── Rotate right
+└── ActionSeparator
 ```
 
 One owning component contains the group's UI and local interactions, so editing
@@ -69,12 +70,15 @@ such as `focusVisible`. They apply to the baked group and its configured parts.
 A border is the box edge; an outline is a separate ring and does not consume
 layout space. Development inspector outlines remain separate and development-only.
 
-The group has a normal-use 1px configured outline. Internal padding is 2% of
-the group's width and 4% of its height. It occupies 92% of Action Bar height with
+The group has a normal-use 1px configured outline. Internal padding is 0.5% of
+the group's width and 4% of its height; row gaps are 1.5% of content width.
+It occupies 36% of Action Bar width and 92% of its height with
 4% top/bottom placement insets; padded controls retain the compact bar sizing.
 Its named parts share one injected session. Input autosizing remains local to the
-group and cannot shift the slider's drag area. The five old registrations and
-the superseded parent preferred-width plumbing are removed.
+group and cannot shift the slider's drag area. A centred, font-sized field cell
+replaces the old empty positional allocation. The separator has its own
+`ActionSeparator.jsx` registration. Superseded independent rotation registrations
+and parent preferred-width plumbing remain removed.
 
 ## Exact target files and ownership
 
@@ -124,6 +128,7 @@ frame/
 │       │   ├── IncreaseSizeButton.jsx  Invoke shared photo-size increase
 │       │   ├── PhotoSizeValue.jsx      Show current photo-size percentage
 │       │   ├── RotationControls.jsx    Baked rotation UI/interaction; outlined group and named parts
+│       │   ├── ActionSeparator.jsx     Independent Action Bar separator outside feature outlines
 │       │   ├── PlacementDropdown.jsx   Fit/Fill/Center action selection
 │       │   └── ResetButton.jsx         Invoke shared photo reset
 │       ├── frame-body/
@@ -660,6 +665,30 @@ prepared stamp definition, with an independently usable headless engine.
   export or old-app suite was rerun for this UI consolidation.
 - No old normal target process was found at completion. Updated normal frame PID
   **13472** and its owned worker PID **14968** were verified and left running.
+
+### Compact proportional spacing and external separator
+
+- Corrected the feature boundary: the baked block contains Left / Degree / Slider /
+  Right only. `rotationSeparator` is an independent Action Bar instance outside
+  the outline, rendered by `ActionSeparator.jsx`.
+- Group width decreased from 44% to 36% of Action Bar (about 18% narrower).
+  Horizontal padding is now 0.5% instead of 2%; vertical padding stays 4%.
+  Four parts use a local non-wrapping row with 1.5% proportional gaps rather than
+  fixed x positions. The field centres its expanding box inside a small,
+  font-sized editing cell; the slider fills remaining space without moving during
+  input changes. No parent layout/dependency framework was added.
+- UI build and quick default/minimum visual check completed; no startup issues.
+  Side padding measured 1.72px / 1.36px. At `0°`, field-to-rail spacing is now
+  28.38px / 25.92px rather than the prior large positional gap (about 60px at
+  default size). Full `-179.9` fits, buttons remain square, and the separator
+  sits 1% of Action Bar width beyond the group. Slider dragging reached 90°.
+- Visual inspection also caught endpoint thumb clipping after reducing the old
+  slider inset. The slider now declares visible overflow and a compact 3% inset,
+  preserving its whole thumb/focus ring without enlarging the group. Updated
+  native captures under `.runtime/checks/compact-rotation/` were inspected.
+  Existing proof expectations were adapted; no broad suite was run.
+- No old target main process matched at completion. Updated normal frame PID
+  **10940**, with owned worker PID **15480**, was verified and left running.
 
 This proves layout/history, Load/Save and Rotation slices, not full application readiness.
 Other editing controls, view gestures, full overlays, nested
