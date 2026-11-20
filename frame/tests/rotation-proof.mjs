@@ -82,6 +82,7 @@ try {
   await page.click('#rotationControls-left'); await waitRotation(-77.7);
   checked.push('0.1° input precision, invalid draft recovery, Escape cancellation, ±90° buttons, synchronized slider and one-step typing history');
   await load();
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   const rail = await page.locator('#rotationControls-slider [data-part="rail"]').boundingBox();
   await page.mouse.move(rail.x + rail.width / 2, rail.y + rail.height / 2); await page.mouse.down();
   assert.equal(await page.locator('#rotationControls-slider [data-part="thumb"]').evaluate((element) => getComputedStyle(element).backgroundColor), 'rgb(255, 196, 77)', 'JSON active state reaches MUI thumb');
@@ -135,17 +136,18 @@ try {
     for (const text of ['0', '10', '100', '-179.9', '0']) {
       await input.fill(text);
       await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-      const positions = await page.locator('#rotationControls-field, #rotationControls-slider, #load, #save').evaluateAll((elements) => elements.map((element) => { const b = element.getBoundingClientRect(); return { x: b.x, width: b.width }; }));
+      const positions = await page.evaluate((ids) => ids.map((id) => { const b = document.getElementById(id).getBoundingClientRect(); return { x: b.x, width: b.width }; }), ['rotationControls-field', 'rotationControls-slider', 'load', 'save']);
       dynamic.push({ text, positions });
     }
     assert.ok(dynamic[0].positions[0].width < 30, 'Default fits one digit plus degree symbol/insets');
     for (let i = 1; i < 4; i++) {
       const before = dynamic[i - 1].positions, after = dynamic[i].positions;
       assert.ok(after[0].width > before[0].width, 'Draft text expands the field');
-      assert.deepEqual(after.slice(1), before.slice(1), 'Slider drag area and Load/Save remain stable as the field expands');
+      assert.ok(after[1].x > before[1].x, 'Slider uses the space freed by the actual-width field');
+      assert.deepEqual(after.slice(2), before.slice(2), 'Load/Save remain anchored');
     }
     assert.ok(Math.abs(dynamic[4].positions[0].width - dynamic[0].positions[0].width) < 0.1, 'Field shrinks back to one digit');
-    assert.ok(Math.abs(dynamic[4].positions[1].x - dynamic[0].positions[1].x) < 0.1, 'Slider remains in place');
+    assert.ok(Math.abs(dynamic[4].positions[1].x - dynamic[0].positions[1].x) < 0.1, 'Slider returns with the field width');
     await input.press('Enter');
     await page.screenshot({ path: path.join(artifacts, `rotation-${name}-one-digit.png`) });
     for (const text of ['-180', '180', '179.9', '-179.9']) {

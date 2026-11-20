@@ -61,18 +61,25 @@ export default function RotationControls({ config, state, actions }) {
   const value = state.document?.rotation;
   const disabled = !state.photo || state.busy || !actions.updateRotation;
   const [draft, setDraft] = useState(String(value ?? ''));
+  const [pointerEditing, setPointerEditing] = useState(false);
   const editing = useRef(false);
   const applied = useRef(value);
   const gesture = useRef({ pointer: false, canceled: false });
 
   // LOGIC — local text/gesture interaction; shared operations/history retain the math.
   useEffect(() => {
+    if (pointerEditing && !disabled) return;
+    if (disabled && pointerEditing) setPointerEditing(false);
     if (!editing.current || value !== applied.current || disabled) {
       editing.current = false; applied.current = value; setDraft(String(value ?? ''));
     }
-  }, [value, state.photo?.photoId, disabled]);
+  }, [value, state.photo?.photoId, disabled, pointerEditing]);
   useEffect(() => {
-    const blur = () => { actions.finishRotation(); gesture.current = { pointer: false, canceled: true }; };
+    const blur = () => {
+      applied.current = actions.finishRotation(); editing.current = false;
+      gesture.current = { pointer: false, canceled: true }; setPointerEditing(false);
+      setDraft(String(applied.current ?? ''));
+    };
     window.addEventListener('blur', blur);
     return () => { window.removeEventListener('blur', blur); actions.finishRotation(); };
   }, [actions]);
@@ -82,7 +89,8 @@ export default function RotationControls({ config, state, actions }) {
     if (Number.isFinite(number)) applied.current = actions.updateRotation(number);
   };
   const finishInput = () => {
-    editing.current = false; applied.current = actions.finishRotation(); setDraft(String(applied.current ?? ''));
+    editing.current = false; applied.current = actions.finishRotation();
+    if (!gesture.current.pointer) setDraft(String(applied.current ?? ''));
   };
   const inputKeyDown = (event) => {
     if (event.key === 'Enter') { event.preventDefault(); finishInput(); }
@@ -101,17 +109,21 @@ export default function RotationControls({ config, state, actions }) {
   };
   const finishSlider = (event) => {
     if (event.type === 'keydown') return;
-    actions.finishRotation(); gesture.current = { pointer: false, canceled: false };
+    gesture.current = { pointer: false, canceled: false }; setPointerEditing(false); finishInput();
   };
   const sliderKeyUp = () => { if (!gesture.current.pointer) actions.finishRotation(); };
   const pointerDown = (event) => {
     if (event.button !== 0 || disabled) return;
     actions.finishRotation(); gesture.current = { pointer: true, canceled: false };
+    setPointerEditing(true);
   };
-  const cancelSlider = () => { gesture.current.canceled = true; actions.cancelRotation(); };
+  const cancelSlider = () => {
+    gesture.current.canceled = true; setPointerEditing(false);
+    applied.current = actions.cancelRotation(); editing.current = false; setDraft(String(applied.current ?? ''));
+  };
   const sliderKeyDown = (event) => { if (event.key === 'Escape') { event.preventDefault(); cancelSlider(); } };
 
-  // UI — text sizing stays inside this block; it cannot move the slider's drag area.
+  // UI — size to current text; the displayed value is held only during pointer dragging.
   const context = useMemo(() => document.createElement('canvas').getContext('2d'), []);
   const textWidth = (part, text) => {
     context.font = `${part.typography.weight} ${part.geometry.fontSize}px ${part.typography.family}`;
@@ -123,8 +135,6 @@ export default function RotationControls({ config, state, actions }) {
   const ch = textWidth(input, '0');
   const padding = Math.ceil(sizing.paddingCh * ch), gap = Math.ceil(sizing.gapCh * ch);
   const fieldWidth = numberWidth + unitWidth + 2 * padding + gap + 2 * field.geometry.borderWidth;
-  // A fixed, font-sized editing cell prevents live values from moving the slider.
-  const reservedFieldWidth = Math.ceil(textWidth(input, '0'.repeat(sizing.maxCharacters))) + unitWidth + 2 * padding + gap + 2 * field.geometry.borderWidth;
   const invalid = !disabled && !Number.isFinite(parseRotationDraft(draft));
   const id = (name) => `${config.id}-${name}`;
   const buttonConfig = (name, part) => ({ ...part, id: id(name), label: config.labels[name], icon: config.icons[name] });
@@ -142,11 +152,11 @@ export default function RotationControls({ config, state, actions }) {
       alignItems: config.content.verticalAlign, justifyContent: config.content.horizontalAlign, columnGap: `${config.geometry.gap}%`,
     }}>
       {slot('left', left, <ActionButton config={buttonConfig('left', left)} disabled={disabled} onClick={() => actions.rotateBy(-settings.buttonStep)} />)}
-      <Box data-part="field" sx={{ width: `min(${reservedFieldWidth}px, ${field.size.width}cqw)`, height: `${field.size.height}%`,
-        flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', containerType: 'size',
+      <Box data-part="field" sx={{ width: `min(${fieldWidth}px, ${field.size.width}cqw)`, height: `${field.size.height}%`,
+        flexShrink: 0, containerType: 'size',
       }}>
         <Box id={id('field')} aria-disabled={disabled} sx={{ ...fill, ...configuredSx(field), width: `min(${fieldWidth}px, 100%)`, position: 'relative', containerType: 'size' }}>
-          <InputBase value={draft} disabled={disabled} error={invalid} onChange={changeInput} onBlur={finishInput} onKeyDown={inputKeyDown}
+          <InputBase value={draft} disabled={disabled} readOnly={pointerEditing} error={invalid} onChange={changeInput} onBlur={finishInput} onKeyDown={inputKeyDown}
             sx={{ ...textBounds(input, padding, numberWidth), '&.Mui-focused': configuredAppearance(input, 'focusVisible'), ...configuredSx(input) }}
             slotProps={{ input: { id: id('input'), 'aria-label': config.labels.input, 'aria-invalid': invalid, inputMode: 'decimal', autoComplete: 'off', className: 'configured-native-input', 'data-part': 'input' } }} />
           <Box component="span" aria-hidden="true" aria-disabled={disabled} data-part="degree" sx={{ ...textBounds(degree, padding + numberWidth + gap, unitWidth), ...configuredSx(degree) }}>{config.unit}</Box>

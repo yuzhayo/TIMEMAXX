@@ -75,8 +75,10 @@ the group's width and 4% of its height; row gaps are 1.5% of content width.
 It occupies 36% of Action Bar width and 92% of its height with
 4% top/bottom placement insets; padded controls retain the compact bar sizing.
 Its named parts share one injected session. Input autosizing remains local to the
-group and cannot shift the slider's drag area. A centred, font-sized field cell
-replaces the old empty positional allocation. The separator has its own
+group. Its row cell uses only the displayed text width; no blank growth area is
+reserved. During pointer dragging, the preview/slider remain live while the
+numeric field holds its display until release, keeping the track steady.
+The separator has its own
 `ActionSeparator.jsx` registration. Superseded independent rotation registrations
 and parent preferred-width plumbing remain removed.
 
@@ -689,6 +691,26 @@ prepared stamp definition, with an independently usable headless engine.
   Existing proof expectations were adapted; no broad suite was run.
 - No old target main process matched at completion. Updated normal frame PID
   **10940**, with owned worker PID **15480**, was verified and left running.
+
+### Remove the remaining degree-field reservation
+
+- Removed the fixed maximum-width field cell. Its width now equals the actual
+  displayed box (21px at `0°`, 50px at `-179.9`). The slider takes the freed space.
+  Only the existing 1.5% row gap remains between the left button and field.
+- To avoid moving the track during pointer dragging, the numeric field is
+  temporarily read-only and holds its display until release. Slider/preview values
+  stay live; release, cancellation or window blur refreshes the numeric display.
+  Typing and keyboard slider changes still resize normally. This stays inside
+  RotationControls; no pointer-coordinate replacement or new math owner was added.
+- UI build and quick visual/interaction check completed at both sizes. At `0°`,
+  left-to-field gaps are 5.11px / 4.05px, and field-to-rail gaps are 11.92px / 9.47px.
+  Full negative text fits; the separator remains outside. Dragging reached 90°,
+  refreshed the field on release, and Undo restored 0°. Native images under
+  `.runtime/checks/actual-width-rotation/` were inspected. No broad suite was run.
+- Existing proof expectations now reflect actual-width reflow and use explicit
+  element order rather than relying on CSS selector/document ordering.
+- Previous normal frame PID **14824** closed normally. Updated frame PID **17072**
+  and owned worker PID **5732** were verified and left running.
 
 This proves layout/history, Load/Save and Rotation slices, not full application readiness.
 Other editing controls, view gestures, full overlays, nested
