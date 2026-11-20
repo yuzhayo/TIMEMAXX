@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import InputBase from '@mui/material/InputBase';
 import Slider from '@mui/material/Slider';
 import ActionButton, { hasActionIcon } from './ActionButton.jsx';
@@ -89,7 +90,9 @@ export default function AdjustmentControls({
   const contentAttribute = contentName ? { [`data-${contentName}-content`]: 'true' } : {};
   const editor = valueControl.editor;
   const valueTrigger = editor
-    ? <Box id={id('value')} aria-disabled={disabled} aria-invalid={editor.invalid} onClick={openPopup} sx={{
+    ? <Button component="div" role="group" tabIndex={-1} id={id('value')} aria-label={config.labels.value}
+        disabled={disabled} aria-invalid={editor.invalid} onClick={openPopup}
+        variant="text" disableRipple disableElevation data-button-renderer="shared-value" sx={{
         ...fill, ...configuredSx(value), '&:focus-within': configuredAppearance(value, 'focusVisible'),
         cursor: disabled ? 'default' : 'pointer',
       }}>
@@ -102,11 +105,12 @@ export default function AdjustmentControls({
           sx={{ height: '100%', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
           {editor.unit}
         </Box>
-      </Box>
-    : <Box id={id('value')} component="output" aria-label={config.labels.value} aria-disabled={disabled}
+      </Button>
+    : <Button id={id('value')} aria-label={config.labels.value} disabled={disabled}
+        variant="text" disableRipple disableElevation data-button-renderer="shared-value"
         onClick={openPopup} sx={{ ...fill, ...configuredSx(value), cursor: disabled ? 'default' : 'pointer' }}>
         {valueControl.text}
-      </Box>;
+      </Button>;
   const changeSlider = (event, next) => {
     if (gesture.current.canceled) return;
     if (event.type === 'keydown' && !gesture.current.keyboard) {
