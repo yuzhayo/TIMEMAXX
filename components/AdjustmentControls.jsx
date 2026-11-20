@@ -56,7 +56,7 @@ export default function AdjustmentControls({
   const [popupOpen, setPopupOpen] = useState(false);
   const name = (role) => partNames[role] ?? role;
   const id = (role) => `${config.id}-${name(role)}`;
-  const togglePopup = () => { if (!disabled) setPopupOpen((open) => !open); };
+  const openPopup = () => { if (!disabled) setPopupOpen(true); };
   const closePopup = () => setPopupOpen(false);
   const managedPart = (part) => ({ ...configuredSx(part), height: `${part.size.height}px` });
   const buttonConfig = (role, part) => ({ ...part, id: id(role), label: config.labels[role], icon: config.icons[role] });
@@ -67,21 +67,22 @@ export default function AdjustmentControls({
   const contentAttribute = contentName ? { [`data-${contentName}-content`]: 'true' } : {};
   const editor = valueControl.editor;
   const valueTrigger = editor
-    ? <Box id={id('value')} aria-disabled={disabled} aria-invalid={editor.invalid} sx={{
+    ? <Box id={id('value')} aria-disabled={disabled} aria-invalid={editor.invalid} onClick={openPopup} sx={{
         ...fill, ...configuredSx(value), '&:focus-within': configuredAppearance(value, 'focusVisible'),
+        cursor: disabled ? 'default' : 'pointer',
       }}>
         <InputBase value={editor.draft} disabled={disabled} readOnly={editor.readOnly} error={editor.invalid}
           onChange={editor.onChange} onBlur={editor.onBlur} onKeyDown={editor.onKeyDown}
           sx={{ height: '100%', minWidth: 0, flex: '1 1 auto', color: 'inherit', font: 'inherit' }}
           slotProps={{ input: { id: id('input'), 'aria-label': config.labels.value, 'aria-invalid': editor.invalid,
             inputMode: editor.inputMode, autoComplete: 'off', className: 'configured-native-input', 'data-part': name('input') } }} />
-        <Box component="span" aria-hidden="true" aria-disabled={disabled} data-part={name('unit')} onClick={togglePopup}
-          sx={{ height: '100%', flexShrink: 0, display: 'flex', alignItems: 'center', cursor: disabled ? 'default' : 'pointer' }}>
+        <Box component="span" aria-hidden="true" aria-disabled={disabled} data-part={name('unit')}
+          sx={{ height: '100%', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
           {editor.unit}
         </Box>
       </Box>
     : <Box id={id('value')} component="output" aria-label={config.labels.value} aria-disabled={disabled}
-        onClick={togglePopup} sx={{ ...fill, ...configuredSx(value), cursor: disabled ? 'default' : 'pointer' }}>
+        onClick={openPopup} sx={{ ...fill, ...configuredSx(value), cursor: disabled ? 'default' : 'pointer' }}>
         {valueControl.text}
       </Box>;
   const commitSlider = (event, next) => {
