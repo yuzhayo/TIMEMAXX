@@ -48,8 +48,8 @@
     "fileName": { "preset": "base", "colors": { "foreground": "#9aa5b2" }, "content": { "horizontalAlign": "flex-start", "textAlign": "left" } },
     "status": { "preset": "base", "colors": { "foreground": "#9aa5b2" }, "geometry": { "paddingY": 1 }, "content": { "whiteSpace": "normal", "horizontalAlign": "flex-start", "textAlign": "left" }, "states": { "error": { "colors": { "foreground": "#ffe2a0" } } } },
     "inspector": { "preset": "base", "colors": { "border": "#df8af5" }, "geometry": { "borderWidth": 1 } },
-    "inspectorLabel": { "preset": "base", "colors": { "background": "transparent", "foreground": "#f2d3ff" }, "geometry": { "fontSize": 10 }, "content": { "whiteSpace": "normal", "horizontalAlign": "flex-start", "verticalAlign": "flex-start", "textAlign": "left" } }
-  },
+    "inspectorLabel": { "preset": "base", "colors": { "background": "transparent", "foreground": "#f2d3ff" }, "geometry": { "fontSize": 10 }, "content": { "whiteSpace": "normal", "horizontalAlign": "flex-start", "verticalAlign": "flex-start", "textAlign": "left" } },
+    "popup": { "preset": "base", "colors": { "background": "#1d252f", "border": "#43505f" }, "geometry": { "borderWidth": 1, "radius": 6 } }  },
   "sections": [
     { "id": "windowsBar", "parentId": "window", "label": "Windows bar", "folder": "windows-bar", "enabled": true, "nativeSafeArea": false, "draggable": true, "bounds": { "x": 0, "y": 0, "width": 100, "height": 5 }, "preset": "bar" },
     { "id": "actionBar", "parentId": "window", "label": "Action bar", "folder": "action-bar", "enabled": true, "nativeSafeArea": false, "draggable": false, "bounds": { "x": 0, "y": 5, "width": 100, "height": 5 }, "preset": "bar" },
@@ -74,32 +74,34 @@
     { "id": "windowClose", "componentId": "window.action", "parentId": "windowsBar", "enabled": true, "label": "Close window", "action": "close", "icon": "close", "bounds": { "x": 94.5, "y": 8, "width": 4.5, "height": 84 }, "preset": "fileAction" },
     { "id": "rotationControls", "componentId": "photo.rotationControls", "parentId": "actionBar", "enabled": true, "label": "Photo rotation controls", "unit": "°", "textSizing": { "minDigits": 1, "maxCharacters": 6, "paddingCh": 0.25, "gapCh": 0.2 }, "icons": { "left": "rotateLeft", "right": "rotateRight" },
       "labels": { "left": "Rotate left 90 degrees", "input": "Photo rotation in degrees", "slider": "Photo rotation slider", "right": "Rotate right 90 degrees" },
-      "bounds": { "x": 1, "y": 4, "width": 36, "height": 92 }, "preset": "base", "colors": { "outline": "#64707b" }, "geometry": { "outlineWidth": 1, "outlineStyle": "solid", "outlineOffset": 0, "paddingX": 0.5, "paddingY": 4, "gap": 1.5 }, "content": { "overflow": "visible" }, "parts": {
-      "left": { "preset": "fileAction", "size": { "width": 14, "height": 100 }, "aspectRatio": 1 },
-      "field": { "preset": "rotationField", "size": { "width": 22, "height": 100 } },
+      "bounds": { "x": 1, "y": 4, "width": 16, "height": 92 }, "preset": "base", "colors": { "outline": "#64707b" }, "geometry": { "outlineWidth": 1, "outlineStyle": "solid", "outlineOffset": 0, "paddingX": 0.5, "paddingY": 4, "gap": 1.5 }, "content": { "overflow": "visible" }, "parts": {
+      "left": { "preset": "fileAction", "size": { "width": 27, "height": 100 }, "aspectRatio": 1 },
+      "field": { "preset": "rotationField", "size": { "width": 35, "height": 100 } },
       "input": { "preset": "rotationValue", "size": { "width": 100, "height": 84 }, "content": { "textAlign": "right" } },
       "degree": { "preset": "rotationValue", "size": { "width": 100, "height": 84 } },
-      "slider": { "preset": "base", "size": { "width": 100, "height": 100 }, "content": { "overflow": "visible" } },
+      "slider": { "preset": "base", "size": { "width": 100, "height": 28 }, "content": { "overflow": "visible" } },
       "control": { "preset": "base", "bounds": { "x": 3, "y": 0, "width": 94, "height": 100 }, "content": { "overflow": "visible" } },
-      "rail": { "preset": "rotationRail", "size": { "width": 100, "height": 12 } },
-      "track": { "preset": "rotationTrack", "size": { "width": 100, "height": 12 } },
-      "thumb": { "preset": "rotationThumb", "size": { "width": 8, "height": 48 } },
-      "right": { "preset": "fileAction", "size": { "width": 14, "height": 100 }, "aspectRatio": 1 }
+      "rail": { "preset": "rotationRail", "size": { "width": 100, "height": 6 } },
+      "track": { "preset": "rotationTrack", "size": { "width": 100, "height": 6 } },
+      "thumb": { "preset": "rotationThumb", "size": { "width": 14, "height": 22 } },
+      "right": { "preset": "fileAction", "size": { "width": 27, "height": 100 }, "aspectRatio": 1 },
+      "popup": { "preset": "popup", "size": { "width": 100, "height": 100 }, "surfaceWidth": "220px", "surfacePadding": "12px 14px" }
     } },
-    { "id": "rotationSeparator", "componentId": "layout.separator", "parentId": "actionBar", "enabled": true, "label": "Rotation group separator", "bounds": { "x": 38, "y": 18, "width": 0.15, "height": 64 }, "preset": "base", "colors": { "background": "#43505f" } },
-    { "id": "sizeControls", "componentId": "photo.sizeControls", "parentId": "actionBar", "enabled": true, "label": "Photo size controls", "bounds": { "x": 39, "y": 8, "width": 33, "height": 84 }, "preset": "base", "geometry": { "gap": 2 }, "content": { "overflow": "visible" },
+    { "id": "rotationSeparator", "componentId": "layout.separator", "parentId": "actionBar", "enabled": true, "label": "Rotation group separator", "bounds": { "x": 17.5, "y": 18, "width": 0.15, "height": 64 }, "preset": "base", "colors": { "background": "#43505f" } },
+    { "id": "sizeControls", "componentId": "photo.sizeControls", "parentId": "actionBar", "enabled": true, "label": "Photo size controls", "bounds": { "x": 18, "y": 8, "width": 15, "height": 84 }, "preset": "base", "geometry": { "gap": 2 }, "content": { "overflow": "visible" },
       "labels": { "decrease": "Decrease photo size", "slider": "Photo size", "value": "Photo size percentage", "increase": "Increase photo size" },
       "icons": { "decrease": "photoSizeSmall", "increase": "photoSizeLarge" }, "parts": {
-      "decrease": { "preset": "fileAction", "size": { "width": 12, "height": 100 }, "aspectRatio": 1 },
-      "slider": { "preset": "base", "size": { "width": 100, "height": 100 }, "content": { "overflow": "visible" } },
-      "value": { "preset": "rotationValue", "size": { "width": 18, "height": 84 } },
-      "increase": { "preset": "fileAction", "size": { "width": 12, "height": 100 }, "aspectRatio": 1 },
+      "decrease": { "preset": "fileAction", "size": { "width": 30, "height": 100 }, "aspectRatio": 1 },
+      "slider": { "preset": "base", "size": { "width": 100, "height": 28 }, "content": { "overflow": "visible" } },
+      "value": { "preset": "rotationValue", "size": { "width": 34, "height": 84 } },
+      "increase": { "preset": "fileAction", "size": { "width": 30, "height": 100 }, "aspectRatio": 1 },
       "control": { "preset": "base", "bounds": { "x": 3, "y": 0, "width": 94, "height": 100 }, "content": { "overflow": "visible" } },
-      "rail": { "preset": "rotationRail", "size": { "width": 100, "height": 12 } },
-      "track": { "preset": "rotationTrack", "size": { "width": 100, "height": 12 } },
-      "thumb": { "preset": "rotationThumb", "size": { "width": 8, "height": 48 } }
+      "rail": { "preset": "rotationRail", "size": { "width": 100, "height": 6 } },
+      "track": { "preset": "rotationTrack", "size": { "width": 100, "height": 6 } },
+      "thumb": { "preset": "rotationThumb", "size": { "width": 14, "height": 22 } },
+      "popup": { "preset": "popup", "size": { "width": 100, "height": 100 }, "surfaceWidth": "220px", "surfacePadding": "12px 14px" }
     } },
-    { "id": "sizeSeparator", "componentId": "layout.separator", "parentId": "actionBar", "enabled": true, "label": "Size group separator", "bounds": { "x": 73, "y": 18, "width": 0.15, "height": 64 }, "preset": "base", "colors": { "background": "#43505f" } }
+    { "id": "sizeSeparator", "componentId": "layout.separator", "parentId": "actionBar", "enabled": true, "label": "Size group separator", "bounds": { "x": 73.5, "y": 18, "width": 0.15, "height": 64 }, "preset": "base", "colors": { "background": "#43505f" } }
   ],
   "development": {
     "inspectionEnabled": false,

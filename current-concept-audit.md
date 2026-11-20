@@ -42,6 +42,32 @@ Loading/replacing an image resets photo history. No fake edits are seeded.
 The working rule is to close an existing target-app instance and launch the current
 build after finishing changes and focused verification, leaving it open for the user.
 
+## Slider popovers
+
+Both sliders now open in a popup instead of occupying Action Bar width.
+`components/ConfiguredPopover.jsx` is the one shared popup mechanism: a trigger
+opens a portaled surface that closes on commit, Escape or an outside press.
+Rotation opens it from the degree symbol; Size opens it from the percentage
+value. JSON owns the popup part's surface width/padding and appearance.
+
+The Rotation group shrank from 36% to 16% of the bar and Size from 33% to 15%.
+Because parts are sized as a percentage of their group, the button parts needed
+proportional rebalancing to keep their rendered size: rotate buttons remain
+**38.94px** squares, size buttons **38.63px** and file buttons **71.84px**,
+matching the pre-popover measurements. The file group keeps its 74–99% bounds
+so its 1% right margin is unchanged.
+
+`tests/popover-proof.mjs` checks the compact bar, the preserved button sizes,
+popup open/drag/commit/close, Escape cancelling a whole drag, an outside press
+closing it, and one-row layout at default/minimum sizes. Rotation, size,
+window-swap, file-action and Bottom Bar proofs and 30 contract/rotation tests
+pass. Native captures under `frame/.runtime/checks/popover/` were inspected.
+
+Two defects were found and fixed during this slice: the popup surface ignored
+its configured background because a plain div does not read MUI's `sx`, and a
+canceled slider drag left the gesture marked canceled so the keyboard could no
+longer adjust the slider.
+
 ## Baked size controls and Reset
 
 `action-bar/SizeControls.jsx` is one baked `photo.sizeControls` instance

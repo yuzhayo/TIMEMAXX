@@ -23,15 +23,15 @@ try {
   page.setDefaultTimeout(15000);
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
-  await page.waitForSelector('#sizeControls-slider', { state: 'attached' });
+  await page.waitForSelector('#sizeControls-value', { state: 'attached' });
   await page.evaluate(() => window.frameDev.inspect(false));
   assert.deepEqual(await page.evaluate(() => window.frameDev.records()), []);
   assert.equal(await page.locator('[data-component="photo.sizeControls"]').count(), 1);
   assert.equal(await page.locator('#fileControls-reset').count(), 1);
   assert.equal(await page.locator('#sizeControls-decrease, #sizeControls-increase').count(), 2);
   assert.equal(await page.locator('#sizeControls-value').count(), 1);
-  assert.equal(await page.locator('#sizeControls-slider').count(), 1);
-  checked.push('one baked size group with decrease/slider/value/increase and a third file part');
+  assert.equal(await page.locator('#sizeControls-slider').count(), 0, 'No slider is mounted until its popup opens');
+  checked.push('one baked size group with decrease/value/increase and a third file part; the slider lives in a popup');
 
   const fixture = await page.evaluate(() => {
     const canvas = document.createElement('canvas'); canvas.width = 600; canvas.height = 800;
@@ -61,6 +61,9 @@ try {
   assert.equal((await snapshot()).sizePercent, 100);
   checked.push('increase/decrease buttons change the shared size by the configured step');
 
+  // The slider lives in a popup opened from the value.
+  await page.click('#sizeControls-value');
+  await page.waitForSelector('#sizeControls-slider', { state: 'attached' });
   const rail = await page.locator('#sizeControls-slider [data-part="rail"]').boundingBox();
   await page.mouse.move(rail.x + rail.width * 0.6, rail.y + rail.height / 2);
   await page.mouse.down();
@@ -70,7 +73,7 @@ try {
   const dragged = (await snapshot()).sizePercent;
   assert.ok(dragged > 150, 'Slider drag enlarges the photo');
   assert.equal(await page.locator('#sizeControls-value').textContent(), `${dragged}%`);
-  checked.push('slider drag updates the shared size and the value readout');
+  checked.push('popup slider drag updates the shared size and the value readout');
 
   const preview = await page.evaluate(() => {
     const canvas = document.getElementById('photoPreview');
@@ -112,12 +115,12 @@ try {
     const metrics = await page.evaluate(() => {
       const rect = (id) => document.getElementById(id).getBoundingClientRect();
       const action = rect('actionBar'), group = rect('sizeControls'), files = rect('fileControls'), rotation = rect('rotationControls');
-      const value = rect('sizeControls-value'), slider = rect('sizeControls-slider');
+      const value = rect('sizeControls-value');
       return { groupInside: group.left >= action.left && group.right <= action.right,
         filesInside: files.left >= action.left && files.right <= action.right,
         rotationInside: rotation.left >= action.left && rotation.right <= action.right,
         order: rotation.right < group.left && group.right < files.left,
-        valueVisible: value.width > 0 && value.height > 0, sliderWidth: slider.width,
+        valueVisible: value.width > 0 && value.height > 0, groupWidth: group.width, actionWidth: action.width,
         buttons: ['sizeControls-decrease', 'sizeControls-increase', 'fileControls-load', 'fileControls-save', 'fileControls-reset'].map((id) => {
           const element = document.getElementById(id), bounds = element.getBoundingClientRect();
           const icon = element.querySelector('svg').getBoundingClientRect();
@@ -130,7 +133,7 @@ try {
     assert.equal(metrics.rotationInside, true);
     assert.equal(metrics.order, true, 'Rotation, Size and File groups keep their left-to-right order');
     assert.equal(metrics.valueVisible, true);
-    assert.ok(metrics.sliderWidth > 40, 'The size slider keeps a usable drag area');
+    assert.ok(metrics.groupWidth < metrics.actionWidth * 0.16, 'The size group no longer reserves slider width');
     for (const button of metrics.buttons) {
       assert.equal(button.centered, true, `${button.id} keeps a centered icon`);
     }
