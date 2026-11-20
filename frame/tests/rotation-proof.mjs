@@ -131,6 +131,23 @@ try {
   for (const [name, width, height] of [['default', config.window.width, config.window.height], ['minimum', config.window.minWidth, config.window.minHeight]]) {
     await app.evaluate(({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0].setSize(...size), [width, height]);
     await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const dynamic = [];
+    for (const text of ['0', '10', '100', '-179.9', '0']) {
+      await input.fill(text);
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      const positions = await page.locator('#rotationInput, #rotationSlider, #load, #save').evaluateAll((elements) => elements.map((element) => { const b = element.getBoundingClientRect(); return { x: b.x, width: b.width }; }));
+      dynamic.push({ text, positions });
+    }
+    assert.ok(dynamic[0].positions[0].width < 30, 'Default fits one digit plus degree symbol/insets');
+    for (let i = 1; i < 4; i++) {
+      const before = dynamic[i - 1].positions, after = dynamic[i].positions;
+      assert.ok(after[0].width > before[0].width, 'Draft text expands the field');
+      assert.deepEqual(after.slice(1), before.slice(1), 'Slider drag area and Load/Save remain stable as the field expands');
+    }
+    assert.ok(Math.abs(dynamic[4].positions[0].width - dynamic[0].positions[0].width) < 0.1, 'Field shrinks back to one digit');
+    assert.ok(Math.abs(dynamic[4].positions[1].x - dynamic[0].positions[1].x) < 0.1, 'Slider remains in place');
+    await input.press('Enter');
+    await page.screenshot({ path: path.join(artifacts, `rotation-${name}-one-digit.png`) });
     for (const text of ['-180', '180', '179.9', '-179.9']) {
       await input.fill(text); await input.press('Enter');
       assert.equal(await input.inputValue(), text);
@@ -156,7 +173,7 @@ try {
     });
     const n = metric.nodes;
     const parentWidth = await page.locator('[data-section-content="actionBar"]').evaluate((element) => element.clientWidth);
-    assert.ok(n.rotationInput.width <= parentWidth * 0.065 + 1, 'Degree field stays compact');
+    assert.ok(n.rotationInput.width <= parentWidth * 0.065 + 1, 'Content-sized degree field stays within its maximum allocation');
     for (const id of ['rotateLeft', 'rotateRight']) {
       assert.ok(Math.abs(n[id].width - n[id].height) < 0.1, `${id} true square at ${name}`);
       assert.equal(await page.locator(`#${id}`).getAttribute('data-button-renderer'), 'shared-action');
@@ -179,7 +196,7 @@ try {
     });
     assert.ok(native); await fs.writeFile(path.join(artifacts, `rotation-${name}-native.png`), Buffer.from(native, 'base64'));
   }
-  checked.push('default/minimum compact degree field fits signed three-digit/decimal angles, true squares, tall-window centerline, aligned degree parts, left group/separator, right Load/Save and native screenshots');
+  checked.push('default/minimum one-digit field expands/shrinks live, signed three-digit/decimal angles fit, true squares and degree alignment remain, slider drag area and Load/Save stay anchored');
   assert.deepEqual(errors, []);
   assert.deepEqual(await page.evaluate(() => window.frameDev.records()), []);
   const unusedPlacement = structuredClone(config);

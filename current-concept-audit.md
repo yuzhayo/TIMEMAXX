@@ -20,6 +20,8 @@ shared icon-only Load/Save buttons. Undo/Redo start disabled until an edit exist
 Rotation controls start disabled until a photo is loaded. The Action Bar reads
 `[Rotate left] [degree input + °] [slider] [Rotate right] | … [Load] [Save]`.
 JSON defines ±180° bounds, 0.1° precision/step and 90° button increments.
+The degree box starts at one-digit width and expands/shrinks with its text.
+Its JSON `textSizing` policy owns character limits and font-relative insets.
 Rotation changes photo preview/export only; future prepared layers remain independent.
 The active arrangement is Load/Save in Action Bar, Undo/Redo in Windows Bar,
 with configured minimize, maximize/restore and X controls in Windows Bar.
@@ -582,6 +584,26 @@ prepared stamp definition, with an independently usable headless engine.
   or worker source changed; runtime JSON needs no renderer/worker rebuild.
 - Relaunch verified: prior normal frame PID **13860** closed normally; updated
   normal frame PID **12688** and owned worker PID **14848** are alive and left open.
+
+### One-digit default with automatic expansion
+
+- RotationInput measures its displayed text with its configured font. JSON sets
+  one digit minimum, six characters maximum, character-relative padding/gap and
+  the existing 6.5% maximum allocation. Named input/degree parts retain configured
+  appearance and height. WindowLayout only accepts the control's preferred width;
+  photo math/history and other controls do not change.
+- Removed the attempted sibling-follow layout after it moved the slider during
+  dragging. The slider keeps a stable drag area; only the degree box autosizes.
+  No anchor/dependency planner or additional layout system remains.
+- Final UI build and quick real-Electron visual check completed. `0 → -179.9 → 0`
+  measured `21 → 50 → 21` pixels at default size and `21 → 49.27 → 21` at minimum.
+  The full negative angle fits; slider position stays unchanged. Saved native
+  images in `.runtime/checks/degree-sizing/` were inspected.
+- At the user's direction, no further regression-suite runs were made after this
+  correction. Existing proof/fixture expectations were kept compatible with the
+  new sizing configuration; they are not reported as newly rerun/passing.
+- After the server restart, no old target main process was found. Updated normal
+  frame PID **8920** and its owned worker PID **8564** were verified and left open.
 
 This proves layout/history, Load/Save and Rotation slices, not full application readiness.
 Other editing controls, view gestures, full overlays, nested

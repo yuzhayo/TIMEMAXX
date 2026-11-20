@@ -68,9 +68,9 @@
     { "id": "windowMaximize", "componentId": "window.action", "parentId": "windowsBar", "enabled": true, "label": "Maximize or restore window", "action": "toggleMaximize", "icon": "maximize", "maximizedIcon": "restore", "bounds": { "x": 87, "y": 8, "width": 4.5, "height": 84 }, "preset": "fileAction" },
     { "id": "windowClose", "componentId": "window.action", "parentId": "windowsBar", "enabled": true, "label": "Close window", "action": "close", "icon": "close", "bounds": { "x": 93, "y": 8, "width": 4.5, "height": 84 }, "preset": "fileAction" },
     { "id": "rotateLeft", "componentId": "photo.rotateLeft", "parentId": "actionBar", "enabled": true, "label": "Rotate left 90 degrees", "icon": "rotateLeft", "aspectRatio": 1, "bounds": { "x": 1.5, "y": 8, "width": 4.5, "height": 84 }, "preset": "fileAction" },
-    { "id": "rotationInput", "componentId": "photo.rotationInput", "parentId": "actionBar", "enabled": true, "label": "Photo rotation in degrees", "unit": "°", "bounds": { "x": 7, "y": 8, "width": 6.5, "height": 84 }, "preset": "rotationField", "parts": {
-      "input": { "preset": "rotationValue", "bounds": { "x": 4, "y": 8, "width": 78, "height": 84 }, "content": { "textAlign": "right" } },
-      "degree": { "preset": "rotationValue", "bounds": { "x": 84, "y": 8, "width": 12, "height": 84 } }
+    { "id": "rotationInput", "componentId": "photo.rotationInput", "parentId": "actionBar", "enabled": true, "label": "Photo rotation in degrees", "unit": "°", "textSizing": { "minDigits": 1, "maxCharacters": 6, "paddingCh": 0.25, "gapCh": 0.2 }, "bounds": { "x": 7, "y": 8, "width": 6.5, "height": 84 }, "preset": "rotationField", "parts": {
+      "input": { "preset": "rotationValue", "size": { "width": 100, "height": 84 }, "content": { "textAlign": "right" } },
+      "degree": { "preset": "rotationValue", "size": { "width": 100, "height": 84 } }
     } },
     { "id": "rotationSlider", "componentId": "photo.rotationSlider", "parentId": "actionBar", "enabled": true, "label": "Photo rotation slider", "bounds": { "x": 14.5, "y": 8, "width": 20, "height": 84 }, "preset": "base", "parts": {
       "control": { "preset": "base", "bounds": { "x": 6, "y": 0, "width": 88, "height": 100 }, "content": { "overflow": "visible" } },
