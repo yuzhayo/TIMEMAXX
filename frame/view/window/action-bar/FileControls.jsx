@@ -5,7 +5,7 @@ import { configuredSx, configuredBounds, fill } from '@ui/appearance.mjs';
 
 export const componentId = 'file.controls';
 export const configKeys = ['labels', 'icons'];
-export const partKeys = ['load', 'save', 'reset'];
+export const partKeys = ['load', 'reset', 'save'];
 
 // LOGIC — one baked file feature owns its parts; file operations retain their shared owner.
 export function validateConfig(config, report) {
