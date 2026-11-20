@@ -48,6 +48,7 @@ export function createFrameSession(config, services = {}) {
     undo: () => { if (!photoState?.busy) publish(history.undo()); },
     redo: () => { if (!photoState?.busy) publish(history.redo()); },
     ...(files ? { load: files.load, save: files.save } : {}),
+    ...(files?.drop ? { drop: files.drop } : {}),
     ...(windowActions ? { windowAction: windowActions.activate } : {}),
     ...(photoOperations ?? {}),
     ...(viewOperations ?? {}),

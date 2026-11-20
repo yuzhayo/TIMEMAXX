@@ -53,6 +53,7 @@ app.whenReady().then(async () => {
   });
   for (const [channel, action] of [
     ['frame:image-open', () => files?.open()],
+    ['frame:image-drop', (filePath) => files?.openDropped(filePath)],
     ['frame:image-save', (snapshot) => files?.save(snapshot)],
   ]) {
     ipcMain.handle(channel, async (event, argument) => {

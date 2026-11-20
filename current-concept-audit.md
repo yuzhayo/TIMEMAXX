@@ -9,8 +9,8 @@ native dialogs, preview and standalone Rust PNG/JPEG export. Reviewed validation
 capability isolation, relocation and error-origin boundaries are regression-checked.
 The approved Rotation slice is now implemented and reviewed: left/right square
 shared action buttons, degree input, synchronized MUI slider and configured separator.
-The photo pointer/wheel slice and independent inspection pan/zoom operations are
-implemented. Remaining drop/global-shortcut controls, full overlays and layer
+The photo pointer/wheel slice, file dropping and independent inspection pan/zoom
+operations are implemented. Remaining global-shortcut controls, full overlays and layer
 receiving/composition are pending. Preserve `output-frame/` as a behavior reference;
 do not blindly copy it.
 The map below remains the comparison target; do not recreate/reconfirm the skeleton.
@@ -207,6 +207,31 @@ pan/zoom, unchanged view-only PNG exports, replacement isolation and original fi
 protection. No renderer errors or layout diagnostics occurred. The UI build passed;
 no broad test suite was run. Captures/exports are under
 `frame/.runtime/checks/input-gestures/`.
+
+## File dropping
+
+`frame-body/DropTarget.jsx` is a separately discovered, configured drop-feedback
+control. Its area follows Frame/body bounds; `pointerEvents: none` keeps normal
+photo clicking, dragging and scrolling unobstructed. It listens only for file
+drag/drop events and invokes loading only on an explicit drop inside that area.
+The active outline is configured in JSON; there is no clickable replacement
+surface or extra notification banner.
+
+`ImageFileActions.mjs` owns one successful-load/replacement path for Load and Drop.
+The preload resolves a disk-backed `File` with `webUtils.getPathForFile` and sends
+it through the sender-checked drop channel. `ImageFileDialogs.cjs` owns the common
+source validation, decoding and original-file identity/protection for both routes.
+Exactly one supported image is accepted. Multiple files, folders, unsupported
+types and decoding errors leave the current photo unchanged and use Bottom Bar
+messages/structured diagnostics. Successful replacement resets photo history
+through the same existing owner.
+
+The focused drop check passed with disk-backed Files through the real preload and
+worker path: no picker on drop, no load/replacement on normal clicks, unobstructed
+photo dragging, replacement history reset, invalid/multiple/corrupt-file isolation,
+out-of-area rejection and protection of previously dropped originals. This checks
+the app's drop path, not an automated Windows Explorer drag. Captures/fixtures are
+under `frame/.runtime/checks/drop-image/`. The UI build passed; no broad suite ran.
 
 ## Exact target files and ownership
 
@@ -526,7 +551,7 @@ uses its own declared owners; no old controller or stamp runtime was copied in.
    completes the normal worker/session cleanup path; native window operations remain.
 4. **Rotation complete:** input/degree parts and states are proven against real
      photo transforms. Photo pointer/wheel gestures and inspection operations are
-     complete. Next: remaining drop/global-shortcut controls, overlays and layer receiving.
+     complete; file dropping is implemented. Next: global shortcuts, overlays and layer receiving.
    Implement from the contract; remove superseded paths within the authorized
    target instead of accumulating alternate implementations.
 5. Verify affected behavior/native sizes with focused checks, then restart and
@@ -847,7 +872,7 @@ prepared stamp definition, with an independently usable headless engine.
   and owned worker PID **5732** were verified and left running.
 
 The implemented layout/history, file, adjustment, placement and photo-input slices
-do not establish full application readiness. Drop/global-shortcut controls, full
+do not establish full application readiness. Global-shortcut controls, full
 overlays, nested outlet mounting and finished-layer receiving/composition remain pending.
 The image worker does not generate stamps; the empty layer owner is not activated.
 Exports currently use the configured default resolution; the full export selector
