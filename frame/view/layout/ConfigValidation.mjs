@@ -55,8 +55,8 @@ const groups = {
 const groupKeys = Object.keys(groups);
 const stateKeys = ['hover', 'focusVisible', 'active', 'disabled', 'selected', 'error'];
 const visualKeys = ['preset', ...groupKeys, 'states'];
-const sectionKeys = ['id', 'parentId', 'label', 'folder', 'enabled', 'nativeSafeArea', 'draggable', 'sizing', 'bounds', ...visualKeys];
-const instanceKeys = ['id', 'componentId', 'parentId', 'enabled', 'label', 'bounds', 'aspectRatio', 'parts', 'interaction', ...visualKeys];
+const sectionKeys = ['id', 'parentId', 'label', 'folder', 'enabled', 'nativeSafeArea', 'draggable', 'sizing', 'layout', 'bounds', ...visualKeys];
+const instanceKeys = ['id', 'componentId', 'parentId', 'enabled', 'label', 'bounds', 'placement', 'aspectRatio', 'parts', 'interaction', ...visualKeys];
 
 function boundsProblem(bounds, path) {
   if (!object(bounds)) return { path, expected: 'parent-relative bounds object', actual: bounds };
@@ -67,6 +67,40 @@ function boundsProblem(bounds, path) {
     if (!percent(bounds[key]) || (['width', 'height'].includes(key) && bounds[key] === 0)) return { path: `${path}.${key}`, expected: 'valid parent percentage; dimensions must be positive', actual: bounds[key] };
   }
   if (bounds.x + bounds.width > 100.00001 || bounds.y + bounds.height > 100.00001) return { path, expected: 'bounds contained in parent', actual: bounds };
+  return null;
+}
+
+function siblingBoundsProblem(bounds, path) {
+  if (!object(bounds)) return { path, expected: 'parent-laid-out bounds object', actual: bounds };
+  for (const key of Object.keys(bounds)) {
+    if (!['y', 'width', 'height'].includes(key)) return { path: `${path}.${key}`, expected: 'y/width/height only; parent resolves x', actual: bounds[key] };
+  }
+  for (const key of ['y', 'width', 'height']) {
+    if (!percent(bounds[key]) || (['width', 'height'].includes(key) && bounds[key] === 0)) return { path: `${path}.${key}`, expected: 'valid parent percentage; dimensions must be positive', actual: bounds[key] };
+  }
+  if (bounds.y + bounds.height > 100.00001) return { path, expected: 'vertical bounds contained in parent', actual: bounds };
+  return null;
+}
+
+function siblingLayoutProblem(layout, path) {
+  if (!object(layout)) return { path, expected: 'sibling row layout object', actual: layout };
+  const keys = ['direction', 'siblingGap', 'paddingStart', 'paddingEnd'];
+  for (const key of Object.keys(layout)) if (!keys.includes(key)) return { path: `${path}.${key}`, expected: 'supported sibling layout property', actual: layout[key] };
+  if (layout.direction !== 'row') return { path: `${path}.direction`, expected: 'row', actual: layout.direction };
+  for (const key of ['siblingGap', 'paddingStart', 'paddingEnd']) if (!percent(layout[key])) {
+    return { path: `${path}.${key}`, expected: '0–100 parent-width percent', actual: layout[key] };
+  }
+  if (layout.paddingStart + layout.paddingEnd > 100) return { path, expected: 'horizontal padding contained in parent', actual: layout };
+  return null;
+}
+
+function siblingPlacementProblem(placement, path) {
+  if (!object(placement)) return { path, expected: 'parent-owned sibling placement object', actual: placement };
+  for (const key of Object.keys(placement)) if (!['align', 'order'].includes(key)) {
+    return { path: `${path}.${key}`, expected: 'align | order', actual: placement[key] };
+  }
+  if (!['start', 'end'].includes(placement.align)) return { path: `${path}.align`, expected: 'start | end', actual: placement.align };
+  if (!Number.isInteger(placement.order) || placement.order < 1) return { path: `${path}.order`, expected: 'positive integer sibling order', actual: placement.order };
   return null;
 }
 
@@ -268,6 +302,10 @@ export function validateFrameConfig(raw, catalog, diagnostics) {
     if (own(node, 'sizing') && !['content', 'remaining'].includes(node.sizing)) {
       report('INVALID_SECTION', `${path}.sizing`, 'content | remaining; omit for fixed percentage height', node.sizing, meta); return;
     }
+    if (own(node, 'layout')) {
+      const problem = siblingLayoutProblem(node.layout, `${path}.layout`);
+      if (problem) { report('INVALID_SECTION_LAYOUT', problem.path, problem.expected, problem.actual, meta); return; }
+    }
     if (duplicateIds.has(node.id) || duplicateFolders.has(node.folder)) { report('DUPLICATE_SECTION', path, 'unique section ID/folder', node.id, meta); return; }
     const visual = resolveVisual(node, path, meta);
     if (visual && node.enabled) result.sections.push({ ...node, ...visual, configPath: path });
@@ -300,7 +338,17 @@ export function validateFrameConfig(raw, catalog, diagnostics) {
     if (!isId(node.id) || !isId(node.componentId) || !isId(node.parentId) || typeof node.enabled !== 'boolean' || typeof node.label !== 'string' || !node.label.trim()) {
       report('INVALID_INSTANCE', path, 'valid instance identity, label and enabling', node, meta); return;
     }
-    if (!checkBounds(node.bounds, `${path}.bounds`, meta, 'INVALID_INSTANCE')) return;
+    const configuredParent = sections.find((section) => section?.id === node.parentId);
+    if (!configuredParent) { report('UNKNOWN_PARENT', `${path}.parentId`, 'configured section ID', node.parentId, meta); return; }
+    if (own(configuredParent, 'layout')) {
+      const boundsIssue = siblingBoundsProblem(node.bounds, `${path}.bounds`);
+      if (boundsIssue) { report('INVALID_INSTANCE', boundsIssue.path, boundsIssue.expected, boundsIssue.actual, meta); return; }
+      const placementIssue = siblingPlacementProblem(node.placement, `${path}.placement`);
+      if (placementIssue) { report('INVALID_SIBLING_PLACEMENT', placementIssue.path, placementIssue.expected, placementIssue.actual, meta); return; }
+    } else {
+      if (!checkBounds(node.bounds, `${path}.bounds`, meta, 'INVALID_INSTANCE')) return;
+      if (own(node, 'placement')) { report('INVALID_SIBLING_PLACEMENT', `${path}.placement`, 'placement only when the configured parent owns a sibling layout', node.placement, meta); return; }
+    }
     if (own(node, 'aspectRatio') && (!Number.isFinite(node.aspectRatio) || node.aspectRatio <= 0)) {
       report('INVALID_INSTANCE', `${path}.aspectRatio`, 'positive finite width/height ratio', node.aspectRatio, meta); return;
     }
@@ -345,8 +393,6 @@ export function validateFrameConfig(raw, catalog, diagnostics) {
         }
       }
     }
-    const configuredParent = sections.find((section) => section?.id === node.parentId);
-    if (!configuredParent) { report('UNKNOWN_PARENT', `${path}.parentId`, 'configured section ID', node.parentId, meta); return; }
     if (duplicateComponents.has(node.componentId)) return;
     if (entry?.validateConfig) {
       try {
@@ -363,6 +409,50 @@ export function validateFrameConfig(raw, catalog, diagnostics) {
     }
     result.instances.push({ ...node, ...visual, parts, ...entry, configPath: path });
   });
+
+  // LOGIC — configured parents resolve sibling x positions once; leaf controls never place peers.
+  const invalidLayoutParents = new Set();
+  for (const section of result.sections.filter((node) => node.layout)) {
+    const children = result.instances.filter((node) => node.parentId === section.id);
+    const conflicts = new Set();
+    for (const align of ['start', 'end']) {
+      const lane = children.filter((node) => node.placement.align === align);
+      const duplicateOrders = duplicateValues(lane.map((node) => node.placement.order));
+      for (const node of lane.filter((entry) => duplicateOrders.has(entry.placement.order))) {
+        conflicts.add(node.id);
+        report('DUPLICATE_SIBLING_ORDER', `${node.configPath}.placement.order`, `unique ${align} sibling order`, node.placement.order,
+          { sectionId: section.id, instanceId: node.id, componentId: node.componentId, parentId: node.parentId, filePath: node.filePath, action: 'conflicting child skipped' });
+      }
+    }
+    const active = children.filter((node) => !conflicts.has(node.id));
+    const lanes = Object.fromEntries(['start', 'end'].map((align) => [align, active.filter((node) => node.placement.align === align).sort((a, b) => a.placement.order - b.placement.order)]));
+    const gap = section.layout.siblingGap;
+    const laneWidth = (nodes) => nodes.reduce((total, node) => total + node.bounds.width, 0) + Math.max(0, nodes.length - 1) * gap;
+    const startEnd = section.layout.paddingStart + laneWidth(lanes.start);
+    const endStart = 100 - section.layout.paddingEnd - laneWidth(lanes.end);
+    const requiredMiddleGap = lanes.start.length && lanes.end.length ? gap : 0;
+    if (startEnd + requiredMiddleGap > endStart + 0.00001) {
+      invalidLayoutParents.add(section.id);
+      report('SIBLING_LAYOUT_OVERFLOW', `${section.configPath}.layout`, 'start/end sibling lanes contained without overlap',
+        { startEnd, endStart, siblingGap: gap }, { sectionId: section.id, action: 'section children skipped' });
+      continue;
+    }
+    let cursor = section.layout.paddingStart;
+    for (const node of lanes.start) {
+      node.bounds = { x: cursor, ...node.bounds };
+      cursor += node.bounds.width + gap;
+    }
+    cursor = endStart;
+    for (const node of lanes.end) {
+      node.bounds = { x: cursor, ...node.bounds };
+      cursor += node.bounds.width + gap;
+    }
+    for (const id of conflicts) {
+      const index = result.instances.findIndex((node) => node.id === id);
+      if (index >= 0) result.instances.splice(index, 1);
+    }
+  }
+  if (invalidLayoutParents.size) result.instances = result.instances.filter((node) => !invalidLayoutParents.has(node.parentId));
   const referenced = new Set(instances.map((node) => node?.componentId));
   for (const entry of catalog) if (!referenced.has(entry.componentId)) report('COMPONENT_WITHOUT_CONFIG', null, 'configured or intentionally disabled instance', null, entry);
 

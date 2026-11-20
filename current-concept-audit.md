@@ -367,6 +367,13 @@ manual child imports. A build-time catalog discovers files from those folders;
 each section accepts only files from its assigned folder. Move a control's file
 and change JSON parent/placement to relocate it; no assembly/behavior edits.
 
+Configured sections may own a generic row layout with one `siblingGap`, start/end
+padding and ordered start/end lanes. Children of that section provide width and
+vertical bounds but no `x`; `ConfigValidation.mjs` resolves their horizontal
+bounds before `WindowLayout.jsx` mounts them. Action Bar uses this mechanism, so
+its separators declare only size/order/appearance and cannot independently tune
+their horizontal position.
+
 Every control source has UI and LOGIC sections when applicable:
 
 - **UI:** rendering/config connection; JSON owns all application appearance.
