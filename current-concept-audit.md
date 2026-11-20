@@ -17,11 +17,11 @@ The map below remains the comparison target; do not recreate/reconfirm the skele
 Run from `frame/`: `npm.cmd start` for normal mode or `npm.cmd run inspect` for
 development inspection. Normal startup shows the black frame, filename/status and
 shared icon-only Load/Save buttons. Undo/Redo start disabled until an edit exists.
-Rotation controls start disabled until a photo is loaded. The Action Bar reads
-`[Rotate left] [degree input + °] [slider] [Rotate right] | … [Load] [Save]`.
+Rotation and Size controls start disabled until a photo is loaded. The Action Bar
+uses one shared adjustment sub-parent for `[decrease] [value] [increase]`; each
+value opens its configured slider popup.
 JSON defines ±180° bounds, 0.1° precision/step and 90° button increments.
-The degree box starts at one-digit width and expands/shrinks with its text.
-Its JSON `textSizing` policy owns character limits and font-relative insets.
+Rotation keeps its editable degree value while Size shows its percentage value.
 Rotation changes photo preview/export only; future prepared layers remain independent.
 The active arrangement is Load/Save in Action Bar, Undo/Redo in Windows Bar,
 with only Close/X visible among the Windows Bar window-action buttons.
@@ -50,29 +50,17 @@ opens a portaled surface that closes on commit, Escape or an outside press.
 Rotation opens it from the degree symbol; Size opens it from the percentage
 value. JSON owns the popup part's surface width/padding and appearance.
 
-The Rotation group shrank from 36% to 16% of the bar and Size from 33% to 15%.
-Because parts are sized as a percentage of their group, the button parts needed
-proportional rebalancing to keep their rendered size: rotate buttons remain
-**38.94px** squares, size buttons **38.63px** and file buttons **71.84px**,
-matching the pre-popover measurements. The file group keeps its 74–99% bounds
-so its 1% right margin is unchanged.
-
-`tests/popover-proof.mjs` checks the compact bar, the preserved button sizes,
-popup open/drag/commit/close, Escape cancelling a whole drag, an outside press
-closing it, and one-row layout at default/minimum sizes. Rotation, size,
-window-swap, file-action and Bottom Bar proofs and 30 contract/rotation tests
-pass. Native captures under `frame/.runtime/checks/popover/` were inspected.
-
-Two defects were found and fixed during this slice: the popup surface ignored
-its configured background because a plain div does not read MUI's `sx`, and a
-canceled slider drag left the gesture marked canceled so the keyboard could no
-longer adjust the slider.
+`components/AdjustmentControls.jsx` now owns the one reusable proportional row,
+value/editor trigger, popup slider and common configuration validation. Rotation
+and Size use the same `decrease/value/increase/slider/control/rail/track/thumb/popup`
+part contract. Their group bounds and every part allocation remain percentages;
+the feature adapters supply only state, labels, icons and commands.
 
 ## Baked size controls and Reset
 
-`action-bar/SizeControls.jsx` is one baked `photo.sizeControls` instance
-(`sizeControls`) with parts decrease/slider/value/increase, placed between the
-Rotation group and the file group. `PhotoOperations.mjs` owns the size policy
+`action-bar/SizeControls.jsx` is the thin `photo.sizeControls` behavior adapter.
+It supplies Size state/actions to `components/AdjustmentControls.jsx`, placed
+between Rotation and the file group. `PhotoOperations.mjs` owns the size policy
 (`size` in JSON: 10–400%, 5% step) plus `fitScale`, `sizePercentOf` and
 `scaleFromPercent`; the centered-fill scale is the 100% reference. The shared
 `frame.controls` group gained a third part, `reset`, which restores the fitted
@@ -80,22 +68,6 @@ document through the same shared operation owner.
 
 A slider drag is one grouped history step; the +/- buttons are discrete commits,
 like the rotation buttons. Undo/Redo settle pending edits through the same owner.
-
-Focused verification: 30 contract/rotation logic tests, UI build and the new
-`tests/size-controls-proof.mjs` passed. It checks the fitted 100% start, button
-steps, slider drag, value readout, live preview, one-step Undo/Redo, Reset
-restoring the fitted document, an exact 1200×1600 export after Reset, and
-default/minimum native captures under `frame/.runtime/checks/size-controls/`.
-Window-swap, file-action, rotation and Bottom Bar proofs were rerun and passed.
-`tests/bar-layout-proof.mjs` layout assertions passed, but its native
-foreground-mouse portion could not run in this environment ("proof window is not
-foreground"), so that drag proof is unverified in this pass.
-
-Two defects were found and fixed during this slice: the size value box claimed
-100% of the group and squeezed the slider to zero width, and the +/- buttons
-opened a live edit so Undo committed instead of stepping back.
-Previous normal frame PID **17096** closed normally. Updated normal frame PID
-**13116**, with owned worker PID **7776**, was verified and left running.
 
 ## Baked file controls and right margins
 
@@ -149,48 +121,39 @@ interaction, other codecs and a broad export/rotation suite were not rerun.
 Previous normal frame PID **17072** closed normally. Updated normal frame PID
 **4956**, with owned worker PID **7260**, was verified and left running.
 
-## Baked feature blocks: Rotation
+## Shared adjustment sub-parent: Rotation and Size
 
-Rotation is one baked feature sub-parent containing its four controls. The
-separator is a separate Action Bar sibling, outside the group's outline.
-Rotation's UI and local interaction owner is:
-`frame/view/window/action-bar/RotationControls.jsx`.
+`components/AdjustmentControls.jsx` is the reusable sub-parent containing the
+decrease button, value/editor, increase button and popup slider. The separator
+remains a separate Action Bar sibling. Rotation and Size do not copy this UI.
 
 ```text
 Action Bar
-├── RotationControls
-│   ├── Rotate left
-│   ├── Degree input
-│   ├── Slider
-│   └── Rotate right
+├── RotationControls (behavior adapter)
+│   └── AdjustmentControls (shared sub-parent)
+│       ├── Rotate left
+│       ├── Editable degree value → popup slider
+│       └── Rotate right
+├── SizeControls (behavior adapter)
+│   └── AdjustmentControls (same shared sub-parent)
+│       ├── Decrease
+│       ├── Percentage value → popup slider
+│       └── Increase
 └── ActionSeparator
 ```
 
-One owning component contains the group's UI and local interactions, so editing
-its slider/buttons/layout happens in one place. Action Bar discovers and places
-one block; the block moves/resizes together. This is feature composition, not an
-Action Bar-specific registry or another generic layout system. Reuse MUI and the
-shared ActionButton renderer; keep calculations/history in their existing owners.
-JSON still owns group placement, named internal parts, dimensions, spacing,
-appearance and states. Separate UI/LOGIC sections remain.
+`RotationControls.jsx` now owns only degree draft/gesture behavior and maps its
+commands into the shared sub-parent. `SizeControls.jsx` does the same for percent
+state and size commands. The previous Rotation-specific MUI row, field measuring,
+buttons, popup and slider composition were deleted. JSON uses the same named part
+contract for both instances and still owns proportional placement, appearance and
+states. `PhotoOperations.mjs` and `PhotoHistory.mjs` remain the calculation and
+history owners.
 
-Outline properties already exist: `colors.outline`, `geometry.outlineWidth`,
-`geometry.outlineStyle` and `geometry.outlineOffset`, including state overrides
-such as `focusVisible`. They apply to the baked group and its configured parts.
-A border is the box edge; an outline is a separate ring and does not consume
-layout space. Development inspector outlines remain separate and development-only.
-
-The group has a normal-use 1px configured outline. Internal padding is 0.5% of
-the group's width and 4% of its height; row gaps are 1.5% of content width.
-It occupies 36% of Action Bar width and 92% of its height with
-4% top/bottom placement insets; padded controls retain the compact bar sizing.
-Its named parts share one injected session. Input autosizing remains local to the
-group. Its row cell uses only the displayed text width; no blank growth area is
-reserved. During pointer dragging, the preview/slider remain live while the
-numeric field holds its display until release, keeping the track steady.
-The separator has its own
-`ActionSeparator.jsx` registration. Superseded independent rotation registrations
-and parent preferred-width plumbing remain removed.
+The UI build passed. The updated normal window was inspected directly (without a
+second Electron instance) at `frame/.runtime/checks/shared-adjustment/live.png`;
+both adapters mounted through the shared row with no Bottom Bar diagnostic. No new
+UI test or fixed-pixel assertion was added.
 
 ## Exact target files and ownership
 
@@ -234,13 +197,13 @@ frame/
 │       │   └── InfoButton.jsx          Open information overlay
 │       ├── action-bar/
 │       │   ├── FileControls.jsx        Baked Load/Save/Reset group; invokes file actions and shared buttons
-│       │   ├── SizeControls.jsx        Baked photo size group; decrease/slider/value/increase
+│       │   ├── SizeControls.jsx        Thin Size behavior adapter for shared AdjustmentControls
 │       │   ├── SizeLabel.jsx           Accessible photo-size label
 │       │   ├── DecreaseSizeButton.jsx  Invoke shared photo-size decrease
 │       │   ├── PhotoSizeSlider.jsx     Size interaction and grouped edit completion
 │       │   ├── IncreaseSizeButton.jsx  Invoke shared photo-size increase
 │       │   ├── PhotoSizeValue.jsx      Show current photo-size percentage
-│       │   ├── RotationControls.jsx    Baked rotation UI/interaction; outlined group and named parts
+│       │   ├── RotationControls.jsx    Thin Rotation behavior adapter for shared AdjustmentControls
 │       │   ├── ActionSeparator.jsx     Independent Action Bar separator outside feature outlines
 │       │   ├── PlacementDropdown.jsx   Fit/Fill/Center action selection
 │       │   └── ResetButton.jsx         Invoke shared photo reset
@@ -470,7 +433,8 @@ black output and 1200×1600 / 2400×3200 / 3024×4032 export sizes.
 | Owner | Implemented responsibility |
 | --- | --- |
 | `FileControls.jsx` | One baked file-behavior registration/instance, three named parts (load/save/reset), component-owned labels/icons/row validation and delegation to the shared MUI renderer. |
-| `SizeControls.jsx` / `PhotoOperations.mjs` | One baked photo-size registration/instance; shared size policy, fit/percent/scale rules and history-grouped size commands. |
+| `components/AdjustmentControls.jsx` / `SizeControls.jsx` / `RotationControls.jsx` | One reusable proportional adjustment sub-parent; thin Size and Rotation behavior adapters use the same named-part contract. |
+| `PhotoOperations.mjs` | Shared size and rotation policies, fit/percent/scale rules and history-grouped commands. |
 | `components/ActionButton.jsx` (under `@APPS`) | One rendering/icon mechanism shared by file and window action registrations; no native/file behavior or app-specific appearance. |
 | `WindowActionButton.jsx` / `WindowActions.mjs` / `FrameWindow.cjs` | Config-driven window-button behavior, renderer event subscription and whitelisted native window operations; normal close/worker cleanup. |
 | `ImageFileActions.mjs` | Busy/cancel/error/save sequencing; coordinates state/history through their methods. |
