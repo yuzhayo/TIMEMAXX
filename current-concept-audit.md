@@ -10,7 +10,7 @@ capability isolation, relocation and error-origin boundaries are regression-chec
 The approved Rotation slice is now implemented and reviewed: left/right square
 shared action buttons, degree input, synchronized MUI slider and configured separator.
 The photo pointer/wheel slice, file dropping and independent inspection pan/zoom
-operations are implemented. Remaining global-shortcut controls, full overlays and layer
+operations and the approved Ctrl+S/Ctrl+Z shortcuts are implemented. Full overlays and layer
 receiving/composition are pending. Preserve `output-frame/` as a behavior reference;
 do not blindly copy it.
 The map below remains the comparison target; do not recreate/reconfirm the skeleton.
@@ -240,6 +240,14 @@ photo dragging, replacement history reset, invalid/multiple/corrupt-file isolati
 out-of-area rejection and protection of previously dropped originals. This checks
 the app's drop path, not an automated Windows Explorer drag. Captures/fixtures are
 under `frame/.runtime/checks/drop-image/`. The UI build passed; no broad suite ran.
+
+## Keyboard shortcuts
+
+`KeyboardShortcuts.mjs` owns only the approved Ctrl+S Save and Ctrl+Z Undo bindings.
+It calls existing session actions, ignores repeats/busy operations and leaves text
+editing, inputs, sliders, open menus, popovers and dialogs undisturbed. No Ctrl+O,
+Redo or other app shortcut was added. `view/main.jsx` attaches the handler once and
+detaches it on page teardown before disposing the session.
 
 ## Exact target files and ownership
 
@@ -559,7 +567,7 @@ uses its own declared owners; no old controller or stamp runtime was copied in.
    completes the normal worker/session cleanup path; native window operations remain.
 4. **Rotation complete:** input/degree parts and states are proven against real
      photo transforms. Photo pointer/wheel gestures and inspection operations are
-     complete; file dropping is implemented. Next: global shortcuts, overlays and layer receiving.
+     complete; file dropping and Ctrl+S Save/Ctrl+Z Undo are implemented. Next: overlays and layer receiving.
    Implement from the contract; remove superseded paths within the authorized
    target instead of accumulating alternate implementations.
 5. Verify affected behavior/native sizes with focused checks, then restart and
@@ -880,7 +888,7 @@ prepared stamp definition, with an independently usable headless engine.
   and owned worker PID **5732** were verified and left running.
 
 The implemented layout/history, file, adjustment, placement and photo-input slices
-do not establish full application readiness. Global-shortcut controls, full
+do not establish full application readiness. Additional shortcuts are not approved; full
 overlays, nested outlet mounting and finished-layer receiving/composition remain pending.
 The image worker does not generate stamps; the empty layer owner is not activated.
 Exports currently use the configured default resolution; the full export selector

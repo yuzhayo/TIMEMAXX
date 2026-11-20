@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createFrameSession } from '@frame/logic/FrameSession.mjs';
+import { attachKeyboardShortcuts } from '@frame/logic/KeyboardShortcuts.mjs';
 import { createDiagnostics } from './layout/LayoutDiagnostics.mjs';
 import { discoverComponents } from './layout/ComponentDiscovery.mjs';
 import { validateFrameConfig } from './layout/ConfigValidation.mjs';
@@ -49,5 +50,6 @@ if (bootstrap.development && bootstrap.inspectionRequested) {
     logPath: bootstrap.logPath,
   };
 }
-window.addEventListener('pagehide', () => session.dispose(), { once: true });
+const detachKeyboardShortcuts = attachKeyboardShortcuts(session);
+window.addEventListener('pagehide', () => { detachKeyboardShortcuts(); session.dispose(); }, { once: true });
 createRoot(document.getElementById('root')).render(<FrameApp />);
