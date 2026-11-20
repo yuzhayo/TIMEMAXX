@@ -58,14 +58,18 @@
   "instances": [
     { "id": "undo", "componentId": "history.undo", "parentId": "windowsBar", "enabled": true, "label": "Undo", "bounds": { "x": 1.5, "y": 8, "width": 4.5, "height": 84 }, "preset": "button" },
     { "id": "redo", "componentId": "history.redo", "parentId": "windowsBar", "enabled": true, "label": "Redo", "bounds": { "x": 7, "y": 8, "width": 4.5, "height": 84 }, "preset": "button" },
-    { "id": "load", "componentId": "file.action", "parentId": "actionBar", "enabled": true, "label": "Load image", "action": "load", "icon": "folderOpen", "bounds": { "x": 81, "y": 8, "width": 8, "height": 84 }, "preset": "fileAction" },
-    { "id": "save", "componentId": "file.action", "parentId": "actionBar", "enabled": true, "label": "Save image", "action": "save", "icon": "save", "bounds": { "x": 90, "y": 8, "width": 8, "height": 84 }, "preset": "fileAction" },
+    { "id": "fileControls", "componentId": "file.controls", "parentId": "actionBar", "enabled": true, "label": "Image file controls", "bounds": { "x": 82, "y": 8, "width": 17, "height": 84 }, "preset": "base", "geometry": { "gap": 6 }, "content": { "overflow": "visible" },
+      "labels": { "load": "Load image", "save": "Save image" }, "icons": { "load": "folderOpen", "save": "save" }, "parts": {
+        "load": { "preset": "fileAction", "size": { "width": 47, "height": 100 } },
+        "save": { "preset": "fileAction", "size": { "width": 47, "height": 100 } }
+      }
+    },
     { "id": "fileName", "componentId": "photo.fileName", "parentId": "windowsBar", "enabled": true, "label": "Current image", "bounds": { "x": 13, "y": 15, "width": 64, "height": 70 }, "preset": "fileName", "interaction": { "pointerEvents": "none", "dragRegion": "inherit" } },
     { "id": "photoPreview", "componentId": "photo.preview", "parentId": "frameBody", "enabled": true, "label": "Photo preview", "bounds": { "x": 0, "y": 0, "width": 100, "height": 100 }, "preset": "base", "presentation": { "insetX": 1, "insetY": 1 }, "colors": { "border": "#64707b" }, "geometry": { "borderWidth": 1 } },
     { "id": "fileStatus", "componentId": "file.status", "parentId": "bottomBar", "enabled": true, "label": "Application messages", "bounds": { "x": 2, "y": 0, "width": 96, "height": 100 }, "preset": "status" },
-    { "id": "windowMinimize", "componentId": "window.action", "parentId": "windowsBar", "enabled": true, "label": "Minimize window", "action": "minimize", "icon": "minimize", "bounds": { "x": 81, "y": 8, "width": 4.5, "height": 84 }, "preset": "fileAction" },
-    { "id": "windowMaximize", "componentId": "window.action", "parentId": "windowsBar", "enabled": true, "label": "Maximize or restore window", "action": "toggleMaximize", "icon": "maximize", "maximizedIcon": "restore", "bounds": { "x": 87, "y": 8, "width": 4.5, "height": 84 }, "preset": "fileAction" },
-    { "id": "windowClose", "componentId": "window.action", "parentId": "windowsBar", "enabled": true, "label": "Close window", "action": "close", "icon": "close", "bounds": { "x": 93, "y": 8, "width": 4.5, "height": 84 }, "preset": "fileAction" },
+    { "id": "windowMinimize", "componentId": "window.action", "parentId": "windowsBar", "enabled": false, "label": "Minimize window", "action": "minimize", "icon": "minimize", "bounds": { "x": 81, "y": 8, "width": 4.5, "height": 84 }, "preset": "fileAction" },
+    { "id": "windowMaximize", "componentId": "window.action", "parentId": "windowsBar", "enabled": false, "label": "Maximize or restore window", "action": "toggleMaximize", "icon": "maximize", "maximizedIcon": "restore", "bounds": { "x": 87, "y": 8, "width": 4.5, "height": 84 }, "preset": "fileAction" },
+    { "id": "windowClose", "componentId": "window.action", "parentId": "windowsBar", "enabled": true, "label": "Close window", "action": "close", "icon": "close", "bounds": { "x": 94.5, "y": 8, "width": 4.5, "height": 84 }, "preset": "fileAction" },
     { "id": "rotationControls", "componentId": "photo.rotationControls", "parentId": "actionBar", "enabled": true, "label": "Photo rotation controls", "unit": "°", "textSizing": { "minDigits": 1, "maxCharacters": 6, "paddingCh": 0.25, "gapCh": 0.2 }, "icons": { "left": "rotateLeft", "right": "rotateRight" },
       "labels": { "left": "Rotate left 90 degrees", "input": "Photo rotation in degrees", "slider": "Photo rotation slider", "right": "Rotate right 90 degrees" },
       "bounds": { "x": 1, "y": 4, "width": 36, "height": 92 }, "preset": "base", "colors": { "outline": "#64707b" }, "geometry": { "outlineWidth": 1, "outlineStyle": "solid", "outlineOffset": 0, "paddingX": 0.5, "paddingY": 4, "gap": 1.5 }, "content": { "overflow": "visible" }, "parts": {

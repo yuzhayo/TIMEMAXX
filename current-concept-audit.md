@@ -24,11 +24,13 @@ The degree box starts at one-digit width and expands/shrinks with its text.
 Its JSON `textSizing` policy owns character limits and font-relative insets.
 Rotation changes photo preview/export only; future prepared layers remain independent.
 The active arrangement is Load/Save in Action Bar, Undo/Redo in Windows Bar,
-with configured minimize, maximize/restore and X controls in Windows Bar.
+with only Close/X visible among the Windows Bar window-action buttons.
+Minimize and Maximize remain configured with `enabled: false`.
 Undo/Redo are at the far left, followed immediately by the left-aligned filename.
 The filename is a transparent pass-through label over the draggable Windows Bar.
-Load/Save have equal wider boxes anchored at the right of Action Bar, with centered
-icons. Minimize/maximize/X boxes exactly match Undo/Redo in their common parent.
+Load/Save are one baked `FileControls.jsx` group with equal wider boxes and centered
+icons, 1% from Action Bar's right edge. Close/X is 1% from Windows Bar's right edge;
+its box retains the Undo/Redo dimensions. Filename/history/Rotation remain unchanged.
 Windows Bar and Action Bar each use 5% of window height. Buttons use 8% top/bottom
 parent-relative insets and 84% height, so the rows have equal control heights and
 proportional padding. Action Bar was tightened while retaining essentially the same control height;
@@ -39,6 +41,30 @@ window operations. X shares the exact MUI renderer and preset used by Load/Save.
 Loading/replacing an image resets photo history. No fake edits are seeded.
 The working rule is to close an existing target-app instance and launch the current
 build after finishing changes and focused verification, leaving it open for the user.
+
+## Baked file controls and right margins
+
+`action-bar/FileControls.jsx` replaces the individual `FileActionButton.jsx`
+registration. One `file.controls` instance (`fileControls`) owns Load/Save
+composition, labels/icons, row sizing and configuration checks. Its two shared
+ActionButton IDs are `fileControls-load` and `fileControls-save`; they are named
+parts, not separate layout registrations. File operations/history stay centralized.
+
+In JSON, `fileControls.bounds` is x=82%, width=17%, ending at 99% of Action Bar.
+Its row has two 47%-wide parts and a 6% gap, retaining approximately 8%-of-bar
+button widths. Close/X has x=94.5%, width=4.5%, also ending at 99% of its bar.
+Minimize/Maximize are hidden through their existing `enabled: false` settings.
+No shared-renderer, generic-parent, native-window or file-operation code changed.
+
+UI build, 30 contract/rotation logic tests, grouped window proof and file-action
+proof passed. Default/minimum native captures under
+`frame/.runtime/checks/window-swap/` were inspected. Both group/Save and X right
+margins measured within 0.02 percentage points of 1%. Load/Save, normal X/worker
+cleanup, cancellation, replacement, original protection, per-part/shared-preset
+appearance, group disabling/mismatch isolation and grouped error provenance were
+checked. Existing other proofs were adapted and syntax-checked, not rerun.
+Previous normal frame PID **4956** closed normally. Updated normal frame PID
+**13680**, with owned worker PID **17944**, was verified and left running.
 
 ## Text-only Bottom Bar
 
@@ -152,7 +178,7 @@ frame/
 │       │   ├── WindowActionButton.jsx  Configured minimize/maximize/restore/close behavior
 │       │   └── InfoButton.jsx          Open information overlay
 │       ├── action-bar/
-│       │   ├── FileActionButton.jsx    Configured Load/Save behavior; delegates shared renderer
+│       │   ├── FileControls.jsx        Baked Load/Save group; invokes file actions and shared buttons
 │       │   ├── SizeLabel.jsx           Accessible photo-size label
 │       │   ├── DecreaseSizeButton.jsx  Invoke shared photo-size decrease
 │       │   ├── PhotoSizeSlider.jsx     Size interaction and grouped edit completion
@@ -233,7 +259,7 @@ appearance exports remain only for the reference app, with their behavior unchan
 frame does not call them. No output-frame source was modified or migrated.
 
 `@APPS/components/ActionButton.jsx` is the single shared MUI action-button
-renderer/icon library, not a section registration. FileActionButton and
+renderer/icon library, not a section registration. FileControls and
 WindowActionButton retain separate domain behavior/config validation in their
 assigned section folders. Both delegate rendering to this one library component;
 there is no duplicated button styling and no folder-parent validation exemption.
@@ -263,7 +289,7 @@ declared dependencies, not an undeclared ancestor installation.
   applicable. The UI shows a concise summary; complete records remain in the log.
 - Components may export `configKeys` plus a pure `validateConfig` function for
   their own options. The generic mechanism validates only those declared additions
-  and isolates hook failures. FileActionButton owns action/icon validation;
+  and isolates hook failures. FileControls owns labels/icons and file-row validation;
   PhotoPreview owns its inset options. Adding a control does not add its rules to
   the unified layout file.
 - Available component validators run even when their instance/section is disabled.
@@ -337,7 +363,8 @@ behavior common to several inputs. Empty skeleton files stay empty.
 - Each file exports one stable **component ID**, independent of its filename.
 - Each JSON instance has a stable **instance ID**, component ID, `parentId`,
   `enabled`, placement and resolved visuals. Distinguish implementation identity
-  from instance identity so Load and Save can use the same FileActionButton.
+  from instance identity. FileControls is one instance with named Load/Save parts;
+  their DOM IDs derive from the group ID rather than their source filename.
 - Discover and validate the complete catalog before mounting valid results.
   Identify all duplicates; never mount whichever duplicate happens to be first.
 - `enabled: false` means intentionally unmounted, not missing. It is distinct
@@ -386,7 +413,7 @@ black output and 1200×1600 / 2400×3200 / 3024×4032 export sizes.
 
 | Owner | Implemented responsibility |
 | --- | --- |
-| `FileActionButton.jsx` | One file-behavior registration, two instances, component-owned action/icon validation and delegation to the shared MUI renderer. |
+| `FileControls.jsx` | One baked file-behavior registration/instance, two named parts, component-owned labels/icons/row validation and delegation to the shared MUI renderer. |
 | `components/ActionButton.jsx` (under `@APPS`) | One rendering/icon mechanism shared by file and window action registrations; no native/file behavior or app-specific appearance. |
 | `WindowActionButton.jsx` / `WindowActions.mjs` / `FrameWindow.cjs` | Config-driven window-button behavior, renderer event subscription and whitelisted native window operations; normal close/worker cleanup. |
 | `ImageFileActions.mjs` | Busy/cancel/error/save sequencing; coordinates state/history through their methods. |
@@ -410,13 +437,13 @@ uses its own declared owners; no old controller or stamp runtime was copied in.
    mismatch isolation passed. Controls are restored to Action Bar after the proof.
    The five demonstrated audit defects are repaired; targeted bad-config checks
    confirm isolation/logging instead of crashes or silent fallback.
-3. **File slice complete:** one shared FileActionButton and preset, two instances,
+3. **File slice complete:** one baked FileControls instance and shared part preset,
    native Load/Save, real preview and independent Rust photo/black PNG/JPEG export.
-   Shared-preset changes, per-instance isolation, enabling, mismatch logging,
+   Shared-preset changes, per-part appearance, group enabling/mismatch isolation,
    cancellation, replacement and original protection are verified.
    The relocation test arrangement is retained: Load/Save in Action Bar and
-   Undo/Redo in Windows Bar. Custom minimize/maximize/restore/X use the common
-   renderer, and X completes the normal worker/session cleanup path.
+   Undo/Redo in Windows Bar. Only X is visible among window-action controls and
+   completes the normal worker/session cleanup path; native window operations remain.
 4. **Rotation complete:** input/degree parts and states are proven against real
     photo transforms. Next: remaining controls, view gestures and layer receiving.
    Implement from the contract; remove superseded paths within the authorized
@@ -439,7 +466,7 @@ re-audit unrelated files or repeatedly reconfirm an already-correct skeleton.
 ## Acceptance checklist
 
 - [x] Stable component identity survives filename rename (Undo renamed during relocation proof).
-- [x] Multiple instances share one component/preset correctly, including Load/Save.
+- [x] Shared component/preset reuse works; baked Load/Save parts use one fileAction preset and shared renderer.
 - [x] Discovery and validation precede mounting; duplicate component/instance IDs are isolated in contract checks.
 - [x] Disabling an instance in JSON hides it without a false missing-instance log.
 - [x] Undo's actual button color/height follow JSON and Redo remains unchanged.
@@ -451,8 +478,9 @@ re-audit unrelated files or repeatedly reconfirm an already-correct skeleton.
       or behavior edits; current physical files/parent IDs place them in Windows Bar.
 - [x] Load/Save are physically registered in Action Bar; custom X is in Windows Bar
       and uses the same shared renderer/preset without weakening folder guards.
-- [x] Custom minimize, maximize/restore (including icon change), and normal-close
-      cleanup work with the native control overlay absent.
+- [x] Minimize/Maximize buttons are JSON-disabled; native window operations remain.
+      Close/X and normal-close cleanup work with the native control overlay absent.
+- [x] FileControls/Save and Close/X end 1% from their respective bar edges.
 - [x] Intentional folder/parent mismatch logs a readable, deduplicated record and
       leaves valid controls usable; inspect repeat counts and persisted records.
 - [x] Inspection mode displays boundaries/IDs/source and is absent in normal mode; summary is readable at both sizes.

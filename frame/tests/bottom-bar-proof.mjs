@@ -59,13 +59,13 @@ try {
   };
   const cancelLoad = async () => {
     await app.evaluate(({ dialog }) => { dialog.showOpenDialog = async () => ({ canceled: true, filePaths: [] }); });
-    await page.click('#load');
+    await page.click('#fileControls-load');
     await page.waitForFunction(() => !window.frameDev.snapshot().busy && window.frameDev.snapshot().message.includes('Load canceled'));
     await settle();
   };
   const loadPhoto = async () => {
     await app.evaluate(({ dialog }, file) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] }); }, photo);
-    await page.click('#load');
+    await page.click('#fileControls-load');
     await page.waitForFunction(() => !window.frameDev.snapshot().busy && window.frameDev.snapshot().message.startsWith('Loaded '));
     await settle();
   };
@@ -100,7 +100,7 @@ try {
   await page.evaluate((raw) => window.frameDev.reconfigure(raw), config);
   await settle();
   await app.evaluate(({ dialog }) => { dialog.showOpenDialog = async () => { throw new Error('Bottom Bar controlled dialog failure'); }; });
-  await page.click('#load');
+  await page.click('#fileControls-load');
   await page.waitForFunction(() => !window.frameDev.snapshot().busy && window.frameDev.records().length > 0);
   await settle();
   const text = await page.locator('#fileStatus').textContent();
@@ -117,7 +117,7 @@ try {
   await page.evaluate((raw) => window.frameDev.reconfigure(raw), invalidPadding);
   await settle();
   assert.equal(await page.locator('#fileStatus').count(), 0, 'Invalid padding isolates its message control before rendering');
-  assert.equal(await page.locator('#load').count(), 1, 'Other controls survive invalid message configuration');
+  assert.equal(await page.locator('#fileControls-load').count(), 1, 'Other controls survive invalid message configuration');
   assert.ok((await page.evaluate(() => window.frameDev.records())).some((issue) => issue.instanceId === 'fileStatus' && issue.configPath.endsWith('geometry.paddingY')));
   assert.deepEqual(errors, []);
   console.log(JSON.stringify({ pass: true, checked, jsonPadding2Percent: true, failuresAndDiagnosticsInBar: true, logPath, captures: folder }, null, 2));

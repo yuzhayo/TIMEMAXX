@@ -46,7 +46,7 @@ try {
   await fs.writeFile(source, Buffer.from(fixture, 'base64')); const originalHash = await hash(source);
   const load = async () => {
     await app.evaluate(({ dialog }, file) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] }); }, source);
-    await page.click('#load');
+    await page.click('#fileControls-load');
     await page.waitForFunction(() => !window.frameDev.snapshot().busy && !!window.frameDev.snapshot().photo);
   };
   const rotation = () => page.evaluate(() => window.frameDev.snapshot().document.rotation);
@@ -54,7 +54,7 @@ try {
   const save = async (name) => {
     const file = path.join(artifacts, name);
     await app.evaluate(({ dialog }, destination) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: destination }); }, file);
-    await page.click('#save');
+    await page.click('#fileControls-save');
     await page.waitForFunction(() => !window.frameDev.snapshot().busy && window.frameDev.snapshot().message.startsWith('Saved '));
     return file;
   };
@@ -112,7 +112,7 @@ try {
     await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   };
   await page.mouse.move(500, 400);
-  const loadBefore = await page.locator('#load').evaluate((element) => { const b = element.getBoundingClientRect(); return { width: b.width, height: b.height, color: getComputedStyle(element).color }; });
+  const loadBefore = await page.locator('#fileControls-load').evaluate((element) => { const b = element.getBoundingClientRect(); return { width: b.width, height: b.height, color: getComputedStyle(element).color }; });
   const customized = structuredClone(config), group = customized.instances.find((node) => node.id === 'rotationControls');
   group.parts.field.size.height = 60;
   group.parts.input.colors = { foreground: '#91e4c3' };
@@ -121,12 +121,12 @@ try {
   assert.equal(await input.evaluate((element) => getComputedStyle(element).color), 'rgb(145, 228, 195)');
   const parentHeight = await page.locator('[data-rotation-content]').evaluate((element) => element.getBoundingClientRect().height);
   assert.ok(Math.abs((await page.locator('#rotationControls-field').boundingBox()).height - parentHeight * 0.6) < 1);
-  assert.deepEqual(await page.locator('#load').evaluate((element) => { const b = element.getBoundingClientRect(); return { width: b.width, height: b.height, color: getComputedStyle(element).color }; }), loadBefore);
+  assert.deepEqual(await page.locator('#fileControls-load').evaluate((element) => { const b = element.getBoundingClientRect(); return { width: b.width, height: b.height, color: getComputedStyle(element).color }; }), loadBefore);
   checked.push('JSON-only real field height/color change with Load unaffected');
   await configure(config);
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(760, 1100));
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-  const tallCenters = await page.locator('#rotationControls-left, #rotationControls-right, #load').evaluateAll((elements) => elements.map((element) => { const bounds = element.getBoundingClientRect(); return bounds.y + bounds.height / 2; }));
+  const tallCenters = await page.locator('#rotationControls-left, #rotationControls-right, #fileControls-load').evaluateAll((elements) => elements.map((element) => { const bounds = element.getBoundingClientRect(); return bounds.y + bounds.height / 2; }));
   assert.ok(tallCenters.every((center) => Math.abs(center - tallCenters[0]) < 1), 'Width-limited squares remain on the centerline in a tall window');
   await app.evaluate(({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0].setSize(...size), [config.window.width, config.window.height]);
   for (const [name, width, height] of [['default', config.window.width, config.window.height], ['minimum', config.window.minWidth, config.window.minHeight]]) {
@@ -136,7 +136,7 @@ try {
     for (const text of ['0', '10', '100', '-179.9', '0']) {
       await input.fill(text);
       await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-      const positions = await page.evaluate((ids) => ids.map((id) => { const b = document.getElementById(id).getBoundingClientRect(); return { x: b.x, width: b.width }; }), ['rotationControls-field', 'rotationControls-slider', 'load', 'save']);
+      const positions = await page.evaluate((ids) => ids.map((id) => { const b = document.getElementById(id).getBoundingClientRect(); return { x: b.x, width: b.width }; }), ['rotationControls-field', 'rotationControls-slider', 'fileControls-load', 'fileControls-save']);
       dynamic.push({ text, positions });
     }
     assert.ok(dynamic[0].positions[0].width < 30, 'Default fits one digit plus degree symbol/insets');
@@ -163,7 +163,7 @@ try {
     }
     await page.mouse.move(width / 2, height / 2);
     const metric = await page.evaluate(() => {
-      const read = (id) => { const e = document.getElementById(id === 'separator' ? 'rotationSeparator' : ['load', 'save'].includes(id) ? id : `rotationControls-${id}`), b = e.getBoundingClientRect(); return { x: b.x, y: b.y, width: b.width, height: b.height, right: b.right, center: b.y + b.height / 2 }; };
+      const read = (id) => { const e = document.getElementById(id === 'separator' ? 'rotationSeparator' : ['load', 'save'].includes(id) ? `fileControls-${id}` : `rotationControls-${id}`), b = e.getBoundingClientRect(); return { x: b.x, y: b.y, width: b.width, height: b.height, right: b.right, center: b.y + b.height / 2 }; };
       const ids = ['left', 'field', 'slider', 'right', 'separator', 'load', 'save'];
       const nodes = Object.fromEntries(ids.map((id) => [id, read(id)]));
       const field = document.querySelector('#rotationControls-input').getBoundingClientRect(), unit = document.querySelector('#rotationControls-field [data-part="degree"]').getBoundingClientRect();
@@ -209,7 +209,7 @@ try {
   await configure(config);
   const invalid = structuredClone(config); invalid.instances.find((node) => node.id === 'rotationControls').parts.input.colors = { foreground: 'wrong' };
   await configure(invalid); await configure(invalid);
-  assert.equal(await input.count(), 0); assert.equal(await page.locator('#load').isEnabled(), true);
+  assert.equal(await input.count(), 0); assert.equal(await page.locator('#fileControls-load').isEnabled(), true);
   await page.evaluate(() => window.frameDev.flush());
   const record = (await page.evaluate(() => window.frameDev.records())).find((issue) => issue.configPath.endsWith('.parts.input.colors.foreground'));
   assert.equal(record.repeatCount, 2); assert.equal(record.instanceId, 'rotationControls'); assert.match(record.filePath, /RotationControls/);

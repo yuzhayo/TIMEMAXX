@@ -99,13 +99,13 @@ test('named parts/active state/ratio validate and failures isolate exact owners'
     mutate(node);
     const { plan, issues } = validate(config);
     assert.ok(!plan.instances.some((value) => value.id === node.id));
-    assert.ok(plan.instances.some((value) => value.id === 'save'));
+    assert.ok(plan.instances.some((value) => value.id === 'fileControls'));
     assert.ok(issues.some((issue) => issue.instanceId === node.id && issue.configPath.endsWith(path) && issue.filePath));
   }
   const invalid = structuredClone(raw); invalid.rotation.step = 0;
   const { plan, issues } = validate(invalid);
   assert.equal(plan.rotation, null);
-  assert.ok(plan.instances.some((node) => node.id === 'load'));
+  assert.ok(plan.instances.some((node) => node.id === 'fileControls'));
   assert.ok(!plan.instances.some((node) => node.componentId.startsWith('photo.rot')));
   assert.ok(issues.some((issue) => issue.configPath === 'rotation.step'));
 });
