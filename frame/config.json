@@ -41,7 +41,7 @@
     },
     "fileAction": { "preset": "button", "colors": { "background": "transparent" }, "geometry": { "iconWidth": 49, "iconHeight": 62 } },
     "placement": { "preset": "button", "geometry": { "paddingX": 6, "iconWidth": 14, "iconHeight": 60 }, "content": { "horizontalAlign": "space-between", "textAlign": "left" } },
-    "placementMenu": { "preset": "button", "geometry": { "radius": 0, "paddingX": 8, "paddingY": 8 }, "content": { "direction": "column", "horizontalAlign": "stretch", "verticalAlign": "flex-start", "textAlign": "left", "overflow": "visible" } },
+    "placementMenu": { "preset": "base", "colors": { "background": "#1d252f", "border": "#43505f" }, "geometry": { "borderWidth": 1, "radius": 0, "paddingX": 0, "paddingY": 0 }, "content": { "direction": "column", "horizontalAlign": "stretch", "verticalAlign": "flex-start", "textAlign": "left", "overflow": "visible" }, "states": { "hover": { "colors": { "background": "#303d4c", "border": "#8292a6" } } } },
     "adjustmentValue": { "preset": "button", "geometry": { "fontSize": 13 }, "states": { "error": { "colors": { "foreground": "#ff9f9f" } } } },
     "rotationRail": { "preset": "base", "colors": { "background": "#43505f" }, "geometry": { "radius": 3 } },
     "rotationTrack": { "preset": "base", "colors": { "background": "#9aa5b2" }, "geometry": { "radius": 3 } },
