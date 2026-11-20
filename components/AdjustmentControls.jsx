@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Box from '@mui/material/Box';
 import InputBase from '@mui/material/InputBase';
 import Slider from '@mui/material/Slider';
@@ -54,10 +54,32 @@ export default function AdjustmentControls({
 }) {
   const { decrease, value, increase, slider, control, rail, track, thumb, popup } = config.parts;
   const [popupOpen, setPopupOpen] = useState(false);
+  const operations = useRef(sliderControl);
+  const gesture = useRef({ pointer: false, keyboard: false, canceled: false });
+  operations.current = sliderControl;
   const name = (role) => partNames[role] ?? role;
   const id = (role) => `${config.id}-${name(role)}`;
   const openPopup = () => { if (!disabled) setPopupOpen(true); };
   const closePopup = () => setPopupOpen(false);
+  const publishValue = (next) => {
+    if (next !== undefined) operations.current.onValue?.(next);
+    return next;
+  };
+  const beginSlider = () => {
+    publishValue(operations.current.finish?.());
+    operations.current.begin?.();
+  };
+  const finishSlider = () => publishValue(operations.current.finish?.());
+  const cancelSlider = () => publishValue(operations.current.cancel?.());
+  const resetGesture = () => { gesture.current = { pointer: false, keyboard: false, canceled: false }; };
+  useEffect(() => {
+    const blur = () => {
+      if (gesture.current.pointer || gesture.current.keyboard) finishSlider();
+      resetGesture();
+    };
+    window.addEventListener('blur', blur);
+    return () => { window.removeEventListener('blur', blur); blur(); };
+  }, []);
   const managedPart = (part) => ({ ...configuredSx(part), height: `${part.size.height}px` });
   const buttonConfig = (role, part) => ({ ...part, id: id(role), label: config.labels[role], icon: config.icons[role] });
   const slot = (role, part, children) => <Box data-part={name(role)} sx={{
@@ -85,29 +107,59 @@ export default function AdjustmentControls({
         onClick={openPopup} sx={{ ...fill, ...configuredSx(value), cursor: disabled ? 'default' : 'pointer' }}>
         {valueControl.text}
       </Box>;
-  const commitSlider = (event, next) => {
-    sliderControl.onChangeCommitted?.(event, next);
-    if (event.type !== 'keydown') closePopup();
+  const changeSlider = (event, next) => {
+    if (gesture.current.canceled) return;
+    if (event.type === 'keydown' && !gesture.current.keyboard) {
+      beginSlider(); gesture.current.keyboard = true;
+    }
+    publishValue(operations.current.update(next));
+  };
+  const commitSlider = (event) => {
+    if (event.type === 'keydown') return;
+    if (!gesture.current.canceled) finishSlider();
+    resetGesture(); closePopup();
+  };
+  const pointerDown = (event) => {
+    if (event.button !== 0 || disabled) return;
+    beginSlider(); gesture.current = { pointer: true, keyboard: false, canceled: false };
+    window.addEventListener('pointerup', resetGesture, { once: true });
+  };
+  const pointerCancel = () => {
+    gesture.current.canceled = true; cancelSlider(); resetGesture(); closePopup();
   };
   const sliderKeyDown = (event) => {
-    sliderControl.onKeyDown?.(event);
-    if (event.key === 'Escape') closePopup();
+    if (event.key !== 'Escape') return;
+    event.preventDefault();
+    const pointerActive = gesture.current.pointer;
+    gesture.current.canceled = true; cancelSlider(); closePopup();
+    if (!pointerActive) resetGesture();
   };
-  const pointerCancel = (event) => { sliderControl.onPointerCancel?.(event); closePopup(); };
+  const sliderKeyUp = () => {
+    if (!gesture.current.keyboard) return;
+    finishSlider(); resetGesture();
+  };
+  const sliderBlur = () => {
+    if (gesture.current.pointer || gesture.current.keyboard) finishSlider();
+    resetGesture();
+  };
+  const activateButton = (action) => {
+    publishValue(operations.current.finish?.());
+    publishValue(action());
+  };
 
   return <Box id={config.id} role="group" aria-label={config.label} sx={{ ...fill, ...configuredSx(config) }}>
     <Box {...contentAttribute} sx={{ ...fill, position: 'relative', containerType: 'size',
       display: 'flex', flexDirection: config.content.direction, flexWrap: config.content.wrap,
       alignItems: config.content.verticalAlign, justifyContent: config.content.horizontalAlign, columnGap: `${config.geometry.gap}%`,
     }}>
-      {slot('decrease', decrease, <ActionButton config={buttonConfig('decrease', decrease)} disabled={disabled} onClick={buttonActions.decrease} />)}
+      {slot('decrease', decrease, <ActionButton config={buttonConfig('decrease', decrease)} disabled={disabled} onClick={() => activateButton(buttonActions.decrease)} />)}
       {slot('value', value, <ConfiguredPopover id={id('popup')} config={popup} open={popupOpen} onClose={closePopup} trigger={valueTrigger}>
         <Box id={id('slider')} aria-disabled={disabled} sx={{ ...configuredSx(slider), position: 'relative', width: '100%', height: `${slider.size.height}px` }}>
           <Slider aria-label={config.labels.slider} disabled={disabled} value={sliderControl.value}
             min={sliderControl.min} max={sliderControl.max} step={sliderControl.step} shiftStep={sliderControl.shiftStep ?? sliderControl.step}
-            onChange={sliderControl.onChange} onChangeCommitted={commitSlider}
-            onBlur={sliderControl.onBlur} onKeyUp={sliderControl.onKeyUp} onKeyDown={sliderKeyDown}
-            onPointerDown={sliderControl.onPointerDown} onPointerCancel={pointerCancel}
+            onChange={changeSlider} onChangeCommitted={commitSlider}
+            onBlur={sliderBlur} onKeyUp={sliderKeyUp} onKeyDown={sliderKeyDown}
+            onPointerDown={pointerDown} onPointerCancel={pointerCancel}
             sx={{ ...configuredSx(control) }}
             slotProps={{
               rail: { 'data-part': 'rail', 'aria-disabled': disabled, sx: { ...managedPart(rail), width: `${rail.size.width}%` } },
@@ -116,7 +168,7 @@ export default function AdjustmentControls({
             }} />
         </Box>
       </ConfiguredPopover>)}
-      {slot('increase', increase, <ActionButton config={buttonConfig('increase', increase)} disabled={disabled} onClick={buttonActions.increase} />)}
+      {slot('increase', increase, <ActionButton config={buttonConfig('increase', increase)} disabled={disabled} onClick={() => activateButton(buttonActions.increase)} />)}
     </Box>
   </Box>;
 }

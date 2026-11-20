@@ -21,23 +21,18 @@ export default function RotationControls({ config, state, actions }) {
   const value = state.document?.rotation;
   const disabled = !state.photo || state.busy || !actions.updateRotation;
   const [draft, setDraft] = useState(String(value ?? ''));
-  const [pointerEditing, setPointerEditing] = useState(false);
   const editing = useRef(false);
   const applied = useRef(value);
-  const gesture = useRef({ pointer: false, canceled: false });
 
   // LOGIC — Rotation adapts its draft/gesture behavior to the shared adjustment sub-parent.
   useEffect(() => {
-    if (pointerEditing && !disabled) return;
-    if (disabled && pointerEditing) setPointerEditing(false);
     if (!editing.current || value !== applied.current || disabled) {
       editing.current = false; applied.current = value; setDraft(String(value ?? ''));
     }
-  }, [value, state.photo?.photoId, disabled, pointerEditing]);
+  }, [value, state.photo?.photoId, disabled]);
   useEffect(() => {
     const blur = () => {
       applied.current = actions.finishRotation(); editing.current = false;
-      gesture.current = { pointer: false, canceled: true }; setPointerEditing(false);
       setDraft(String(applied.current ?? ''));
     };
     window.addEventListener('blur', blur);
@@ -50,7 +45,7 @@ export default function RotationControls({ config, state, actions }) {
   };
   const finishInput = () => {
     editing.current = false; applied.current = actions.finishRotation();
-    if (!gesture.current.pointer) setDraft(String(applied.current ?? ''));
+    setDraft(String(applied.current ?? ''));
   };
   const inputKeyDown = (event) => {
     if (event.key === 'Enter') { event.preventDefault(); finishInput(); }
@@ -63,34 +58,17 @@ export default function RotationControls({ config, state, actions }) {
       applied.current = actions.stepRotation(event.key === 'ArrowUp' ? 1 : -1); setDraft(String(applied.current));
     }
   };
-  const changeSlider = (event, next) => {
-    if (event.type === 'keydown' && !gesture.current.pointer) gesture.current.canceled = false;
-    if (!gesture.current.canceled) actions.updateRotation(next);
+  const acceptSliderValue = (next) => {
+    editing.current = false; applied.current = next; setDraft(String(next ?? ''));
   };
-  const finishSlider = (event) => {
-    if (event.type === 'keydown') return;
-    gesture.current = { pointer: false, canceled: false }; setPointerEditing(false); finishInput();
-  };
-  const sliderKeyUp = () => { if (!gesture.current.pointer) actions.finishRotation(); };
-  const pointerDown = (event) => {
-    if (event.button !== 0 || disabled) return;
-    actions.finishRotation(); gesture.current = { pointer: true, canceled: false };
-    setPointerEditing(true);
-    window.addEventListener('pointerup', () => { gesture.current = { pointer: false, canceled: false }; }, { once: true });
-  };
-  const cancelSlider = () => {
-    gesture.current.canceled = true; setPointerEditing(false);
-    applied.current = actions.cancelRotation(); editing.current = false; setDraft(String(applied.current ?? ''));
-  };
-  const sliderKeyDown = (event) => { if (event.key === 'Escape') { event.preventDefault(); cancelSlider(); } };
 
   // UI — Rotation supplies content to the shared proportional sub-parent; its old visual tree is gone.
   return <AdjustmentControls config={config} disabled={disabled} contentName="rotation"
     partNames={{ decrease: 'left', value: 'field', increase: 'right', input: 'input', unit: 'degree' }}
     buttonActions={{ decrease: () => actions.rotateBy(-settings.buttonStep), increase: () => actions.rotateBy(settings.buttonStep) }}
     valueControl={{ editor: { draft, unit: config.unit, invalid: !disabled && !Number.isFinite(parseRotationDraft(draft)),
-      readOnly: pointerEditing, inputMode: 'decimal', onChange: changeInput, onBlur: finishInput, onKeyDown: inputKeyDown } }}
+      inputMode: 'decimal', onChange: changeInput, onBlur: finishInput, onKeyDown: inputKeyDown } }}
     sliderControl={{ value: value ?? settings.min, min: settings.min, max: settings.max, step: settings.step, shiftStep: settings.step,
-      onChange: changeSlider, onChangeCommitted: finishSlider, onBlur: sliderKeyUp, onKeyUp: sliderKeyUp,
-      onKeyDown: sliderKeyDown, onPointerDown: pointerDown, onPointerCancel: cancelSlider }} />;
+      begin: actions.beginRotation, update: actions.updateRotation, finish: actions.finishRotation,
+      cancel: actions.cancelRotation, onValue: acceptSliderValue }} />;
 }
