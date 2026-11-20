@@ -39,6 +39,43 @@ Loading/replacing an image resets photo history. No fake edits are seeded.
 The working rule is to close an existing target-app instance and launch the current
 build after finishing changes and focused verification, leaving it open for the user.
 
+## Baked feature blocks: Rotation
+
+Rotation is now one baked feature sub-parent, not five independent Action Bar
+instances. Its UI and local interaction owner is:
+`frame/view/window/action-bar/RotationControls.jsx`.
+
+```text
+Action Bar
+└── RotationControls
+    ├── Rotate left
+    ├── Degree input
+    ├── Slider
+    ├── Rotate right
+    └── Separator
+```
+
+One owning component contains the group's UI and local interactions, so editing
+its slider/buttons/layout happens in one place. Action Bar discovers and places
+one block; the block moves/resizes together. This is feature composition, not an
+Action Bar-specific registry or another generic layout system. Reuse MUI and the
+shared ActionButton renderer; keep calculations/history in their existing owners.
+JSON still owns group placement, named internal parts, dimensions, spacing,
+appearance and states. Separate UI/LOGIC sections remain.
+
+Outline properties already exist: `colors.outline`, `geometry.outlineWidth`,
+`geometry.outlineStyle` and `geometry.outlineOffset`, including state overrides
+such as `focusVisible`. They apply to the baked group and its configured parts.
+A border is the box edge; an outline is a separate ring and does not consume
+layout space. Development inspector outlines remain separate and development-only.
+
+The group has a normal-use 1px configured outline. Internal padding is 2% of
+the group's width and 4% of its height. It occupies 92% of Action Bar height with
+4% top/bottom placement insets; padded controls retain the compact bar sizing.
+Its named parts share one injected session. Input autosizing remains local to the
+group and cannot shift the slider's drag area. The five old registrations and
+the superseded parent preferred-width plumbing are removed.
+
 ## Exact target files and ownership
 
 Paths below are relative to `frame/`. This maps every skeleton file to its job;
@@ -86,12 +123,7 @@ frame/
 │       │   ├── PhotoSizeSlider.jsx     Size interaction and grouped edit completion
 │       │   ├── IncreaseSizeButton.jsx  Invoke shared photo-size increase
 │       │   ├── PhotoSizeValue.jsx      Show current photo-size percentage
-│       │   ├── RotationLabel.jsx       Accessible rotation label
-│       │   ├── RotateLeftButton.jsx    Invoke shared left rotation
-│       │   ├── RotationSlider.jsx      Rotation interaction and grouped edit completion
-│       │   ├── RotationInput.jsx       Draft degree input, validation and commit interaction
-│       │   ├── RotateRightButton.jsx   Invoke shared right rotation
-│       │   ├── ActionSeparator.jsx     Configured vertical separator; no behavior
+│       │   ├── RotationControls.jsx    Baked rotation UI/interaction; outlined group and named parts
 │       │   ├── PlacementDropdown.jsx   Fit/Fill/Center action selection
 │       │   └── ResetButton.jsx         Invoke shared photo reset
 │       ├── frame-body/
@@ -604,6 +636,30 @@ prepared stamp definition, with an independently usable headless engine.
   new sizing configuration; they are not reported as newly rerun/passing.
 - After the server restart, no old target main process was found. Updated normal
   frame PID **8920** and its owned worker PID **8564** were verified and left open.
+
+### Baked Rotation block with outline and proportional padding
+
+- `RotationControls.jsx` replaces the five separate rotation/separator registrations.
+  One discovered instance owns the local UI/events and eleven configured parts;
+  Action Bar only places the block. Shared ActionButton, PhotoOperations and
+  PhotoHistory remain the rendering/math/history owners. Superseded preferred-width
+  plumbing was removed from WindowLayout; part aspect ratios use the shared bounds
+  mechanism. Existing proof/fixture selectors were updated for the single block.
+- UI build and a quick focused-window Electron check completed. The right button
+  changed 12.3° to 102.3°, Undo returned to 12.3°, and slider dragging reached 90°.
+  Default/minimum native captures in `.runtime/checks/baked-rotation/` were read.
+  There was one group registration and no startup diagnostics. Its 1px outline
+  remained visible; buttons were true squares and the full `-179.9` text fit.
+- Actual padding scales with the group: default width 421.52px gives 8.43px side
+  padding and height 42.31px gives 1.69px vertical padding. Minimum width 333.52px
+  gives 6.67px sides; height 30.36px gives 1.21px vertical padding. These are JSON's
+  2%/4% values, not tuned pixel overrides. Field width still grows from 21px to
+  50px while the slider keeps its fixed drag area. Load/Save placement is unchanged.
+- Producing UI/config owners and affected consumers were reviewed. No additional
+  framework, theme, controller or producer dependency was added. No broad contract,
+  export or old-app suite was rerun for this UI consolidation.
+- No old normal target process was found at completion. Updated normal frame PID
+  **13472** and its owned worker PID **14968** were verified and left running.
 
 This proves layout/history, Load/Save and Rotation slices, not full application readiness.
 Other editing controls, view gestures, full overlays, nested

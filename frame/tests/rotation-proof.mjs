@@ -22,7 +22,7 @@ try {
   const page = await app.firstWindow(); page.setDefaultTimeout(15000);
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
-  await page.waitForSelector('#rotationInput input');
+  await page.waitForSelector('#rotationControls-input');
   await page.evaluate(() => window.frameDev.inspect(false));
   const input = page.getByRole('textbox', { name: 'Photo rotation in degrees' });
   const slider = page.getByRole('slider', { name: 'Photo rotation slider' });
@@ -30,9 +30,9 @@ try {
   assert.equal(await slider.isDisabled(), true);
   assert.deepEqual(await page.evaluate(() => window.frameDev.records()), []);
   const disabledParts = structuredClone(config);
-  disabledParts.instances.find((node) => node.id === 'rotationInput').parts.degree.states = { disabled: { colors: { foreground: '#637182' } } };
+  disabledParts.instances.find((node) => node.id === 'rotationControls').parts.degree.states = { disabled: { colors: { foreground: '#637182' } } };
   await page.evaluate((value) => window.frameDev.reconfigure(value), disabledParts);
-  assert.equal(await page.locator('#rotationInput [data-part="degree"]').evaluate((element) => getComputedStyle(element).color), 'rgb(99, 113, 130)', 'Disabled state reaches named degree part');
+  assert.equal(await page.locator('#rotationControls-field [data-part="degree"]').evaluate((element) => getComputedStyle(element).color), 'rgb(99, 113, 130)', 'Disabled state reaches named degree part');
   await page.evaluate((value) => window.frameDev.reconfigure(value), config);
   const fixture = await page.evaluate(() => {
     const canvas = document.createElement('canvas'); canvas.width = 600; canvas.height = 800;
@@ -77,14 +77,14 @@ try {
   await input.fill('invalid'); assert.equal(await input.getAttribute('aria-invalid'), 'true');
   assert.equal(await input.evaluate((element) => getComputedStyle(element).color), 'rgb(255, 159, 159)', 'JSON error state reaches the actual input');
   await input.press('Enter'); assert.equal(await input.inputValue(), '24.5');
-  await input.fill('12.3'); await page.click('#rotateRight'); await waitRotation(102.3);
+  await input.fill('12.3'); await page.click('#rotationControls-right'); await waitRotation(102.3);
   await page.click('#undo'); await waitRotation(12.3);
-  await page.click('#rotateLeft'); await waitRotation(-77.7);
+  await page.click('#rotationControls-left'); await waitRotation(-77.7);
   checked.push('0.1° input precision, invalid draft recovery, Escape cancellation, ±90° buttons, synchronized slider and one-step typing history');
   await load();
-  const rail = await page.locator('#rotationSlider [data-part="rail"]').boundingBox();
+  const rail = await page.locator('#rotationControls-slider [data-part="rail"]').boundingBox();
   await page.mouse.move(rail.x + rail.width / 2, rail.y + rail.height / 2); await page.mouse.down();
-  assert.equal(await page.locator('#rotationSlider [data-part="thumb"]').evaluate((element) => getComputedStyle(element).backgroundColor), 'rgb(255, 196, 77)', 'JSON active state reaches MUI thumb');
+  assert.equal(await page.locator('#rotationControls-slider [data-part="thumb"]').evaluate((element) => getComputedStyle(element).backgroundColor), 'rgb(255, 196, 77)', 'JSON active state reaches MUI thumb');
   await page.mouse.move(rail.x + rail.width * 0.65, rail.y + rail.height / 2, { steps: 12 });
   const during = await rotation(); assert.ok(during > 30);
   await page.mouse.move(rail.x + rail.width * 0.75, rail.y + rail.height / 2, { steps: 12 }); await page.mouse.up();
@@ -112,20 +112,20 @@ try {
   };
   await page.mouse.move(500, 400);
   const loadBefore = await page.locator('#load').evaluate((element) => { const b = element.getBoundingClientRect(); return { width: b.width, height: b.height, color: getComputedStyle(element).color }; });
-  const customized = structuredClone(config), field = customized.instances.find((node) => node.id === 'rotationInput');
-  field.bounds.y = 20; field.bounds.height = 60;
-  field.parts.input.colors = { foreground: '#91e4c3' };
-  field.parts.degree.colors = { foreground: '#91e4c3' };
+  const customized = structuredClone(config), group = customized.instances.find((node) => node.id === 'rotationControls');
+  group.parts.field.bounds.y = 20; group.parts.field.bounds.height = 60;
+  group.parts.input.colors = { foreground: '#91e4c3' };
+  group.parts.degree.colors = { foreground: '#91e4c3' };
   await configure(customized);
   assert.equal(await input.evaluate((element) => getComputedStyle(element).color), 'rgb(145, 228, 195)');
-  const parentHeight = await page.locator('[data-section-content="actionBar"]').evaluate((element) => element.getBoundingClientRect().height);
-  assert.ok(Math.abs((await page.locator('#rotationInput').boundingBox()).height - parentHeight * 0.6) < 1);
+  const parentHeight = await page.locator('[data-rotation-content]').evaluate((element) => element.getBoundingClientRect().height);
+  assert.ok(Math.abs((await page.locator('#rotationControls-field').boundingBox()).height - parentHeight * 0.6) < 1);
   assert.deepEqual(await page.locator('#load').evaluate((element) => { const b = element.getBoundingClientRect(); return { width: b.width, height: b.height, color: getComputedStyle(element).color }; }), loadBefore);
   checked.push('JSON-only real field height/color change with Load unaffected');
   await configure(config);
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(760, 1100));
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-  const tallCenters = await page.locator('#rotateLeft, #rotateRight, #load').evaluateAll((elements) => elements.map((element) => { const bounds = element.getBoundingClientRect(); return bounds.y + bounds.height / 2; }));
+  const tallCenters = await page.locator('#rotationControls-left, #rotationControls-right, #load').evaluateAll((elements) => elements.map((element) => { const bounds = element.getBoundingClientRect(); return bounds.y + bounds.height / 2; }));
   assert.ok(tallCenters.every((center) => Math.abs(center - tallCenters[0]) < 1), 'Width-limited squares remain on the centerline in a tall window');
   await app.evaluate(({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0].setSize(...size), [config.window.width, config.window.height]);
   for (const [name, width, height] of [['default', config.window.width, config.window.height], ['minimum', config.window.minWidth, config.window.minHeight]]) {
@@ -135,7 +135,7 @@ try {
     for (const text of ['0', '10', '100', '-179.9', '0']) {
       await input.fill(text);
       await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-      const positions = await page.locator('#rotationInput, #rotationSlider, #load, #save').evaluateAll((elements) => elements.map((element) => { const b = element.getBoundingClientRect(); return { x: b.x, width: b.width }; }));
+      const positions = await page.locator('#rotationControls-field, #rotationControls-slider, #load, #save').evaluateAll((elements) => elements.map((element) => { const b = element.getBoundingClientRect(); return { x: b.x, width: b.width }; }));
       dynamic.push({ text, positions });
     }
     assert.ok(dynamic[0].positions[0].width < 30, 'Default fits one digit plus degree symbol/insets');
@@ -161,28 +161,28 @@ try {
     }
     await page.mouse.move(width / 2, height / 2);
     const metric = await page.evaluate(() => {
-      const read = (id) => { const e = document.getElementById(id), b = e.getBoundingClientRect(); return { x: b.x, y: b.y, width: b.width, height: b.height, right: b.right, center: b.y + b.height / 2 }; };
-      const ids = ['rotateLeft', 'rotationInput', 'rotationSlider', 'rotateRight', 'rotationSeparator', 'load', 'save'];
+      const read = (id) => { const e = document.getElementById(['load', 'save'].includes(id) ? id : `rotationControls-${id}`), b = e.getBoundingClientRect(); return { x: b.x, y: b.y, width: b.width, height: b.height, right: b.right, center: b.y + b.height / 2 }; };
+      const ids = ['left', 'field', 'slider', 'right', 'separator', 'load', 'save'];
       const nodes = Object.fromEntries(ids.map((id) => [id, read(id)]));
-      const field = document.querySelector('#rotationInput input').getBoundingClientRect(), unit = document.querySelector('#rotationInput [data-part="degree"]').getBoundingClientRect();
-      const control = document.querySelector('#rotationSlider .MuiSlider-root').getBoundingClientRect();
-      const rail = document.querySelector('#rotationSlider [data-part="rail"]').getBoundingClientRect();
-      const thumb = document.querySelector('#rotationSlider [data-part="thumb"]').getBoundingClientRect();
+      const field = document.querySelector('#rotationControls-input').getBoundingClientRect(), unit = document.querySelector('#rotationControls-field [data-part="degree"]').getBoundingClientRect();
+      const control = document.querySelector('#rotationControls-slider .MuiSlider-root').getBoundingClientRect();
+      const rail = document.querySelector('#rotationControls-slider [data-part="rail"]').getBoundingClientRect();
+      const thumb = document.querySelector('#rotationControls-slider [data-part="thumb"]').getBoundingClientRect();
       return { nodes, degreeDelta: field.y + field.height / 2 - unit.y - unit.height / 2,
         parts: { control: { width: control.width, height: control.height }, railHeight: rail.height, thumbWidth: thumb.width, thumbHeight: thumb.height } };
     });
     const n = metric.nodes;
-    const parentWidth = await page.locator('[data-section-content="actionBar"]').evaluate((element) => element.clientWidth);
-    assert.ok(n.rotationInput.width <= parentWidth * 0.065 + 1, 'Content-sized degree field stays within its maximum allocation');
-    for (const id of ['rotateLeft', 'rotateRight']) {
+    const parentWidth = await page.locator('[data-rotation-content]').evaluate((element) => element.clientWidth);
+    assert.ok(n.field.width <= parentWidth * 0.16 + 1, 'Content-sized degree field stays within its maximum allocation');
+    for (const id of ['left', 'right']) {
       assert.ok(Math.abs(n[id].width - n[id].height) < 0.1, `${id} true square at ${name}`);
-      assert.equal(await page.locator(`#${id}`).getAttribute('data-button-renderer'), 'shared-action');
+      assert.equal(await page.locator(`#rotationControls-${id}`).getAttribute('data-button-renderer'), 'shared-action');
       assert.ok(Math.abs(n[id].height - n.load.height) < 1);
     }
     const order = Object.values(n);
     for (let i = 1; i < order.length; i++) assert.ok(order[i - 1].right < order[i].x);
     for (const node of order) assert.ok(Math.abs(node.center - n.load.center) < 1);
-    assert.ok(n.rotateLeft.x < width * 0.03 && n.load.x > width * 0.8);
+    assert.ok(n.left.x < width * 0.03 && n.load.x > width * 0.8);
     assert.ok(Math.abs(metric.degreeDelta) < 1);
     assert.ok(Math.abs(metric.parts.railHeight - metric.parts.control.height * 0.12) < 0.1);
     assert.ok(Math.abs(metric.parts.thumbWidth - metric.parts.control.width * 0.08) < 0.1);
@@ -200,19 +200,19 @@ try {
   assert.deepEqual(errors, []);
   assert.deepEqual(await page.evaluate(() => window.frameDev.records()), []);
   const unusedPlacement = structuredClone(config);
-  unusedPlacement.instances.find((node) => node.id === 'rotationSlider').parts.thumb.bounds = { x: 0, y: 0, width: 10, height: 10 };
+  unusedPlacement.instances.find((node) => node.id === 'rotationControls').parts.thumb.bounds = { x: 0, y: 0, width: 10, height: 10 };
   await configure(unusedPlacement);
-  assert.equal(await page.locator('#rotationSlider').count(), 0);
+  assert.equal(await page.locator('#rotationControls').count(), 0);
   assert.ok((await page.evaluate(() => window.frameDev.records())).some((issue) => issue.code === 'INVALID_COMPONENT_CONFIG' && issue.configPath.endsWith('.parts.thumb.bounds')));
   await configure(config);
-  const invalid = structuredClone(config); invalid.instances.find((node) => node.id === 'rotationInput').parts.input.colors = { foreground: 'wrong' };
+  const invalid = structuredClone(config); invalid.instances.find((node) => node.id === 'rotationControls').parts.input.colors = { foreground: 'wrong' };
   await configure(invalid); await configure(invalid);
   assert.equal(await input.count(), 0); assert.equal(await page.locator('#load').isEnabled(), true);
   await page.evaluate(() => window.frameDev.flush());
   const record = (await page.evaluate(() => window.frameDev.records())).find((issue) => issue.configPath.endsWith('.parts.input.colors.foreground'));
-  assert.equal(record.repeatCount, 2); assert.equal(record.instanceId, 'rotationInput'); assert.match(record.filePath, /RotationInput/);
+  assert.equal(record.repeatCount, 2); assert.equal(record.instanceId, 'rotationControls'); assert.match(record.filePath, /RotationControls/);
   const log = JSON.parse(await fs.readFile(await page.evaluate(() => window.frameDev.logPath), 'utf8'));
-  assert.ok(log.some((issue) => issue.instanceId === 'rotationInput' && issue.repeatCount === 2));
+  assert.ok(log.some((issue) => issue.instanceId === 'rotationControls' && issue.repeatCount === 2));
   await configure(config);
   await fs.writeFile(path.join(artifacts, 'metrics.json'), JSON.stringify(metrics, null, 2));
   console.log(JSON.stringify({ pass: true, checked, artifacts }, null, 2));

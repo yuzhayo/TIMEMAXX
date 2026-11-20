@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useSyncExternalStore } from 'react';
+import React, { useSyncExternalStore } from 'react';
 import Box from '@mui/material/Box';
 import { configuredAppearance as appearance, configuredSx, configuredBounds, boundsStyle } from '@ui/appearance.mjs';
 import LayoutInspector from './LayoutInspector.jsx';
@@ -15,25 +15,6 @@ class ComponentBoundary extends React.Component {
   render() { return this.state.failed ? null : this.props.children; }
 }
 
-// UI — generic preferred width; measurements remain with the owning control.
-function ConfiguredSlot({ node, state, session, diagnostics, inspect, settings }) {
-  const [preferredWidth, setPreferredWidth] = useState(null);
-  const Component = node.Component;
-  const bounds = configuredBounds(node);
-  const reportWidth = useCallback((width) => setPreferredWidth(Number.isFinite(width) && width > 0 ? width : null), []);
-  return <div className="frame-slot"
-    data-drag-region={node.interaction?.dragRegion ?? 'no-drag'}
-    data-instance={node.id} data-component={node.componentId} data-parent={node.parentId} data-source={node.filePath}
-    style={{ ...bounds,
-      ...(preferredWidth !== null ? { width: `min(${preferredWidth}px, ${node.bounds.width}%)` } : {}),
-      pointerEvents: node.interaction?.pointerEvents ?? 'auto' }}>
-    <ComponentBoundary node={node} diagnostics={diagnostics}>
-      <Component config={node} state={state} actions={session} onPreferredWidth={reportWidth} />
-    </ComponentBoundary>
-    {inspect && <LayoutInspector node={node} source={node.filePath} settings={settings} />}
-  </div>;
-}
-
 // UI — unified assembly consumes validated results only, never named-control imports.
 export default function WindowLayout({ plan, session, diagnostics, inspection, generation }) {
   const state = useSyncExternalStore(session.subscribe, session.getSnapshot);
@@ -48,9 +29,18 @@ export default function WindowLayout({ plan, session, diagnostics, inspection, g
           sx={{ ...boundsStyle(section.bounds), ...configuredSx(section) }}>
           {inspect && <LayoutInspector node={section} settings={settings} />}
           <div className={section.nativeSafeArea ? 'native-safe-area' : 'frame-section-content'} data-section-content={section.id}>
-            {plan.instances.filter((node) => node.parentId === section.id).map((node) =>
-              <ConfiguredSlot key={`${node.id}-${generation}`} node={node} state={state} session={session}
-                diagnostics={diagnostics} inspect={inspect} settings={settings} />)}
+            {plan.instances.filter((node) => node.parentId === section.id).map((node) => {
+              const Component = node.Component;
+              return <div key={`${node.id}-${generation}`} className="frame-slot"
+                data-drag-region={node.interaction?.dragRegion ?? 'no-drag'}
+                data-instance={node.id} data-component={node.componentId} data-parent={node.parentId} data-source={node.filePath}
+                style={{ ...configuredBounds(node), pointerEvents: node.interaction?.pointerEvents ?? 'auto' }}>
+                <ComponentBoundary node={node} diagnostics={diagnostics}>
+                  <Component config={node} state={state} actions={session} />
+                </ComponentBoundary>
+                {inspect && <LayoutInspector node={node} source={node.filePath} settings={settings} />}
+              </div>;
+            })}
           </div>
         </Box>
       ))}

@@ -80,7 +80,7 @@ test('history reset, pending undo, disabled tracking and bounded history remain 
 
 const catalog = raw.instances.map((node) => ({ componentId: node.componentId, filePath: `${node.parentId === 'actionBar' ? 'action-bar' : node.parentId === 'windowsBar' ? 'windows-bar' : node.parentId === 'frameBody' ? 'frame-body' : 'bottom-bar'}/${node.id}.jsx`,
   folder: node.parentId === 'actionBar' ? 'action-bar' : node.parentId === 'windowsBar' ? 'windows-bar' : node.parentId === 'frameBody' ? 'frame-body' : 'bottom-bar', Component() {},
-  configKeys: ['icon', 'action', 'maximizedIcon', 'unit', 'textSizing', 'presentation'], partKeys: Object.keys(node.parts ?? {}),
+  configKeys: ['icon', 'icons', 'labels', 'action', 'maximizedIcon', 'unit', 'textSizing', 'presentation'], partKeys: Object.keys(node.parts ?? {}),
   requires: node.componentId.startsWith('photo.rot') ? ['rotation'] : [],
 })).filter((node, index, nodes) => nodes.findIndex((other) => other.componentId === node.componentId) === index);
 const validate = (config) => {
@@ -95,7 +95,7 @@ test('named parts/active state/ratio validate and failures isolate exact owners'
     [(node) => { node.parts.typo = {}; }, '.parts.typo'],
     [(node) => { delete node.parts.input; }, '.parts.input'],
   ]) {
-    const config = structuredClone(raw), node = config.instances.find((value) => value.id === 'rotationInput');
+    const config = structuredClone(raw), node = config.instances.find((value) => value.id === 'rotationControls');
     mutate(node);
     const { plan, issues } = validate(config);
     assert.ok(!plan.instances.some((value) => value.id === node.id));
