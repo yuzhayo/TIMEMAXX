@@ -1,8 +1,11 @@
-const { BrowserWindow, ipcMain, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, screen } = require('electron');
 const path = require('node:path');
+
+const frameAppId = 'com.yuzha.timemaxx.frame';
 
 // UI — native presentation is supplied by the validated window config.
 function createFrameWindow(root, config) {
+  const iconPath = path.join(root, 'assets', process.platform === 'win32' ? 'app-icon.ico' : 'app-icon.png');
   // UI — JSON selects the startup policy; native work-area bounds exclude the taskbar.
   let startupBounds = {};
   if (config.startup === 'workAreaHeight') {
@@ -24,7 +27,7 @@ function createFrameWindow(root, config) {
     minWidth: config.minWidth,
     minHeight: config.minHeight,
     ...startupBounds,
-    icon: path.join(root, 'assets', 'app-icon.png'),
+    icon: iconPath,
     backgroundColor: config.background,
     autoHideMenuBar: true,
     show: false,
@@ -38,6 +41,15 @@ function createFrameWindow(root, config) {
       nodeIntegration: false,
       sandbox: true,
     },
+  });
+
+  // UI — pinning uses this app's identity/icon and relaunch command, not the Electron host defaults.
+  if (process.platform === 'win32') window.setAppDetails({
+    appId: frameAppId,
+    appIconPath: iconPath,
+    appIconIndex: 0,
+    relaunchCommand: app.isPackaged ? `"${process.execPath}"` : `"${process.execPath}" "${root}"`,
+    relaunchDisplayName: config.title,
   });
 
   // LOGIC — restrict navigation and retain native window behavior.
@@ -101,4 +113,4 @@ function bindWindowActions(window, config) {
   return { snapshot };
 }
 
-module.exports = { createFrameWindow, bindWindowActions };
+module.exports = { createFrameWindow, bindWindowActions, frameAppId };

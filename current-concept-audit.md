@@ -23,6 +23,14 @@ shared icon-only Load/Save buttons. Undo/Redo start disabled until an edit exist
 usable height (taskbar excluded), using its configured width and centering it
 horizontally. This default applies on each launch; window-position persistence is
 not implemented. On smaller displays, native width/minimum bounds fit the work area.
+Windows taskbar identity is `com.yuzha.timemaxx.frame`. Native window creation
+supplies the multi-resolution `frame/assets/app-icon.ico` and explicit pin/relaunch
+metadata, including the frame directory for development launches. The process and
+window share that App ID. The icon is not rendered in the app layout. Existing
+Electron pins must be removed and recreated from the updated Frame window.
+The live Windows property store was checked for App ID, ICO resource, display
+name and the complete relaunch command; all matched. The Maxx taskbar icon was
+observed after relaunch. No renderer/layout changes or broad test suite were needed.
 Rotation and Size controls start disabled until a photo is loaded. The Action Bar
 uses one shared adjustment sub-parent for `[decrease] [value] [increase]`; each
 value opens its configured slider popup.

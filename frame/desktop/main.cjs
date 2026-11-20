@@ -2,13 +2,14 @@ const { app, ipcMain } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
-const { createFrameWindow, bindWindowActions } = require('./FrameWindow.cjs');
+const { createFrameWindow, bindWindowActions, frameAppId } = require('./FrameWindow.cjs');
 const { DiagnosticLog } = require('./DiagnosticLog.cjs');
 const { ImageWorker } = require('./ImageWorker.cjs');
 const { ImageFileDialogs } = require('./ImageFileDialogs.cjs');
 
 // LOGIC — standalone native lifetime; photo worker is owned by frame, never engine/input.
 const root = path.resolve(__dirname, '..');
+if (process.platform === 'win32') app.setAppUserModelId(frameAppId);
 const runtime = path.join(root, '.runtime');
 const option = (name) => process.argv.find((argument) => argument.startsWith(`${name}=`))?.slice(name.length + 1);
 const proof = process.argv.includes('--layout-proof');
