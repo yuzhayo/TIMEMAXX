@@ -9,8 +9,10 @@ native dialogs, preview and standalone Rust PNG/JPEG export. Reviewed validation
 capability isolation, relocation and error-origin boundaries are regression-checked.
 The approved Rotation slice is now implemented and reviewed: left/right square
 shared action buttons, degree input, synchronized MUI slider and configured separator.
-Other editing controls, view gestures, full overlays and layer receiving/composition remain
-pending. Preserve `output-frame/` as a behavior reference; do not blindly copy it.
+The photo pointer/wheel slice and independent inspection pan/zoom operations are
+implemented. Remaining drop/global-shortcut controls, full overlays and layer
+receiving/composition are pending. Preserve `output-frame/` as a behavior reference;
+do not blindly copy it.
 The map below remains the comparison target; do not recreate/reconfirm the skeleton.
 `AGENTS.md` defines the working rules.
 
@@ -176,6 +178,36 @@ photo/frame geometry and center the photo; Center changes x/y only. The dropdown
 owns labels/menu interaction, while `PhotoOperations.mjs` owns all placement math
 and commits each effective action through `PhotoHistory`.
 
+## Photo input and inspection
+
+`PhotoPointerInput.mjs` and `PhotoWheelInput.mjs` are helpers attached by
+`PhotoPreview.jsx`, not discovered component registrations. Both use the stable
+`@frame` boundary and obtain geometry from `PreviewPainter.mjs`. The painter owns
+rendering, frame hit testing and screen-to-frame coordinates in one representation.
+`PhotoOperations.mjs` owns translation and cursor-anchored sizing as well as
+rotation; buttons, sliders and wheel commands retain the same size/rotation rules.
+
+`photoPreview.input` explicitly configures left photo drag, middle/Space view pan,
+normal wheel sizing, Ctrl wheel rotation, Alt horizontal movement and Shift
+vertical movement. Wheel unit conversion, sensitivity, idle grouping and cursor
+states are JSON-owned. Existing reference interaction values are declared in JSON,
+not hidden in event handlers. View zoom is an available `viewZoom` wheel action
+when a binding is explicitly changed to it; no new toolbar or default zoom shortcut
+was added. Its initial state and zoom bounds are explicit `view` settings.
+
+`PhotoHistory` owns photo gesture tokens, grouped edits and cancellation. Tokens
+expire on finish, cancellation, Undo/Redo, commits and photo replacement, preventing
+old input from reopening an edit. `ViewState.mjs` and `ViewOperations.mjs` own
+inspection state/cancellation separately; they do not change photo history,
+dirty status, source images or exports. `FrameSession` composes these owners only.
+
+The focused live input check passed: grouped drag and wheel Undo/Redo, Escape and
+late movement, modifier commands, frame-only wheel scope, external Undo, view-only
+pan/zoom, unchanged view-only PNG exports, replacement isolation and original file
+protection. No renderer errors or layout diagnostics occurred. The UI build passed;
+no broad test suite was run. Captures/exports are under
+`frame/.runtime/checks/input-gestures/`.
+
 ## Exact target files and ownership
 
 Paths below are relative to `frame/`. This maps every skeleton file to its job;
@@ -267,8 +299,8 @@ frame/
 - Discovery registers renderable component exports, not helpers. The active painter
   is `view/preview/PreviewPainter.mjs`, imported through a stable `@frame` alias.
   Moving PhotoPreview between parents does not move or rewrite its painter.
-  Pending pointer/wheel helper skeletons must follow the same placement-independent
-  dependency rule when implemented; they are not component registrations.
+  Pointer/wheel helpers follow the same placement-independent dependency rule;
+  they are not component registrations.
 - Controls obtain the resolved instance config and shared session/actions through
   a consistent injected interface/context. Do not make a movable control depend
   on its parent ID, filename, or folder-specific relative import to shared logic.
@@ -493,7 +525,8 @@ uses its own declared owners; no old controller or stamp runtime was copied in.
    Undo/Redo in Windows Bar. Only X is visible among window-action controls and
    completes the normal worker/session cleanup path; native window operations remain.
 4. **Rotation complete:** input/degree parts and states are proven against real
-    photo transforms. Next: remaining controls, view gestures and layer receiving.
+     photo transforms. Photo pointer/wheel gestures and inspection operations are
+     complete. Next: remaining drop/global-shortcut controls, overlays and layer receiving.
    Implement from the contract; remove superseded paths within the authorized
    target instead of accumulating alternate implementations.
 5. Verify affected behavior/native sizes with focused checks, then restart and
@@ -813,9 +846,9 @@ prepared stamp definition, with an independently usable headless engine.
 - Previous normal frame PID **14824** closed normally. Updated frame PID **17072**
   and owned worker PID **5732** were verified and left running.
 
-This proves layout/history, Load/Save and Rotation slices, not full application readiness.
-Other editing controls, view gestures, full overlays, nested
-outlet mounting and finished-layer receiving/composition remain pending.
+The implemented layout/history, file, adjustment, placement and photo-input slices
+do not establish full application readiness. Drop/global-shortcut controls, full
+overlays, nested outlet mounting and finished-layer receiving/composition remain pending.
 The image worker does not generate stamps; the empty layer owner is not activated.
 Exports currently use the configured default resolution; the full export selector
 is not implemented yet. Rust image codecs support additional declared input formats,

@@ -14,7 +14,7 @@ const diagnostics = createDiagnostics((records) => window.frameHost.diagnostics(
 const catalog = await discoverComponents(import.meta.glob('./window/**/*.jsx'), diagnostics);
 const initialPlan = validateFrameConfig(bootstrap.config, catalog, diagnostics);
 const session = createFrameSession(initialPlan.history, {
-  document: initialPlan.document, output: initialPlan.output, rotation: initialPlan.rotation, size: initialPlan.size,
+  document: initialPlan.document, output: initialPlan.output, rotation: initialPlan.rotation, size: initialPlan.size, view: initialPlan.view,
   transport: window.frameHost, windowState: bootstrap.windowState, diagnostics,
 });
 let reconfigure;

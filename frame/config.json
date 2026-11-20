@@ -14,6 +14,7 @@
   "history": { "limit": 60 },
   "rotation": { "min": -180, "max": 180, "step": 0.1, "precision": 1, "buttonStep": 90 },
   "size": { "min": 10, "max": 400, "step": 5, "precision": 0 },
+  "view": { "zoom": 1, "x": 0, "y": 0, "minZoom": 0.25, "maxZoom": 8 },
   "output": {
     "frame": { "width": 1200, "height": 1600 },
     "exports": [{ "width": 1200, "height": 1600 }, { "width": 2400, "height": 3200 }, { "width": 3024, "height": 4032 }],
@@ -69,7 +70,13 @@
       }
     },
     { "id": "fileName", "componentId": "photo.fileName", "parentId": "windowsBar", "enabled": true, "label": "Current image", "placement": { "align": "start", "order": 3 }, "bounds": { "y": 15, "width": 64, "height": 70 }, "preset": "fileName", "interaction": { "pointerEvents": "none", "dragRegion": "inherit" } },
-    { "id": "photoPreview", "componentId": "photo.preview", "parentId": "frameBody", "enabled": true, "label": "Photo preview", "bounds": { "x": 0, "y": 0, "width": 100, "height": 100 }, "preset": "base", "presentation": { "insetX": 1, "insetY": 1 }, "colors": { "border": "#64707b" }, "geometry": { "borderWidth": 1 } },
+    { "id": "photoPreview", "componentId": "photo.preview", "parentId": "frameBody", "enabled": true, "label": "Photo preview", "bounds": { "x": 0, "y": 0, "width": 100, "height": 100 }, "preset": "base", "presentation": { "insetX": 1, "insetY": 1 }, "colors": { "border": "#64707b" }, "geometry": { "borderWidth": 1 },
+      "input": {
+        "pointer": { "enabled": true, "photoButton": 0, "viewButton": 1, "panKey": "Space" },
+        "wheel": { "enabled": true, "bindings": { "none": "size", "control": "rotate", "alt": "moveX", "shift": "moveY" }, "linePixels": 16, "pagePixels": 100, "maxDelta": 120, "sizeRate": 0.0015, "rotationRate": 0.05, "moveRate": 0.4, "viewRate": 0.0015, "idleMs": 180 },
+        "cursors": { "idle": "default", "photo": "grab", "photoDrag": "grabbing", "view": "grab", "viewDrag": "grabbing", "disabled": "not-allowed" }
+      }
+    },
     { "id": "fileStatus", "componentId": "file.status", "parentId": "bottomBar", "enabled": true, "label": "Application messages", "bounds": { "x": 2, "y": 0, "width": 96, "height": 100 }, "preset": "status" },
     { "id": "windowMinimize", "componentId": "window.action", "parentId": "windowsBar", "enabled": false, "label": "Minimize window", "action": "minimize", "icon": "minimize", "placement": { "align": "end", "order": 1 }, "bounds": { "y": 8, "width": 4.5, "height": 84 }, "preset": "fileAction" },
     { "id": "windowMaximize", "componentId": "window.action", "parentId": "windowsBar", "enabled": true, "label": "Maximize vertically or restore window", "action": "toggleVerticalMaximize", "icon": "maximize", "maximizedIcon": "restore", "placement": { "align": "end", "order": 3 }, "bounds": { "y": 8, "width": 4.5, "height": 84 }, "preset": "fileAction" },

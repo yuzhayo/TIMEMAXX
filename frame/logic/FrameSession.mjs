@@ -3,6 +3,8 @@ import { PhotoState } from './PhotoState.mjs';
 import { createImageFileActions } from './ImageFileActions.mjs';
 import { createWindowActions } from './WindowActions.mjs';
 import { createPhotoOperations, sizePercentOf } from './PhotoOperations.mjs';
+import { ViewState } from './ViewState.mjs';
+import { createViewOperations } from './ViewOperations.mjs';
 
 // LOGIC — compose independent document/history, file and window capabilities.
 export function createFrameSession(config, services = {}) {
@@ -10,10 +12,12 @@ export function createFrameSession(config, services = {}) {
   // Null is an explicit no-tracking mode, not an invented replacement limit.
   const history = new PhotoHistory(services.document, config === null ? null : config.limit);
   const photoState = services.output ? new PhotoState(services.output, services.document) : null;
+  const viewState = services.view ? new ViewState(services.view) : null;
   const listeners = new Set();
   let windowActions = null;
   const read = () => {
     const edit = { ...history.snapshot(), historyAvailable: config !== null, rotationSettings: services.rotation ?? null,
+      ...(viewState ? { view: viewState.snapshot() } : {}),
       ...(services.diagnostics ? { diagnostics: services.diagnostics.getSnapshot() } : {}),
     };
     const state = photoState ? { ...edit, ...photoState.snapshot(edit.document) } : edit;
@@ -31,6 +35,7 @@ export function createFrameSession(config, services = {}) {
   const files = photoState && services.transport ? createImageFileActions({ transport: services.transport, photoState, history, output: services.output, publish: () => publish(true), diagnostics: services.diagnostics }) : null;
   const photoOperations = photoState && services.output
     ? createPhotoOperations({ history, photoState, settings: services.rotation, size: services.size ?? null, output: services.output, publish }) : null;
+  const viewOperations = viewState ? createViewOperations({ viewState, publish }) : null;
   if (services.transport?.windowAction && services.transport?.onWindowState) {
     windowActions = createWindowActions({ transport: services.transport, initialState: services.windowState, publish: () => publish(true), diagnostics: services.diagnostics });
     snapshot = read();
@@ -45,6 +50,7 @@ export function createFrameSession(config, services = {}) {
     ...(files ? { load: files.load, save: files.save } : {}),
     ...(windowActions ? { windowAction: windowActions.activate } : {}),
     ...(photoOperations ?? {}),
+    ...(viewOperations ?? {}),
     setOutputWidth: (width) => { if (photoState && !photoState.busy) { photoState.setOutputWidth(width); publish(true); } },
     previewFailed: (message) => services.diagnostics?.report({ code: 'PHOTO_PREVIEW_FAILED', expected: 'decoded photo preview', actual: message, action: 'original photo retained for export' }),
     dispose: () => { unsubscribeDiagnostics?.(); files?.dispose(); windowActions?.dispose(); photoState?.dispose(); listeners.clear(); },  };

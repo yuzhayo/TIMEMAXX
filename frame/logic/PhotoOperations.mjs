@@ -79,6 +79,16 @@ export function scaleFromPercent(percent, photo, frame) {
   return fitScale(photo, frame) * percent / 100;
 }
 
+// LOGIC — cursor anchoring is shared sizing behavior, not wheel-handler math.
+export function resizedDocument(document, scale, anchor) {
+  if (!anchor) return { ...document, scale };
+  const factor = scale / document.scale;
+  return { ...document, scale,
+    x: anchor.x - (anchor.x - document.x) * factor,
+    y: anchor.y - (anchor.y - document.y) * factor,
+  };
+}
+
 // Draft grammar is shared with the field; rotation rounding/wrapping has one owner.
 export function parseRotationDraft(text) {
   return /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(text.trim()) ? Number(text) : NaN;
@@ -106,21 +116,52 @@ export function createPhotoOperations({ history, photoState, settings, size, out
     const photo = photoOf(), frame = frameOf();
     return photo && frame && size ? sizePercentOf(current(), photo, frame, size.precision) : null;
   };
-  const updateRotation = (value) => {
+  const gestureActive = (gesture) => Boolean(gesture) && canEdit()
+    && photoOf()?.photoId === gesture.photoId && history.isEditActive(gesture.token);
+  const updateRotation = (value, gesture) => {
+    if (gesture && !gestureActive(gesture)) return current()?.rotation;
     if (!canEdit() || !Number.isFinite(value) || !settings) return current()?.rotation;
     const next = { ...current(), rotation: normalizeRotation(value, settings) };
-    publish(history.updateEdit(next));
+    publish(history.updateEdit(next, gesture?.token));
     return next.rotation;
   };
-  const updateSize = (percent) => {
+  const updateSize = (percent, anchor, gesture) => {
+    if (gesture && !gestureActive(gesture)) return percentOf();
     if (!canEdit() || !Number.isFinite(percent) || !size) return percentOf();
+    if (anchor && ![anchor.x, anchor.y].every(Number.isFinite)) return percentOf();
     const photo = photoOf(), frame = frameOf();
     if (!photo || !frame) return percentOf();
     const clamped = Math.min(size.max, Math.max(size.min, percent));
-    publish(history.updateEdit({ ...current(), scale: scaleFromPercent(clamped, photo, frame) }));
+    publish(history.updateEdit(resizedDocument(current(), scaleFromPercent(clamped, photo, frame), anchor), gesture?.token));
     return percentOf();
   };
   const operations = {};
+  Object.assign(operations, {
+    beginPhotoEdit: () => {
+      if (!canEdit()) return null;
+      publish(history.finishEdit());
+      return { token: history.beginEdit(), photoId: photoOf().photoId, document: current() };
+    },
+    isPhotoEditActive: gestureActive,
+    finishPhotoEdit: (gesture) => { if (gesture) publish(history.finishEdit(gesture.token)); },
+    cancelPhotoEdit: (gesture) => { if (gesture) publish(history.cancelEdit(gesture.token)); },
+    updateMove: (delta, gesture, fromStart = false) => {
+      if (!gestureActive(gesture) || ![delta?.x, delta?.y].every(Number.isFinite)) return current();
+      const origin = fromStart ? gesture.document : current();
+      const next = { ...current(), x: origin.x + delta.x, y: origin.y + delta.y };
+      publish(history.updateEdit(next, gesture.token));
+      return next;
+    },
+    updatePhotoWheel: (kind, delta, anchor, gesture, policy) => {
+      if (!gestureActive(gesture) || !Number.isFinite(delta)) return;
+      if (kind === 'size' && size) {
+        const rawPercent = current().scale / fitScale(photoOf(), frameOf()) * 100;
+        updateSize(rawPercent * Math.exp(-delta * policy.sizeRate), anchor, gesture);
+      } else if (kind === 'rotate' && settings) updateRotation(current().rotation - delta * policy.rotationRate, gesture);
+      else if (kind === 'moveX') operations.updateMove({ x: delta * policy.moveRate, y: 0 }, gesture);
+      else if (kind === 'moveY') operations.updateMove({ x: 0, y: delta * policy.moveRate }, gesture);
+    },
+  });
   if (settings) Object.assign(operations, {
     beginRotation: () => { if (canEdit()) history.beginEdit(); },
     updateRotation,
