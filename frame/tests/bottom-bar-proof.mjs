@@ -21,6 +21,7 @@ try {
   page.setDefaultTimeout(10000);
   page.on('pageerror', (error) => errors.push(error.message));
   await page.waitForSelector('#fileStatus');
+  const startupSize = await app.evaluate(({ BrowserWindow }) => { const bounds = BrowserWindow.getAllWindows()[0].getBounds(); return [bounds.width, bounds.height]; });
   await page.evaluate(() => window.frameDev.inspect(false));
   const fixture = await page.evaluate(() => {
     const canvas = document.createElement('canvas'); canvas.width = 600; canvas.height = 800;
@@ -70,7 +71,7 @@ try {
     await settle();
   };
 
-  for (const [name, width, height] of [['default', 960, 960], ['minimum', 760, 700]]) {
+  for (const [name, width, height] of [['startup', ...startupSize], ['minimum', config.window.minWidth, config.window.minHeight]]) {
     await app.evaluate(({ BrowserWindow }, size) => { const win = BrowserWindow.getAllWindows()[0]; win.setSize(...size); win.focus(); }, [width, height]);
     await cancelLoad();
     const compact = await metrics();

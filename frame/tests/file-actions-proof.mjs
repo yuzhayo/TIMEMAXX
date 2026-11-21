@@ -23,6 +23,7 @@ try {
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
   await page.waitForSelector('#fileControls-save');
+  const startupSize = await app.evaluate(({ BrowserWindow }) => { const bounds = BrowserWindow.getAllWindows()[0].getBounds(); return [bounds.width, bounds.height]; });
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setTitle('Frame file-action proof'));
   await page.evaluate(() => window.frameDev.inspect(false));
   assert.equal(await page.locator('[data-component="file.controls"]').count(), 1);
@@ -140,7 +141,10 @@ try {
   assert.equal(await page.locator('#fileControls-save, #fileControls-load').count(), 0);
   assert.equal(await page.locator('#windowClose').isEnabled(), true);
   const mismatch = structuredClone(originalConfig);
-  mismatch.instances.find((node) => node.id === 'fileControls').parentId = 'windowsBar';
+  const mismatchedFiles = mismatch.instances.find((node) => node.id === 'fileControls');
+  mismatchedFiles.parentId = 'windowsBar';
+  mismatchedFiles.placement = { align: 'end', order: 5 };
+  mismatchedFiles.bounds = { y: 8, width: 25, height: 84 };
   await configure(mismatch);
   assert.equal(await page.locator('#fileControls-save, #fileControls-load').count(), 0);
   assert.equal(await page.locator('#windowClose').isEnabled(), true);
@@ -155,7 +159,7 @@ try {
   await configure(originalConfig);
   await page.evaluate(() => window.frameDev.setOutputWidth(1200));
   await save('replacement-export.png');
-  for (const [name, width, height] of [['default', originalConfig.window.width, originalConfig.window.height], ['minimum', originalConfig.window.minWidth, originalConfig.window.minHeight]]) {
+  for (const [name, width, height] of [['startup', ...startupSize], ['minimum', originalConfig.window.minWidth, originalConfig.window.minHeight]]) {
     await app.evaluate(({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0].setSize(...size), [width, height]);
     await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     for (const id of ['load', 'save']) {

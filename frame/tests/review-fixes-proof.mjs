@@ -13,8 +13,10 @@ const original = JSON.parse(await fs.readFile(path.join(root, 'config.json'), 'u
 const artifacts = path.join(root, '.runtime/checks/review-fixes');
 await fs.mkdir(artifacts, { recursive: true });
 const sourceComponent = path.join(root, 'view/window/frame-body/PhotoPreview.jsx');
+const sourceDrop = path.join(root, 'view/window/frame-body/DropTarget.jsx');
 const movedDirectory = path.join(root, 'view/window/relocated-preview');
 const movedComponent = path.join(movedDirectory, 'RenamedPreview.jsx');
+const movedDrop = path.join(movedDirectory, 'DropTarget.jsx');
 const errors = [];
 let moved = false;
 let app;
@@ -28,12 +30,13 @@ try {
   // Actual relocation/rename plus JSON only; no source/import/behavior edits.
   await fs.mkdir(movedDirectory);
   await fs.rename(sourceComponent, movedComponent);
+  await fs.rename(sourceDrop, movedDrop);
   moved = true;
   const config = structuredClone(original);
   config.window.title = 'Frame review fixes proof';
   const section = config.sections.find((node) => node.id === 'frameBody');
   section.id = 'previewReview'; section.folder = 'relocated-preview';
-  config.instances.find((node) => node.id === 'photoPreview').parentId = 'previewReview';
+  for (const id of ['photoPreview', 'photoDrop']) config.instances.find((node) => node.id === id).parentId = 'previewReview';
   config.history.limit = 0;
   const configPath = path.join(artifacts, 'without-history.json');
   await fs.writeFile(configPath, JSON.stringify(config, null, 2));
@@ -45,6 +48,7 @@ try {
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
   await page.waitForSelector('#fileControls-load');
+  const startupSize = await app.evaluate(({ BrowserWindow }) => { const bounds = BrowserWindow.getAllWindows()[0].getBounds(); return [bounds.width, bounds.height]; });
   await page.evaluate(() => window.frameDev.inspect(false));
   assert.equal(await page.locator('[data-instance]').count(), config.instances.filter((node) => node.enabled).length);
   assert.equal(await page.evaluate(() => window.frameDev.snapshot().historyAvailable), false);
@@ -54,6 +58,7 @@ try {
   assert.equal(await page.locator('#fileControls-save').isEnabled(), true);
   assert.equal(await page.locator('[data-instance="photoPreview"]').getAttribute('data-parent'), 'previewReview');
   assert.equal(await page.locator('[data-instance="photoPreview"]').getAttribute('data-source'), 'relocated-preview/RenamedPreview.jsx');
+  assert.equal(await page.locator('[data-instance="photoDrop"]').getAttribute('data-source'), 'relocated-preview/DropTarget.jsx');
   const issueCodes = await page.evaluate(() => window.frameDev.records().map((issue) => issue.code));
   assert.deepEqual(issueCodes, ['INVALID_HISTORY_CONFIG']);
 
@@ -115,7 +120,7 @@ try {
 
   await page.evaluate((next) => window.frameDev.reconfigure(next), config);
   await page.waitForSelector('#fileControls-save');
-  for (const [name, width, height] of [['default', config.window.width, config.window.height], ['minimum', config.window.minWidth, config.window.minHeight]]) {
+  for (const [name, width, height] of [['startup', ...startupSize], ['minimum', config.window.minWidth, config.window.minHeight]]) {
     await app.evaluate(({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0].setSize(...size), [width, height]);
     await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     await page.screenshot({ path: path.join(artifacts, `fixed-${name}.png`) });
@@ -133,6 +138,7 @@ try {
   if (app) await app.close();
   if (moved) {
     await fs.rename(movedComponent, sourceComponent);
+    await fs.rename(movedDrop, sourceDrop);
     await fs.rmdir(movedDirectory);
     build(); // Leave reviewed baseline source and matching UI for the completion restart.
   }

@@ -27,6 +27,7 @@ try {
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
   await page.waitForSelector('#windowClose');
+  const startupSize = await app.evaluate(({ BrowserWindow }) => { const bounds = BrowserWindow.getAllWindows()[0].getBounds(); return [bounds.width, bounds.height]; });
   await page.evaluate(() => window.frameDev.inspect(false));
   const png = await page.evaluate(() => {
     const canvas = document.createElement('canvas'); canvas.width = 300; canvas.height = 400;
@@ -43,7 +44,7 @@ try {
   await page.waitForFunction(() => window.frameDev.snapshot().message.startsWith('Loaded ') && !window.frameDev.snapshot().busy);
   assert.equal(await page.locator('#fileName').textContent(), 'loaded-image-name.png');
 
-  for (const [name, width, height] of [['default', config.window.width, config.window.height], ['minimum', config.window.minWidth, config.window.minHeight]]) {
+  for (const [name, width, height] of [['startup', ...startupSize], ['minimum', config.window.minWidth, config.window.minHeight]]) {
     await app.evaluate(({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0].setSize(...size), [width, height]);
     await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     const result = await page.evaluate(() => {
@@ -68,9 +69,9 @@ try {
       assert.ok(Math.abs(nodes[id].width - nodes.undo.width) < 1, `${id} width matches Undo`);
       assert.ok(Math.abs(nodes[id].height - nodes.undo.height) < 1, `${id} height matches Undo`);
     }
-    assert.ok(nodes.load.x > width * 0.7 && nodes.load.right < nodes.save.x);
-    assert.ok(nodes.save.right < nodes.reset.x);
-    assert.ok(nodes.reset.right > width * 0.97 && nodes.reset.right <= width);
+    assert.ok(nodes.load.x > width * 0.7 && nodes.load.right < nodes.reset.x);
+    assert.ok(nodes.reset.right < nodes.save.x);
+    assert.ok(nodes.save.right > width * 0.97 && nodes.save.right <= width);
     assert.ok(Math.abs(nodes.load.width - width * 0.075) < 1);
     assert.ok(Math.abs(nodes.reset.width - nodes.load.width) < 1);
     assert.ok(Math.abs(result.bars.windowsBar.height - result.bars.actionBar.height) < 1);
@@ -80,7 +81,8 @@ try {
     assert.ok(Math.abs(headerInset - actionInset) < 1, 'Both rows share proportional vertical padding');
     assert.ok(Math.abs(actionInset - (result.bars.actionBar.bottom - nodes.load.y - nodes.load.height)) < 1, 'Action Bar top/bottom padding is symmetric');
     for (const id of ['undo', 'redo', 'load', 'save', 'reset', 'windowClose']) assert.ok(Math.abs(nodes[id].dx) < 1 && Math.abs(nodes[id].dy) < 1, `${id} icon centered`);
-    assert.equal(await page.locator('#windowMinimize, #windowMaximize').count(), 0);
+    assert.equal(await page.locator('#windowMinimize').count(), 0);
+    assert.equal(await page.locator('#windowMaximize').count(), 1);
     metrics.push({ name, ...result });
     await page.screenshot({ path: path.join(artifacts, `bars-${name}.png`) });
     const native = await app.evaluate(async ({ BrowserWindow, desktopCapturer }) => {
@@ -125,7 +127,7 @@ try {
   assert.deepEqual(errors, []);
   assert.deepEqual(await page.evaluate(() => window.frameDev.records()), []);
   await fs.writeFile(path.join(artifacts, 'metrics.json'), JSON.stringify({ metrics, dragged, undoClick, redoClick }, null, 2));
-  console.log(JSON.stringify({ pass: true, checked: ['history at far left', 'left filename beside history', 'pass-through transparent filename', 'wider equal Load/Save at right', 'equal Windows Bar button boxes', 'compact equal-height rows with symmetric proportional padding', 'centered icons at both sizes', 'actual native filename drag', 'actual native Undo/Redo clicks without moving window'], dragged, artifacts }, null, 2));
+  console.log(JSON.stringify({ pass: true, checked: ['history at far left', 'left filename beside history', 'pass-through transparent filename', 'configured Load/Reset/Save order at right', 'equal Windows Bar button boxes', 'compact equal-height rows with symmetric proportional padding', 'centered icons at startup/minimum sizes', 'actual native filename drag', 'actual native Undo/Redo clicks without moving window'], dragged, artifacts }, null, 2));
 } finally {
   await app.close();
 }

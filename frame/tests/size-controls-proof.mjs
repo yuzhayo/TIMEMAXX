@@ -24,6 +24,7 @@ try {
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
   await page.waitForSelector('#sizeControls-value', { state: 'attached' });
+  const startupSize = await app.evaluate(({ BrowserWindow }) => { const bounds = BrowserWindow.getAllWindows()[0].getBounds(); return [bounds.width, bounds.height]; });
   await page.evaluate(() => window.frameDev.inspect(false));
   assert.deepEqual(await page.evaluate(() => window.frameDev.records()), []);
   assert.equal(await page.locator('[data-component="photo.sizeControls"]').count(), 1);
@@ -109,7 +110,7 @@ try {
   assert.deepEqual(await app.evaluate(({ nativeImage }, file) => nativeImage.createFromPath(file).getSize(), exported), { width: 1200, height: 1600 });
   checked.push('a reset photo still exports at the exact output size');
 
-  for (const [name, width, height] of [['default', config.window.width, config.window.height], ['minimum', config.window.minWidth, config.window.minHeight]]) {
+  for (const [name, width, height] of [['startup', ...startupSize], ['minimum', config.window.minWidth, config.window.minHeight]]) {
     await app.evaluate(({ BrowserWindow }, size) => { const win = BrowserWindow.getAllWindows()[0]; win.setSize(...size); win.focus(); }, [width, height]);
     await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     const metrics = await page.evaluate(() => {
@@ -146,7 +147,7 @@ try {
     assert.ok(native);
     await fs.writeFile(path.join(artifacts, `size-${name}-native.png`), Buffer.from(native, 'base64'));
   }
-  checked.push('both bars keep one row with square, centered buttons at default/minimum sizes');
+  checked.push('both bars keep one row with centered proportional controls at startup/minimum sizes');
 
   assert.deepEqual(errors, []);
   assert.deepEqual(await page.evaluate(() => window.frameDev.records()), []);

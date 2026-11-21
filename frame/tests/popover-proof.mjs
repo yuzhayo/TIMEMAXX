@@ -24,6 +24,7 @@ try {
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
   await page.waitForSelector('#rotationControls-input');
+  const startupSize = await app.evaluate(({ BrowserWindow }) => { const bounds = BrowserWindow.getAllWindows()[0].getBounds(); return [bounds.width, bounds.height]; });
   await page.evaluate(() => window.frameDev.inspect(false));
   assert.deepEqual(await page.evaluate(() => window.frameDev.records()), []);
 
@@ -53,29 +54,33 @@ try {
   assert.ok(bars.size < bars.action * 0.16, 'Size no longer reserves slider width');
   checked.push(`Action Bar stays compact without inline sliders (rotation ${Math.round(bars.rotation)}px, size ${Math.round(bars.size)}px)`);
 
-  // LOGIC — moving a slider into a popup must not resize any button.
+  // LOGIC — row slots stay proportional; popup ownership does not impose square/frozen pixels.
   const boxes = await page.evaluate(() => {
     const rect = (id) => { const b = document.getElementById(id).getBoundingClientRect(); return { w: b.width, h: b.height }; };
     return { left: rect('rotationControls-left'), right: rect('rotationControls-right'),
       decrease: rect('sizeControls-decrease'), increase: rect('sizeControls-increase'),
-      load: rect('fileControls-load'), save: rect('fileControls-save'), reset: rect('fileControls-reset') };
+      load: rect('fileControls-load'), save: rect('fileControls-save'), reset: rect('fileControls-reset'),
+      rotationRow: rect('rotationControls'), sizeRow: rect('sizeControls'), fileRow: rect('fileControls') };
   });
-  for (const id of ['left', 'right', 'decrease', 'increase']) {
-    assert.ok(Math.abs(boxes[id].w - boxes[id].h) < 0.5, `${id} stays square`);
+  const rotationConfig = config.instances.find((node) => node.id === 'rotationControls');
+  const sizeConfig = config.instances.find((node) => node.id === 'sizeControls');
+  const fileConfig = config.instances.find((node) => node.id === 'fileControls');
+  for (const [id, row, part] of [['left', 'rotationRow', rotationConfig.parts.decrease], ['right', 'rotationRow', rotationConfig.parts.increase],
+    ['decrease', 'sizeRow', sizeConfig.parts.decrease], ['increase', 'sizeRow', sizeConfig.parts.increase],
+    ['load', 'fileRow', fileConfig.parts.load], ['save', 'fileRow', fileConfig.parts.save], ['reset', 'fileRow', fileConfig.parts.reset]]) {
+    assert.ok(Math.abs(boxes[id].w - boxes[row].w * part.size.width / 100) < 1, `${id} width follows its row percentage`);
+    assert.ok(Math.abs(boxes[id].h - boxes[row].h * part.size.height / 100) < 1, `${id} height follows its row percentage`);
   }
-  assert.ok(Math.abs(boxes.left.w - 38.94) < 0.6, 'The rotate buttons keep their original size');
-  assert.ok(Math.abs(boxes.decrease.w - 37.92) < 1.1, 'The size buttons keep their original size within a pixel');
-  assert.ok(Math.abs(boxes.load.w - 71.84) < 0.6, 'The file buttons keep their original size');
   assert.ok(Math.abs(boxes.right.w - boxes.left.w) < 0.5, 'Both rotate buttons match');
   assert.ok(Math.abs(boxes.increase.w - boxes.decrease.w) < 0.5, 'Both size buttons match');
-  checked.push('rotating and sizing buttons keep their pre-popover rendered sizes');
+  checked.push('row buttons consume configured percentages without square or frozen-pixel assumptions');
 
-  // LOGIC — the degree symbol opens the rotation slider popup.
-  await page.click('#rotationControls [data-part="degree"]');
+  // LOGIC — the whole visible value control opens the rotation slider popup.
+  await page.click('#rotationControls-field');
   await page.waitForSelector('#rotationControls-slider', { state: 'attached' });
   assert.equal(await surfaceCount(), 1);
   assert.ok(await page.locator('#rotationControls-slider').isVisible(), 'The rotation slider is visible only inside the popup');
-  checked.push('clicking the degree symbol opens the rotation slider popup');
+  checked.push('clicking the whole rotation value opens the rotation slider popup');
 
   const rail = await page.locator('#rotationControls-slider [data-part="rail"]').boundingBox();
   await page.mouse.move(rail.x + rail.width * 0.4, rail.y + rail.height / 2);
@@ -94,7 +99,7 @@ try {
   checked.push('popup drag previews live, commits on release, closes, and stays one Undo step');
 
   // LOGIC — Escape inside the popup cancels the whole drag.
-  await page.click('#rotationControls [data-part="degree"]');
+  await page.click('#rotationControls-field');
   await page.waitForSelector('#rotationControls-slider', { state: 'attached' });
   const rail2 = await page.locator('#rotationControls-slider [data-part="rail"]').boundingBox();
   await page.mouse.move(rail2.x + rail2.width * 0.6, rail2.y + rail2.height / 2);
@@ -132,7 +137,7 @@ try {
   assert.equal(await surfaceCount(), 0, 'An outside press closes the popup');
   checked.push('an outside press closes the popup');
 
-  for (const [name, width, height] of [['default', config.window.width, config.window.height], ['minimum', config.window.minWidth, config.window.minHeight]]) {
+  for (const [name, width, height] of [['startup', ...startupSize], ['minimum', config.window.minWidth, config.window.minHeight]]) {
     await app.evaluate(({ BrowserWindow }, size) => { const win = BrowserWindow.getAllWindows()[0]; win.setSize(...size); win.focus(); }, [width, height]);
     await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     const layout = await page.evaluate(() => {
@@ -143,7 +148,7 @@ try {
     });
     assert.equal(layout.inside, true, 'The three groups stay in one row without overlapping');
     await page.screenshot({ path: path.join(artifacts, `popover-${name}.png`) });
-    await page.click('#rotationControls [data-part="degree"]');
+    await page.click('#rotationControls-field');
     await page.waitForSelector('#rotationControls-slider', { state: 'attached' });
     const native = await app.evaluate(async ({ BrowserWindow, desktopCapturer }) => {
       const win = BrowserWindow.getAllWindows()[0];
@@ -155,7 +160,7 @@ try {
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => document.querySelectorAll('[data-popover-surface]').length === 0);
   }
-  checked.push('one row with an open popup at default/minimum sizes');
+  checked.push('one row with an open popup at startup/minimum sizes');
 
   assert.deepEqual(errors, []);
   assert.deepEqual(await page.evaluate(() => window.frameDev.records()), []);

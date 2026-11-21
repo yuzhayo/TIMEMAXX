@@ -27,6 +27,7 @@ async function launch(inspect = true) {
   page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
   await page.waitForSelector('[data-ready="true"]');
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setTitle('Frame layout proof'));
+  page.frameStartupSize = await app.evaluate(({ BrowserWindow }) => { const bounds = BrowserWindow.getAllWindows()[0].getBounds(); return [bounds.width, bounds.height]; });
   return page;
 }
 
@@ -64,14 +65,14 @@ if (process.argv.includes('--inspection-only')) {
     await page.waitForFunction(() => document.querySelector('.layout-summary')?.textContent.includes('windows-bar/UndoButton.jsx'));
     const text = await page.locator('.layout-summary').innerText();
     for (const value of ['history.undo', 'history.redo', 'windowsBar', 'windows-bar/UndoButton.jsx', 'windows-bar/RedoButton.jsx']) assert.ok(text.includes(value));
-    for (const [name, width, height] of [['default', originalConfig.window.width, originalConfig.window.height], ['minimum', originalConfig.window.minWidth, originalConfig.window.minHeight]]) {
+    for (const [name, width, height] of [['startup', ...page.frameStartupSize], ['minimum', originalConfig.window.minWidth, originalConfig.window.minHeight]]) {
       await app.evaluate(({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0].setSize(...size), [width, height]);
       await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       assert.equal(await page.locator('.layout-summary').evaluate((element) => element.scrollHeight > element.clientHeight || element.scrollWidth > element.clientWidth), false);
       await capture(page, `slice-inspection-${name}`);
     }
     assert.deepEqual(errors, []);
-    console.log(JSON.stringify({ pass: true, checked: ['readable component/instance/parent/source summary', 'no summary clipping', 'default/minimum native inspection screenshots'], evidence }, null, 2));
+    console.log(JSON.stringify({ pass: true, checked: ['readable component/instance/parent/source summary', 'no summary clipping', 'startup/minimum native inspection screenshots'], evidence }, null, 2));
   } finally { await close(); }
 } else try {
   let page = await launch();
@@ -110,7 +111,8 @@ if (process.argv.includes('--inspection-only')) {
   await configure(page, resized);
   const parentHeight = await page.locator('#actionBar').evaluate((element) => element.clientHeight);
   const files = originalConfig.instances.find((node) => node.id === 'fileControls');
-  const loadHeightFraction = files.bounds.height / 100 * files.parts.load.size.height / 100;
+  const allocation = resized.sections.find((section) => section.id === 'actionBar').layout.allocations[files.placement.allocation];
+  const loadHeightFraction = allocation.height / 100 * files.parts.load.size.height / 100;
   assert.ok(Math.abs((await page.locator('#fileControls-load').boundingBox()).height - parentHeight * loadHeightFraction) < 1);
   assert.deepEqual(await page.locator('#bottomBar').boundingBox(), bottomBefore);
 
@@ -125,6 +127,8 @@ if (process.argv.includes('--inspection-only')) {
   await page.click('#undo');
   const mismatch = structuredClone(originalConfig);
   mismatch.instances[0].parentId = 'actionBar';
+  mismatch.instances[0].placement = { align: 'start', order: 4, allocation: 'controls' };
+  mismatch.instances[0].bounds = { width: 4.5 };
   await configure(page, mismatch);
   await configure(page, mismatch);
   assert.equal(await page.locator('#undo').count(), 0);
@@ -160,7 +164,8 @@ if (process.argv.includes('--inspection-only')) {
   moved.instances.forEach((instance, index) => {
     if (!instance.componentId.startsWith('history.')) return;
     instance.parentId = 'actionBar';
-    instance.bounds = { x: 15 + index * 7, y: 20, width: 5, height: 60 };
+    instance.placement = { align: 'start', order: 4 + index, allocation: 'controls' };
+    instance.bounds = { width: 5 };
   });
   await fs.writeFile(path.join(root, 'config.json'), JSON.stringify(moved, null, 2));
   build();
@@ -175,12 +180,12 @@ if (process.argv.includes('--inspection-only')) {
   await page.click('#redo');
   assert.equal(await page.evaluate(() => window.frameDev.snapshot().document.rotation), 20);
 
-  for (const [name, width, height] of [['default', moved.window.width, moved.window.height], ['minimum', moved.window.minWidth, moved.window.minHeight]]) {
+  for (const [name, width, height] of [['startup', ...page.frameStartupSize], ['minimum', moved.window.minWidth, moved.window.minHeight]]) {
     await app.evaluate(({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0].setSize(...size), [width, height]);
     await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     const metrics = await page.evaluate(() => {
-      const safe = document.querySelector('[data-section-content="windowsBar"]').getBoundingClientRect();
-      const buttons = [...document.querySelectorAll('#windowsBar button')].map((element) => {
+      const safe = document.querySelector('[data-section-content="actionBar"]').getBoundingClientRect();
+      const buttons = [...document.querySelectorAll('#actionBar [data-component^="history."] button')].map((element) => {
         const button = element.getBoundingClientRect();
         const icon = element.querySelector('svg').getBoundingClientRect();
         return { id: element.id, right: button.right, width: button.width, height: button.height,
@@ -202,7 +207,7 @@ if (process.argv.includes('--inspection-only')) {
     await page.evaluate(() => window.frameDev.inspect(true));
   }
   assert.deepEqual(errors, [], 'No renderer errors');
-  console.log(JSON.stringify({ pass: true, evidence, artifacts, checked: ['real history', 'actual config consumption', 'sibling isolation', 'parent percentages', 'enabling', 'non-breaking mismatch', 'persisted deduplicated logs', 'normal mode', 'physical move and rename plus JSON only', 'native caption safe area', 'centered icons', 'default/minimum native screenshots'] }, null, 2));
+  console.log(JSON.stringify({ pass: true, evidence, artifacts, checked: ['real history', 'actual config consumption', 'sibling isolation', 'parent percentages', 'enabling', 'non-breaking mismatch', 'persisted deduplicated logs', 'normal mode', 'physical move and rename plus JSON only', 'configured parent bounds', 'centered icons', 'startup/minimum native screenshots'] }, null, 2));
 } finally {
   await close();
   if (changed) {

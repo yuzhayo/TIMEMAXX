@@ -27,6 +27,7 @@ try {
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
   await page.waitForSelector('#windowClose');
+  const startupSize = await app.evaluate(({ BrowserWindow }) => { const bounds = BrowserWindow.getAllWindows()[0].getBounds(); return [bounds.width, bounds.height]; });
   await page.evaluate(() => window.frameDev.inspect(false));
    assert.equal(await page.locator('#actionBar #fileControls #fileControls-load, #actionBar #fileControls #fileControls-save').count(), 2);
   assert.equal(await page.locator('#windowsBar #undo, #windowsBar #redo').count(), 2);
@@ -36,7 +37,8 @@ try {
    for (const id of ['fileControls-load', 'fileControls-save', 'windowClose']) {
     assert.equal(await page.locator(`#${id}`).getAttribute('data-button-renderer'), 'shared-action');
    }
-   assert.equal(await page.locator('#windowMinimize, #windowMaximize').count(), 0, 'Only X remains among window buttons');
+   assert.equal(await page.locator('#windowMinimize').count(), 0, 'Minimize remains hidden');
+   assert.equal(await page.locator('#windowMaximize').count(), 1, 'Vertical maximize/restore remains visible');
    assert.equal(await page.evaluate(() => window.frameDev.catalog.filter((entry) => entry.componentId === 'file.controls').length), 1);
   assert.deepEqual(await page.evaluate(() => window.frameDev.records()), []);
   checked.push('swapped folders/parents; one shared renderer across Action Bar and Windows Bar; native overlay hidden');
@@ -56,7 +58,7 @@ try {
   assert.equal(await app.evaluate(() => globalThis.minimizeProof), true);
   await app.evaluate(({ BrowserWindow }) => { const win = BrowserWindow.getAllWindows()[0]; win.restore(); win.show(); win.focus(); });
   await page.waitForFunction(() => window.frameDev.snapshot().windowState.minimized === false);
-   checked.push('Minimize/Maximize buttons hidden; underlying native operations retained; unsupported method rejected');
+   checked.push('Minimize hidden, vertical maximize/restore visible; underlying native operations retained; unsupported method rejected');
 
   const png = await page.evaluate(() => {
     const canvas = document.createElement('canvas'); canvas.width = 300; canvas.height = 400;
@@ -86,7 +88,7 @@ try {
   assert.deepEqual(await app.evaluate(({ nativeImage }, file) => nativeImage.createFromPath(file).getSize(), destination), { width: 1200, height: 1600 });
   checked.push('real Load/Save after relocation; Undo/Redo act on the loaded photo document');
 
-  for (const [name, width, height] of [['default', config.window.width, config.window.height], ['minimum', config.window.minWidth, config.window.minHeight]]) {
+  for (const [name, width, height] of [['startup', ...startupSize], ['minimum', config.window.minWidth, config.window.minHeight]]) {
     await app.evaluate(({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0].setSize(...size), [width, height]);
     await page.mouse.move(width / 2, height / 2);
     await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
@@ -110,7 +112,7 @@ try {
    const edges = await page.evaluate(() => {
      const rect = (selector) => document.querySelector(selector).getBoundingClientRect();
      const action = rect('#actionBar [data-section-content]'), windows = rect('#windowsBar [data-section-content]');
-     const group = rect('#fileControls'), last = rect('#fileControls-reset'), close = rect('#windowClose');
+      const group = rect('#fileControls'), last = rect('#fileControls-save'), close = rect('#windowClose');
      return { group: (action.right - group.right) / action.width * 100, last: (action.right - last.right) / action.width * 100,
        close: (windows.right - close.right) / windows.width * 100 };
    });
@@ -126,7 +128,7 @@ try {
   }
   assert.deepEqual(errors, []);
   assert.deepEqual(await page.evaluate(() => window.frameDev.records()), []);
-   checked.push('same shared Load/Save/X rendering; baked file group, Save and X have 1% right margins at both sizes');
+   checked.push('same shared Load/Save/X rendering; baked Load/Reset/Save group, Save and X have 1% right margins at startup/minimum sizes');
 
   const ownedSessions = (await fs.readdir(runtime)).filter((name) => name.startsWith('image-session-') && !sessionsBefore.has(name));
   assert.equal(ownedSessions.length, 1);

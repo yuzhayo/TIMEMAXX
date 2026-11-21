@@ -21,6 +21,7 @@ try {
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
   await page.waitForSelector('[data-ready="true"]');
+  const startupSize = await app.evaluate(({ BrowserWindow }) => { const bounds = BrowserWindow.getAllWindows()[0].getBounds(); return [bounds.width, bounds.height]; });
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setTitle('Frame guardrail proof'));
   const configure = async (config) => {
     await page.evaluate((next) => window.frameDev.reconfigure(next), config);
@@ -56,7 +57,7 @@ try {
   assert.equal(await page.locator('#actionBar').count(), 0);
   assert.equal(await page.locator('#frameBody').count(), 1);
   assert.equal(await page.locator('#bottomBar').count(), 1);
-  await recordExists((issue) => issue.code === 'SECTION_OVERLAP' && issue.sectionId === 'actionBar');
+  await recordExists((issue) => issue.code === 'SECTION_FLOW_OVERLAP' && issue.sectionId === 'actionBar');
   checked.push('overlapping section subtrees isolated; unrelated sections remain');
 
   await change((config) => { delete config.development.inspector; });
@@ -90,7 +91,7 @@ try {
   assert.equal(await page.locator('#actionBar').evaluate((element) => getComputedStyle(element).backgroundColor), 'rgb(59, 47, 74)');
   checked.push('column axes, JSON dashed border/structured shadow and actual section hover applied');
 
-  for (const [name, width, height] of [['default', original.window.width, original.window.height], ['minimum', original.window.minWidth, original.window.minHeight]]) {
+  for (const [name, width, height] of [['startup', ...startupSize], ['minimum', original.window.minWidth, original.window.minHeight]]) {
     await app.evaluate(({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0].setSize(...size), [width, height]);
     await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     assert.equal(await page.locator('.diagnostic-summary').count(), 0, 'No floating diagnostic banner');
@@ -113,7 +114,7 @@ try {
   const persisted = JSON.parse(await fs.readFile(logPath, 'utf8'));
   assert.ok(persisted.some((issue) => issue.configPath === 'instances[0].geometry.fontSize' && issue.filePath === 'windows-bar/UndoButton.jsx'));
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ pass: true, checked, nativeScreenshots: ['guardrails-default-native.png', 'guardrails-minimum-native.png'], logPath }, null, 2));
+  console.log(JSON.stringify({ pass: true, checked, nativeScreenshots: ['guardrails-startup-native.png', 'guardrails-minimum-native.png'], logPath }, null, 2));
 } finally {
   await app.close();
 }

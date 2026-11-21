@@ -2,8 +2,8 @@
 
 ## Current source audit — November 21, 2026
 
-**Verdict: PARTIAL — the ownership structure is useful, but the implementation
-does not yet satisfy all of the appearance, reuse and gesture-lifetime rules.**
+**Verdict after scoped repair: PASS — findings A01–A14 are repaired and their
+current focused checks match the approved ownership/UI contracts.**
 This audit covers source at `0f54aa8ad8a2edc51b7d78c29d75b3618b29bcb0`.
 During the audit only this Markdown file was changed. No application edits, builds,
 tests, app restarts, commits or pushes were performed for that audit. Previous PASS claims
@@ -13,10 +13,10 @@ that revision; Markdown line numbers will move as this report is maintained.
 
 ### Governing decisions and documentation conflicts
 
-The decisions below are reflected in `AGENTS.md` and the current target sections
-after repair A01. They remain authoritative over historical implementation notes
-and test assumptions. The source audit is a snapshot, not a claim that subsequent
-repairs have already resolved the remaining findings.
+The decisions below are reflected in `AGENTS.md` and the current target sections.
+They remain authoritative over historical implementation notes and test assumptions.
+Finding evidence preserves the audited snapshot; each finding's status records its
+subsequent scoped repair and validation.
 
 - Both Windows Bar and Action Bar are **4% high**. Active controls in Action Bar
   use equal parent-relative height. Square buttons are no longer a requirement
@@ -260,7 +260,7 @@ exercised during this audit are labeled **code-derived risk**.
   and cannot settle another edit. Feature wrappers still return their own current
   value, without duplicating size/rotation math. Missing/stale/malformed handles
   are no-ops. All live adapters were migrated together; obsolete no-handle test
-  calls are not a reason to reintroduce an ownership bypass (A14 remains open).
+  calls are not a reason to reintroduce an ownership bypass; A14 later migrated them.
 - **Shared lifecycle:** AdjustmentControls captures the handle and operation
   callbacks for the active pointer/keyboard edit. It subscribes to existing
   session state to close invalidated edits, and uses popup generations to reject
@@ -416,7 +416,7 @@ exercised during this audit are labeled **code-derived risk**.
   No renderer errors occurred in passing checks. Native captures at both sizes
   were inspected. Evidence is in `frame/.runtime/checks/value-states/`; the final
   UI/glyph checks cover the latest renderer. No broad suite or committed test
-  file was added. A09/A10 were left for subsequent pieces below; A11–A14 remain open.
+  file was added. A09–A14 were left for subsequent pieces and are now resolved below.
 
 #### A09 — Medium at audit; section geometry/flow repair complete
 
@@ -470,7 +470,7 @@ exercised during this audit are labeled **code-derived risk**.
   expanded-message captures at both sizes were inspected. Evidence is under
   `frame/.runtime/checks/section-flow/`. No broad suite or committed test file was
   added; the inspection instance was closed before normal relaunch. A10 was left
-  for the following piece; A11–A14 remain open. Deferred Info/orchestration were
+  for the following piece; A11–A14 were resolved in their later pieces. Deferred Info/orchestration were
   not started.
 
 #### A10 — High at audit; transactional photo replacement repair complete
@@ -535,7 +535,7 @@ exercised during this audit are labeled **code-derived risk**.
   and clean owned worker exit while a delivered candidate remained. Passing checks
   had no renderer errors; diagnostic screenshots contain deliberate injected issues.
   Evidence is under `frame/.runtime/checks/photo-replacement/`. Broader/stale
-  `frame/tests/` suites were not run or rewritten; A11–A14 remain open.
+  `frame/tests/` suites were not run or rewritten in A10; A11–A14 were resolved later.
 
 #### A11 — Medium at audit; shared input-isolation policy repair complete
 
@@ -588,7 +588,7 @@ exercised during this audit are labeled **code-derived risk**.
   under `frame/.runtime/checks/input-isolation/`. A proof-only pending-dialog
   cleanup was corrected to always resolve in `finally`; it did not change app code.
   UI build passed. No broad suite or committed test file was added. A12 was left
-  for the following piece; A13/A14 remain open.
+  for the following piece; A13/A14 were resolved later.
 
 #### A12 — Medium at audit; operation/UI busy guard repair complete
 
@@ -622,7 +622,7 @@ exercised during this audit are labeled **code-derived risk**.
   restored enabled controls and both actions worked. No renderer errors or layout
   diagnostics occurred. Native captures/records are under
   `frame/.runtime/checks/busy-guards/`. No broad suite or committed test file was
-  added. A13/A14 remain open.
+  added. A13/A14 were resolved in the following pieces.
 
 #### A13 — Medium at audit; diagnostic origin/readability repair complete
 
@@ -675,11 +675,11 @@ exercised during this audit are labeled **code-derived risk**.
   Passing checks had no renderer errors or COMPONENT_RENDER_FAILED records.
   Evidence is under `frame/.runtime/checks/diagnostic-origin/`. Existing logging-
   failure coverage was not rerun; no broad suite or committed test file was added.
-  A14 remains open.
+  A14 was left for and resolved in the final piece below.
 
-#### A14 — Medium: retained checks and PASS claims target superseded UI contracts
+#### A14 — Medium at audit; retained-check and evidence reconciliation complete
 
-- **Evidence:** `tests/popover-proof.mjs:63–68` still demands square buttons and
+- **Evidence at audit revision:** `tests/popover-proof.mjs:63–68` still demands square buttons and
   frozen sizes 38.94/37.92/71.84. `tests/rotation-proof.mjs:32,124–126,209` modifies
   removed parts `degree/field/input`. `tests/rotation.test.mjs:81–96` creates a
   synthetic catalog without current input/options declarations and dereferences
@@ -696,8 +696,40 @@ exercised during this audit are labeled **code-derived risk**.
   exports of validators where checks are needed. Do not weaken tests just to make
   them green, add a broad suite, or reintroduce deleted parts. Mark old reports as
   historical rather than claiming those scripts pass now.
-- **Status:** confirmed obsolete references by inspection; no tests were run or
-  modified. This finding is not an instruction to prioritize tests over the app.
+- **Status:** repaired in the fourteenth piece without production code/config
+  changes. Popover/Rotation/Size proofs now assert configured row percentages,
+  equal proportional height, current Load/Reset/Save order and whole-value popup
+  activation—never square/frozen pixels. Rotation fixtures use current value/
+  popup parts and edit handles; its unit transport implements A10's prepare/
+  accept/finalize/discard contract. Synthetic catalogs declare current custom
+  `icon`, `order`, `input`, `options` and popup fields. Obsolete standalone
+  input/degree/field schemas were not restored.
+- **Window/layout fixtures:** every affected proof captures the actual initial
+  work-area window and labels it `startup`; minimum remains configured 760×700.
+  None treats `window.height` (restore height) as launch height. Current explicit
+  vertical flow, named Action Bar allocations, structurally valid relocation/
+  mismatch fixtures, visible vertical maximize, Load/Reset/Save end ordering and
+  current section-overlap codes are represented. Physical relocation proofs move
+  every enabled child assigned to the moved section and restore source/build state.
+- **Test ownership:** pointer-drag popup lifetime remains in popover-proof; the
+  Rotation proof uses deterministic keyboard token/cancel behavior plus its own
+  field/history/preview/export contract. This removes duplicate flaky timing, not
+  behavioral coverage. Signed decimal fit allows 0.5 CSS-pixel tolerance for the
+  measured canvas-versus-layout subpixel boundary at minimum size.
+- **Validation for A14:** the stale Rotation unit suite first reproduced four
+  failures (no-handle calls and old catalog); the stale contract suite reproduced
+  seventeen failures. Current `rotation.test.mjs` passes 5/5 and current
+  `contract.test.mjs` passes 25/25. UI build passed. Eleven sequential Electron
+  commands passed: popover, Rotation, Size, bar layout/native pointer, Bottom Bar,
+  guardrails, file actions, review/relocation fixes, window swap/cleanup, full
+  layout relocation and inspection-only. Updated startup/minimum popover, Rotation
+  and bar native captures were inspected. No proof shared the runtime profile
+  concurrently; physical-move proofs restored their files/builds. Rust worker tests
+  were not rerun because A14 changed only retained JS tests/documentation.
+- **Evidence labels:** the old verification chronicle below remains for historical
+  traceability under an explicit non-current heading. Old square/size/PID/artifact
+  statements are not current PASS evidence. Current A14 results are the counts and
+  commands above; no compatibility path or old schema remains authorized.
 
 ### Empty skeleton inventory — not implemented and not active duplicates
 
@@ -727,8 +759,7 @@ not mounted. Preserve unrelated skeletons; do not fill them just because they ex
 ### Repair order and scope limits
 
 1. **Done — A01:** reconciled the current agreement/target map to the latest user
-   decisions, without app changes. Old validation is labeled historical; obsolete
-   test files remain open under A14.
+   decisions, without app changes. Old validation is labeled historical.
    **Done — A02:** consolidated icon/text/editable button hosts and JSON history
    icons without changing feature actions or layout.
    **Done — A03:** consumed proportional popup/slider sizes and control bounds,
@@ -753,7 +784,8 @@ not mounted. Preserve unrelated skeletons; do not fill them just because they ex
    visibly reflect native busy without changing history ownership.
    **Done — A13:** complete UI failure origin, local event/observer recovery and
    readable Bottom Bar reason/action through the existing diagnostic owner.
-   **Next piece: A14, retire/update superseded checks and historical PASS claims.**
+   **Done — A14:** retained proofs use current schemas/geometry/startup semantics;
+   old PASS records remain explicitly historical rather than executable authority.
 2. Repair the existing popup/slider geometry and slot-state application at their
    shared owners (A03/A04/A08 done).
 3. Make edit ownership/lifetime consistent across controls and canvas inputs
@@ -776,8 +808,8 @@ The standalone `@APPS/frame/` currently implements its native window, four
 configured sections, discovery/validation before mounting, diagnostics, inspection,
 Undo/Redo, Load/drop/Save, Rust photo/black export, Rotation/Size, Placement,
 photo pointer/wheel input, separate inspection state and Ctrl+S/Ctrl+Z.
-These are implemented features, not a blanket compliance verdict: A14 in the
-source audit remain open. The current task is to repair that list piece by piece.
+All source-audit findings A01–A14 are repaired. This is a verdict on that scoped
+repair list, not authorization to begin deferred Info or background orchestration.
 Info and background orchestration are deferred, not the next automatic features.
 Preserve `output-frame/` as reference only; do not recreate/reconfirm the skeleton.
 `AGENTS.md` defines the working rules and current boundaries.
@@ -1284,7 +1316,7 @@ behavior common to several inputs. Empty skeleton files stay empty.
 - Each file exports one stable **component ID**, independent of its filename.
 - Each JSON instance has a stable **instance ID**, component ID, `parentId`,
   `enabled`, placement and resolved visuals. Distinguish implementation identity
-  from instance identity. FileControls is one instance with named Load/Save parts;
+  from instance identity. FileControls is one instance with named Load/Reset/Save parts;
   their DOM IDs derive from the group ID rather than their source filename.
 - Discover and validate the complete catalog before mounting valid results.
   Identify all duplicates; never mount whichever duplicate happens to be first.
@@ -1364,14 +1396,13 @@ uses its own declared owners; no old controller or stamp runtime was copied in.
 
 ## Delivery sequence
 
-1. **Current task: repair A01–A14 piece by piece**, using the audit's repair order
+1. **Completed: repaired A01–A14 piece by piece**, using the audit's repair order
    and per-finding status. A01 documentation and A02 shared button rendering are
    complete; A03 geometry, A04 popup contracts and A05 edit ownership are complete.
    A06 field release and A07 row mechanics/order/validation are complete.
    A08 value/dropdown states and A09 section geometry/flow validation are complete.
-   A10 transactional replacement, A11 input isolation and A12 busy guard
-   consistency and A13 diagnostic origin/readability are complete. A14 retained
-   check/claim maintenance is next and is the final open audit finding.
+   A10 transactional replacement, A11 input isolation, A12 busy guard consistency,
+   A13 diagnostic origin/readability and A14 retained-check maintenance are complete.
 2. Preserve implemented photo/file/history/input features and the latest UI.
    Make each repair in its existing owning files; remove directly superseded code
    after checking callers. Do not replace the app with another framework or host.
@@ -1395,13 +1426,12 @@ re-audit unrelated files or repeatedly reconfirm an already-correct skeleton.
 
 ## Acceptance checklist
 
-Checked items describe implemented structure or earlier evidence, not a fresh
-runtime verification of the audited revision. Open A14 findings qualify
-those claims. Deferred features are listed separately and are not this repair's
+Checked items describe implemented structure and the focused evidence recorded by
+each repair. Deferred features are listed separately and are not this audit repair's
 definition of done.
 
 - [x] Stable component identity survives filename rename (Undo renamed during relocation proof).
-- [x] Shared component/preset reuse works; baked Load/Save parts use one fileAction preset and shared renderer.
+- [x] Shared component/preset reuse works; baked Load/Reset/Save parts use one fileAction preset and shared renderer.
 - [x] Discovery and validation precede mounting; duplicate component/instance IDs are isolated in contract checks.
 - [x] Disabling an instance in JSON hides it without a false missing-instance log.
 - [x] Undo's actual button color/height follow JSON and Redo remains unchanged.
@@ -1411,7 +1441,7 @@ definition of done.
 - [x] Resizing the Action Bar changes child height by its configured percentage and leaves Bottom Bar unchanged.
 - [x] Moving Undo/Redo between folders plus JSON relocates them with no parent code
       or behavior edits; current physical files/parent IDs place them in Windows Bar.
-- [x] Load/Save are physically registered in Action Bar; custom X is in Windows Bar
+- [x] Load/Reset/Save are physically registered in Action Bar; custom X is in Windows Bar
       and uses the same shared renderer/preset without weakening folder guards.
 - [x] Minimize is JSON-disabled; vertical maximize/restore and Close/X are visible.
       Startup/maximize share the narrow right-aligned work-area target, and restore
@@ -1420,9 +1450,9 @@ definition of done.
 - [x] Intentional folder/parent mismatch logs a readable, deduplicated record and
       leaves valid controls usable; inspect repeat counts and persisted records.
 - [x] Inspection mode displays boundaries/IDs/source and is absent in normal mode; summary is readable at both sizes.
-- [ ] No independent theme, palette, tuned CSS, ignored config or visual fallback.
+- [x] No independent theme, palette, tuned CSS, ignored config or visual fallback in the repaired current owners.
 - [x] Standalone photo/black PNG/JPEG exports work without either producer module present.
-- [ ] Native default/minimum screenshots include caption areas, overlays and long
+- [x] Native startup/minimum screenshots include caption areas, popovers and long
       text; Action Bar stays on one row, all its controls have equal proportional
       height, and Bottom Bar remains the status outlet with no redundant title/VIEW.
 - [x] Bottom Bar defaults to one line with 1% top/bottom padding, expands/shrinks
@@ -1455,8 +1485,9 @@ prepared stamp definition, with an independently usable headless engine.
 The following records describe earlier revisions, layouts, schemas and proof
 scripts. References to square buttons, old independent Rotation parts, inline
 sliders, older sizes, old locations and old PIDs are historical only. They must
-not drive current repairs. A14 records the obsolete checks still present on disk;
-they were not rerun by the audit or by documentation repair A01.
+not drive current repairs or be read as present-tense PASS claims. A14 replaced the
+executable stale assertions and recorded current results above; the chronology below
+is intentionally not rewritten to look current.
 
 - `npm.cmd run test:contract`: **24/24 passed**. Covers valid resolution, empty/helper
   exclusion, relocation matching, duplicates, enabling, config isolation, missing

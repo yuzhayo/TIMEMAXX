@@ -23,15 +23,18 @@ try {
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
   await page.waitForSelector('#rotationControls-input');
+  const startupSize = await app.evaluate(({ BrowserWindow }) => { const bounds = BrowserWindow.getAllWindows()[0].getBounds(); return [bounds.width, bounds.height]; });
   await page.evaluate(() => window.frameDev.inspect(false));
   const input = page.getByRole('textbox', { name: 'Photo rotation in degrees' });
   assert.equal(await input.isDisabled(), true);
   assert.equal(await page.locator('#rotationControls-slider').count(), 0, 'The slider lives in a popup until it is opened');
   assert.deepEqual(await page.evaluate(() => window.frameDev.records()), []);
   const disabledParts = structuredClone(config);
-  disabledParts.instances.find((node) => node.id === 'rotationControls').parts.degree.states = { disabled: { colors: { foreground: '#637182' } } };
+  disabledParts.instances.find((node) => node.id === 'rotationControls').parts.value.states = { disabled: { colors: { foreground: '#637182' } } };
   await page.evaluate((value) => window.frameDev.reconfigure(value), disabledParts);
-  assert.equal(await page.locator('#rotationControls-field [data-part="degree"]').evaluate((element) => getComputedStyle(element).color), 'rgb(99, 113, 130)', 'Disabled state reaches named degree part');
+  for (const selector of ['#rotationControls-input', '#rotationControls-field [data-part="degree"]']) {
+    assert.equal(await page.locator(selector).evaluate((element) => getComputedStyle(element).color), 'rgb(99, 113, 130)', 'Disabled value state reaches input and unit content');
+  }
   await page.evaluate((value) => window.frameDev.reconfigure(value), config);
   const fixture = await page.evaluate(() => {
     const canvas = document.createElement('canvas'); canvas.width = 600; canvas.height = 800;
@@ -81,39 +84,25 @@ try {
   checked.push('0.1° input precision, invalid draft recovery, Escape cancellation, ±90° buttons, synchronized slider and one-step typing history');
   await load();
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-  // The slider lives in a popup opened from the degree symbol.
-  await page.click('#rotationControls [data-part="degree"]');
+  // Pointer drag belongs to popover-proof; Rotation proves deterministic keyboard token lifetime here.
+  await page.click('#rotationControls-field');
   await page.waitForSelector('#rotationControls-slider', { state: 'attached' });
-  const rail = await page.locator('#rotationControls-slider [data-part="rail"]').boundingBox();
-  await page.mouse.move(rail.x + rail.width / 2, rail.y + rail.height / 2); await page.mouse.down();
-  assert.equal(await page.locator('#rotationControls-slider [data-part="thumb"]').evaluate((element) => getComputedStyle(element).backgroundColor), 'rgb(255, 196, 77)', 'JSON active state reaches MUI thumb');
-  await page.mouse.move(rail.x + rail.width * 0.65, rail.y + rail.height / 2, { steps: 12 });
-  const during = await rotation(); assert.ok(during > 30);
-  await page.mouse.move(rail.x + rail.width * 0.75, rail.y + rail.height / 2, { steps: 12 }); await page.mouse.up();
-  const dragged = await rotation(); assert.ok(dragged > during);
-  assert.equal(Number(await input.inputValue()), dragged);
-  await page.click('#undo'); await waitRotation(0); assert.equal(await page.locator('#undo').isDisabled(), true);
-  await page.click('#redo'); await waitRotation(dragged);
-  await page.click('#rotationControls [data-part="degree"]');
-  await page.waitForSelector('#rotationControls-slider', { state: 'attached' });
-  const cancelRail = await page.locator('#rotationControls-slider [data-part="rail"]').boundingBox();
-  await page.mouse.move(cancelRail.x + cancelRail.width * 0.75, cancelRail.y + cancelRail.height / 2); await page.mouse.down();
-  await page.mouse.move(cancelRail.x + cancelRail.width * 0.6, cancelRail.y + cancelRail.height / 2);
-  assert.notEqual(await rotation(), dragged);
-  await page.keyboard.press('Escape'); await waitRotation(dragged);
-  await page.mouse.move(cancelRail.x + cancelRail.width * 0.4, cancelRail.y + cancelRail.height / 2); await page.mouse.up();
-  assert.equal(await rotation(), dragged, 'Escape cancels the whole drag, including remaining pointer movement');
-  await page.click('#rotationControls [data-part="degree"]');
-  await page.waitForSelector('#rotationControls-slider', { state: 'attached' });
-  const keyboardSlider = page.getByRole('slider', { name: 'Photo rotation slider' });
+  let keyboardSlider = page.getByRole('slider', { name: 'Photo rotation slider' });
   await keyboardSlider.focus(); await keyboardSlider.press('ArrowRight');
-  assert.equal(await rotation(), Number((dragged + 0.1).toFixed(1)));
-  await keyboardSlider.press('Escape');
+  const stepped = await rotation(); assert.equal(stepped, 0.1); assert.equal(Number(await input.inputValue()), stepped);
+  await page.click('#undo'); await waitRotation(0); assert.equal(await page.locator('#undo').isDisabled(), true);
+  await page.click('#redo'); await waitRotation(stepped);
+  await page.click('#rotationControls-field');
+  await page.waitForSelector('#rotationControls-slider', { state: 'attached' });
+  keyboardSlider = page.getByRole('slider', { name: 'Photo rotation slider' }); await keyboardSlider.focus();
+  await page.keyboard.down('ArrowRight'); assert.equal(await rotation(), 0.2);
+  await page.keyboard.press('Escape'); await page.keyboard.up('ArrowRight'); await waitRotation(stepped);
+  assert.equal(await rotation(), stepped, 'Escape cancels the held keyboard step and late keyup cannot revive it');
   const afterExport = await save('rotated.png');
   assert.notEqual(await hash(beforeExport), await hash(afterExport));
   assert.deepEqual(await app.evaluate(({ nativeImage }, file) => nativeImage.createFromPath(file).getSize(), afterExport), { width: 1200, height: 1600 });
   assert.equal(await hash(source), originalHash);
-  checked.push('live popup slider drag, whole-drag Escape cancellation, named-part error/disabled/active states, one-step Undo/Redo, keyboard step, rotated live preview and real Rust export with original preserved');
+  checked.push('popup keyboard step/cancellation, value error/disabled states, one-step Undo/Redo, rotated live preview and real Rust export with original preserved');
   const configure = async (next) => {
     await page.evaluate((value) => window.frameDev.reconfigure(value), next);
     await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
@@ -121,9 +110,8 @@ try {
   await page.mouse.move(500, 400);
   const loadBefore = await page.locator('#fileControls-load').evaluate((element) => { const b = element.getBoundingClientRect(); return { width: b.width, height: b.height, color: getComputedStyle(element).color }; });
   const customized = structuredClone(config), group = customized.instances.find((node) => node.id === 'rotationControls');
-  group.parts.field.size.height = 60;
-  group.parts.input.colors = { foreground: '#91e4c3' };
-  group.parts.degree.colors = { foreground: '#91e4c3' };
+  group.parts.value.size.height = 60;
+  group.parts.value.colors = { foreground: '#91e4c3' };
   await configure(customized);
   assert.equal(await input.evaluate((element) => getComputedStyle(element).color), 'rgb(145, 228, 195)');
   const parentHeight = await page.locator('[data-rotation-content]').evaluate((element) => element.getBoundingClientRect().height);
@@ -134,26 +122,19 @@ try {
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(760, 1100));
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   const tallCenters = await page.locator('#rotationControls-left, #rotationControls-right, #fileControls-load').evaluateAll((elements) => elements.map((element) => { const bounds = element.getBoundingClientRect(); return bounds.y + bounds.height / 2; }));
-  assert.ok(tallCenters.every((center) => Math.abs(center - tallCenters[0]) < 1), 'Width-limited squares remain on the centerline in a tall window');
-  await app.evaluate(({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0].setSize(...size), [config.window.width, config.window.height]);
-  for (const [name, width, height] of [['default', config.window.width, config.window.height], ['minimum', config.window.minWidth, config.window.minHeight]]) {
+  assert.ok(tallCenters.every((center) => Math.abs(center - tallCenters[0]) < 1), 'Shared control allocations remain on the centerline in a tall window');
+  await app.evaluate(({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0].setSize(...size), startupSize);
+  for (const [name, width, height] of [['startup', ...startupSize], ['minimum', config.window.minWidth, config.window.minHeight]]) {
     await app.evaluate(({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0].setSize(...size), [width, height]);
     await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-    const dynamic = [];
+    const fixed = [];
     for (const text of ['0', '10', '100', '-179.9', '0']) {
       await input.fill(text);
       await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       const positions = await page.evaluate((ids) => ids.map((id) => { const b = document.getElementById(id).getBoundingClientRect(); return { x: b.x, width: b.width }; }), ['rotationControls-field', 'rotationControls-right', 'fileControls-load', 'fileControls-save']);
-      dynamic.push({ text, positions });
+      fixed.push({ text, positions });
     }
-    assert.ok(dynamic[0].positions[0].width < 30, 'Default fits one digit plus degree symbol/insets');
-    for (let i = 1; i < 4; i++) {
-      const before = dynamic[i - 1].positions, after = dynamic[i].positions;
-      assert.ok(after[0].width > before[0].width, 'Draft text expands the field');
-      assert.ok(after[1].x >= before[1].x, 'The right button follows the expanding field');
-      assert.deepEqual(after.slice(2), before.slice(2), 'Load/Save stay anchored');
-    }
-    assert.ok(Math.abs(dynamic[4].positions[0].width - dynamic[0].positions[0].width) < 0.1, 'Field shrinks back to one digit');
+    for (const state of fixed.slice(1)) assert.deepEqual(state.positions, fixed[0].positions, 'Configured value allocation does not reflow siblings with draft length');
     await input.press('Enter');
     await page.screenshot({ path: path.join(artifacts, `rotation-${name}-one-digit.png`) });
     for (const text of ['-180', '180', '179.9', '-179.9']) {
@@ -165,7 +146,7 @@ try {
         return { textWidth: context.measureText(element.value).width,
           available: element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) };
       });
-      assert.ok(fit.textWidth <= fit.available, `${text} remains fully visible at ${name}: ${JSON.stringify(fit)}`);
+      assert.ok(fit.textWidth <= fit.available + 0.5, `${text} remains visible within subpixel measurement tolerance at ${name}: ${JSON.stringify(fit)}`);
     }
     await page.mouse.move(width / 2, height / 2);
     const metric = await page.evaluate(() => {
@@ -177,12 +158,13 @@ try {
     });
     const n = metric.nodes;
     const parentWidth = await page.locator('[data-rotation-content]').evaluate((element) => element.clientWidth);
-    assert.ok(n.field.width <= parentWidth * 0.35 + 1, 'Content-sized degree field stays within its maximum allocation');
+    assert.ok(Math.abs(n.field.width - parentWidth * group.parts.value.size.width / 100) < 1, 'Degree field consumes its configured percentage allocation');
     for (const id of ['left', 'right']) {
-      assert.ok(Math.abs(n[id].width - n[id].height) < 0.1, `${id} true square at ${name}`);
       assert.equal(await page.locator(`#rotationControls-${id}`).getAttribute('data-button-renderer'), 'shared-action');
       assert.ok(Math.abs(n[id].height - n.load.height) < 1);
     }
+    assert.ok(Math.abs(n.left.width - parentWidth * group.parts.decrease.size.width / 100) < 1);
+    assert.ok(Math.abs(n.right.width - parentWidth * group.parts.increase.size.width / 100) < 1);
     const order = Object.values(n);
     for (let i = 1; i < order.length; i++) assert.ok(order[i - 1].right < order[i].x);
     for (const node of order) assert.ok(Math.abs(node.center - n.load.center) < 1);
@@ -197,7 +179,7 @@ try {
     });
     assert.ok(native); await fs.writeFile(path.join(artifacts, `rotation-${name}-native.png`), Buffer.from(native, 'base64'));
   }
-  checked.push('default/minimum one-digit field expands/shrinks live, signed three-digit/decimal angles fit, true squares and degree alignment remain, and Load/Save stay anchored');
+  checked.push('startup/minimum fixed proportional value allocation, visible signed decimals, equal-height controls, degree alignment and anchored Load/Save');
   assert.deepEqual(errors, []);
   assert.deepEqual(await page.evaluate(() => window.frameDev.records()), []);
   const unusedPlacement = structuredClone(config);
@@ -206,11 +188,11 @@ try {
   assert.equal(await page.locator('#rotationControls').count(), 0);
   assert.ok((await page.evaluate(() => window.frameDev.records())).some((issue) => issue.code === 'INVALID_COMPONENT_CONFIG' && issue.configPath.endsWith('.parts.thumb.bounds')));
   await configure(config);
-  const invalid = structuredClone(config); invalid.instances.find((node) => node.id === 'rotationControls').parts.input.colors = { foreground: 'wrong' };
+  const invalid = structuredClone(config); invalid.instances.find((node) => node.id === 'rotationControls').parts.value.colors = { foreground: 'wrong' };
   await configure(invalid); await configure(invalid);
   assert.equal(await input.count(), 0); assert.equal(await page.locator('#fileControls-load').isEnabled(), true);
   await page.evaluate(() => window.frameDev.flush());
-  const record = (await page.evaluate(() => window.frameDev.records())).find((issue) => issue.configPath.endsWith('.parts.input.colors.foreground'));
+  const record = (await page.evaluate(() => window.frameDev.records())).find((issue) => issue.configPath.endsWith('.parts.value.colors.foreground'));
   assert.equal(record.repeatCount, 2); assert.equal(record.instanceId, 'rotationControls'); assert.match(record.filePath, /RotationControls/);
   const log = JSON.parse(await fs.readFile(await page.evaluate(() => window.frameDev.logPath), 'utf8'));
   assert.ok(log.some((issue) => issue.instanceId === 'rotationControls' && issue.repeatCount === 2));
