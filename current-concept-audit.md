@@ -51,18 +51,18 @@ MUI source was consulted for disabled-state and Slider event behavior.
 | Area / file | Actual owner and audit result |
 | --- | --- |
 | Windows Bar | JSON row layout owns sibling order/gap; native window operations are outside JSX. Four-percent height and right-lane Placement/maximize/X are configured. Findings A02, A08. |
-| Action Bar | JSON row layout owns external gaps. Shared buttons, percentage geometry, popup contract and slider ownership are repaired (A02–A05). A06–A08 retain field key-release, row and state gaps. Existing layout is unchanged. |
+| Action Bar | JSON row layout owns external gaps. Shared buttons, geometry, popup/slider ownership and keyboard completion are repaired (A02–A06). A07/A08 retain row/state gaps. Existing layout is unchanged. |
 | Frame/body | Remaining-height section contains preview plus non-intercepting DropTarget. Painter/input/operations are separate owners. Findings A05, A10–A13 concern remaining boundaries and failure paths. |
 | Bottom Bar | `FrameInfo.jsx` is the only live status outlet, with intrinsic wrapping height and percentage-padding calculation. No toast stack exists. Finding A13 concerns diagnostic attribution/summary, not the presence of this owner. |
 | Overlays | All Information/notices JSX files are empty; no active overlay implementation or hand-built child registry exists. Info placement and deferred orchestration must follow the latest decisions above. |
 | `ActionButton.jsx` | A02 repaired: common icon/text/editable-host renderer for file buttons, window actions, adjustment buttons/values and Undo/Redo. History icons are configured through JSON. |
-| `AdjustmentControls.jsx` | A05 repaired: retains one token-owned slider edit, rejects expired/reopened-popup callbacks and removes pointer/subscription listeners on settlement. A06 field behavior, A07 row and A08 states remain open. No size/rotation math is copied here. |
+| `AdjustmentControls.jsx` | Token-owned slider edits and cleanup remain here. The optional editor keyup is forwarded to its feature owner; no degree logic or math is copied here. A07 row and A08 states remain open. |
 | `ConfiguredPopover.jsx` | Shared validated geometry/placement plus reasoned Escape/outside dismissal. Edit settlement is delegated to its content owner; it does not manipulate history. |
 | `appearance.mjs` | Active `configuredAppearance/configuredSx/configuredBounds` translate resolved config. Legacy helpers coexist for the reference app; Frame does not import the legacy renderer path. A08 identifies missing MUI-slot state application, not a second active theme in this file. |
 | `config.cjs`, `controls.jsx`, `NodeContext.jsx` | Legacy/reference configuration and controls; read in full and checked for Frame consumers. No active Frame imports were found. Keep reference callers intact; their existence alone is not a Frame defect. |
 | `FileControls.jsx` | Correctly owns baked Load/Reset/Save composition and provenance; calls shared buttons and session actions. It validates row width, unlike adjustments. Hardcoded part order is noted in A07. |
 | `SizeControls.jsx` | Thin value/operation adapter, passing edit handles through the same history owner as canvas inputs. No local slider handlers or history calculations. |
-| `RotationControls.jsx` | Shared-row adapter with a separate owned text edit; blur/unmount cannot finish another control's edit. Degree-field arrow key release still needs A06. Existing DOM-name mapping is unchanged. |
+| `RotationControls.jsx` | A06 repaired: owned typing and arrow-step phases are distinct; held arrows finish on final matching key release. Enter/blur/Escape and token isolation are preserved. Existing DOM-name mapping is unchanged. |
 | `ActionSeparator.jsx` | Renders configured separator only. Sibling placement is no longer calculated in this component; this boundary fits. |
 | `UndoButton.jsx`, `RedoButton.jsx` | A02 repaired: thin session adapters using shared ActionButton with validated JSON icons. Their disabled state still ignores busy: A12. |
 | `FileName.jsx` | Read-only filename/path presentation. JSON slot has pointer pass-through and inherited drag region. No file-operation or window-drag rules are copied into the leaf; this fits. |
@@ -81,7 +81,7 @@ MUI source was consulted for disabled-state and Slider event behavior.
 | `view/main.jsx` | Composition/bootstrap and shortcut attachment. Development reconfigure changes the layout plan but leaves session policies from initial startup; treat it as visual reconfiguration, not proof that all runtime policy edits apply. |
 | `styles.css`, `index.html`, `vite.config.mjs` | Resets, drag/pointer mechanics, CSP and build-time aliases/catalog support. No section-specific assembly registry or engine/input import found. |
 | `FrameSession.mjs` | Connects independent state/action owners; derived percentage projection is not duplicated size math. No monolithic UI controller. |
-| `PhotoOperations.mjs`, `PhotoHistory.mjs` | A05 repaired: all live continuous updates/completions use the existing history token owner. Feature math stays centralized. A06 field completion and A12 discrete-step busy guard remain open. |
+| `PhotoOperations.mjs`, `PhotoHistory.mjs` | Continuous updates/completions use the existing history token owner and feature math stays centralized. A06 field completion is repaired in its adapter; A12 discrete-step busy guard remains open. |
 | `ViewState.mjs`, `ViewOperations.mjs` | Inspection state is separate from photo document/history and is not sent to exporter. No copied photo math; preserve this separation. |
 | `PhotoState.mjs`, `ImageFileActions.mjs` | Loaded identity/URL/dirty ownership and common Load/drop acceptance are sensible. Multi-stage native-load commit consistency remains A10. |
 | `KeyboardShortcuts.mjs` | Only Ctrl+S/Ctrl+Z; delegates existing actions and excludes inputs/menus/popovers. This gate is more complete than preview inputs: A11. |
@@ -269,8 +269,9 @@ exercised during this audit are labeled **code-derived risk**.
   was added. ConfiguredPopover forwards only the dismissal reason to this owner.
 - **Text dependency:** Rotation's draft now retains its own handle, so its blur
   and cleanup cannot finish a newly started slider or another control's edit.
-  Text parsing, Enter and Escape remain local. Its arrow-key release completion
-  remains A06; geometry, ranges, buttons and all feature calculations are unchanged.
+  Text parsing, Enter and Escape remain local. Arrow-key release was left for
+  A06 and subsequently repaired below; geometry, ranges, buttons and feature
+  calculations were unchanged by A05.
 - **Validation for A05:** focused operation checks passed for missing/stale/
   malformed handles, separate gesture history, cancellation and photo replacement.
   Live inspection passed for both slider paths, text-to-slider handoff, grouped
@@ -283,9 +284,9 @@ exercised during this audit are labeled **code-derived risk**.
   `frame/.runtime/checks/slider-lifetime/`. Inspection windows were closed before
   normal app relaunch.
 
-#### A06 — Medium: keyboard edit completion is not consistently key-release based
+#### A06 — Medium at audit; keyboard completion repair complete
 
-- **Evidence:** adjustments begin a keyboard gesture inside `onChange`
+- **Evidence at audit revision:** adjustments began a keyboard gesture inside `onChange`
   (`AdjustmentControls.jsx:114–119`) and ignore commit only for an event named
   `keydown` (`:121–124`). Installed MUI's `Slider/useSlider.js:301–324` invokes
   update and committed callbacks for hidden-input value changes as well. The
@@ -299,12 +300,25 @@ exercised during this audit are labeled **code-derived risk**.
   contract's key-release completion for stepping without forcing normal typing
   to commit every character. Treat MUI committed notifications according to the
   active gesture, not just a single event.type comparison.
-- **Status after A05:** the shared slider now begins keyboard edits in capture
+- **Shared-slider repair in A05:** the slider begins keyboard edits in capture
   phase, ignores value-committed notifications while a keyboard edit owns the
   gesture, and finishes on the matching stepping key's release. Its repeated-key
-  grouping/reopen path was checked in A05. The remaining A06 defect is the
-  Rotation degree field's missing arrow-key keyup completion. Normal typing must
-  still finish on Enter/blur, not every character.
+  grouping/reopen path was checked in A05.
+- **Status:** repaired in the sixth piece. Rotation owns the arrow-key release
+  handler and its held-key metadata. The optional callback is forwarded by the
+  shared value editor, not implemented as Rotation behavior in the shared UI.
+  Repeated Up/Down keydowns reuse one owned stepping handle and finish when the
+  last held stepping key is released. Unrelated/stale releases do not finish a
+  new edit. Switching between typing and stepping settles the previous owned
+  phase and starts a new one. Normal typing still commits on Enter/blur and
+  cancels on Escape. No layout, range, operation math or new shortcut changed.
+- **Validation for A06:** UI build passed. Focused live checks at startup and
+  760×700 minimum verified repeat grouping/Undo, release completion without blur,
+  unrelated/late releases, typing Enter/blur/Escape, mixed typing/stepping,
+  multiple held arrow keys and external Undo invalidation. No renderer errors or
+  layout diagnostics occurred. Screenshots and records are under
+  `frame/.runtime/checks/rotation-key-release/`. No broad suite or permanent test
+  file was added; the inspection window was closed before normal app relaunch.
 
 #### A07 — Medium: baked row layout is duplicated and its validation is uneven
 
@@ -501,11 +515,13 @@ not mounted. Preserve unrelated skeletons; do not fill them just because they ex
    per-part options prevent unused/raw fields from being silently accepted.
    **Done — A05:** token-owned slider/text edits, reasoned settlement and listener
    cleanup; stale callbacks cannot revive or finish a foreign edit.
-   **Next piece: A06, Rotation degree-field arrow-key release.**
+   **Done — A06:** degree-field arrow repeats commit on final matching key release,
+   distinct from normal typing and protected against stale keyup.
+   **Next piece: A07, baked row mechanics, order and containment validation.**
 2. Repair the existing popup/slider geometry and slot-state application at their
    shared owners (A03/A04 done; A08 slot states remains open).
 3. Make edit ownership/lifetime consistent across controls and canvas inputs
-   (A05 done; A06 field release remains), then close busy/input-isolation gaps (A11, A12).
+   (A05/A06 done), then close busy/input-isolation gaps (A11, A12).
 4. Strengthen the existing parent/baked-row contracts rather than introducing a
    new layout/registration system (A07, A09).
 5. Repair multi-stage load acceptance and diagnostic origin/formatting in their
@@ -524,7 +540,7 @@ The standalone `@APPS/frame/` currently implements its native window, four
 configured sections, discovery/validation before mounting, diagnostics, inspection,
 Undo/Redo, Load/drop/Save, Rust photo/black export, Rotation/Size, Placement,
 photo pointer/wheel input, separate inspection state and Ctrl+S/Ctrl+Z.
-These are implemented features, not a blanket compliance verdict: A06–A14 in the
+These are implemented features, not a blanket compliance verdict: A07–A14 in the
 source audit remain open. The current task is to repair that list piece by piece.
 Info and background orchestration are deferred, not the next automatic features.
 Preserve `output-frame/` as reference only; do not recreate/reconfirm the skeleton.
@@ -597,7 +613,7 @@ value/editor trigger, popup slider and common configuration validation. Rotation
 and Size use the same `decrease/value/increase/slider/control/rail/track/thumb/popup`
 part contract. Group/row allocations and managed slider parts use explicit
 percentage bases after A03. Feature adapters supply state, labels, icons and
-commands; remaining field-release/state/row gaps are A06–A08.
+commands; remaining row/state gaps are A07/A08.
 
 ## Baked size controls and Reset
 
@@ -1072,7 +1088,8 @@ uses its own declared owners; no old controller or stamp runtime was copied in.
 1. **Current task: repair A01–A14 piece by piece**, using the audit's repair order
    and per-finding status. A01 documentation and A02 shared button rendering are
    complete; A03 geometry, A04 popup contracts and A05 edit ownership are complete.
-   A06 Rotation field arrow-key release is next. Later findings remain open.
+   A06 field arrow-key release is complete. A07 row mechanics/order/validation is
+   next. Later findings remain open.
 2. Preserve implemented photo/file/history/input features and the latest UI.
    Make each repair in its existing owning files; remove directly superseded code
    after checking callers. Do not replace the app with another framework or host.
@@ -1097,7 +1114,7 @@ re-audit unrelated files or repeatedly reconfirm an already-correct skeleton.
 ## Acceptance checklist
 
 Checked items describe implemented structure or earlier evidence, not a fresh
-runtime verification of the audited revision. Open A06–A14 findings qualify
+runtime verification of the audited revision. Open A07–A14 findings qualify
 those claims. Deferred features are listed separately and are not this repair's
 definition of done.
 

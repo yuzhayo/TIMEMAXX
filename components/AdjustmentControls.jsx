@@ -152,7 +152,7 @@ export default function AdjustmentControls({
     disabled={disabled} onClick={openPopup} editable={Boolean(editor)} invalid={editor?.invalid}>
     {editor ? <>
         <InputBase value={editor.draft} disabled={disabled} readOnly={editor.readOnly} error={editor.invalid}
-          onChange={editor.onChange} onBlur={editor.onBlur} onKeyDown={editor.onKeyDown}
+          onChange={editor.onChange} onBlur={editor.onBlur} onKeyDown={editor.onKeyDown} onKeyUp={editor.onKeyUp}
           sx={{ height: '100%', minWidth: 0, flex: '1 1 auto', color: 'inherit', font: 'inherit' }}
           slotProps={{ input: { id: id('input'), 'aria-label': config.labels.value, 'aria-invalid': editor.invalid,
             inputMode: editor.inputMode, autoComplete: 'off', className: 'configured-native-input', 'data-part': name('input') } }} />

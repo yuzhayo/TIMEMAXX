@@ -23,29 +23,37 @@ export default function RotationControls({ config, state, actions }) {
   const disabled = !state.photo || state.busy || !actions.updateRotation;
   const [draft, setDraft] = useState(String(value ?? ''));
   const inputEdit = useRef(null);
+  const stepEdit = useRef(null);
   const applied = useRef(value);
 
   // LOGIC — Rotation adapts its draft/gesture behavior to the shared adjustment sub-parent.
   useEffect(() => {
     if (!actions.isPhotoEditActive(inputEdit.current) || value !== applied.current || disabled) {
-      inputEdit.current = null; applied.current = value; setDraft(String(value ?? ''));
+      inputEdit.current = null; stepEdit.current = null; applied.current = value; setDraft(String(value ?? ''));
     }
   }, [value, state.photo?.photoId, disabled, actions]);
   useEffect(() => {
     const blur = () => {
-      const edit = inputEdit.current; inputEdit.current = null;
+      const edit = inputEdit.current; inputEdit.current = null; stepEdit.current = null;
       applied.current = actions.finishRotation(edit);
       setDraft(String(applied.current ?? ''));
     };
     window.addEventListener('blur', blur);
     return () => {
       window.removeEventListener('blur', blur);
-      const edit = inputEdit.current; inputEdit.current = null;
+      const edit = inputEdit.current; inputEdit.current = null; stepEdit.current = null;
       actions.finishRotation(edit);
     };
   }, [actions]);
-  const beginInput = () => {
-    if (!actions.isPhotoEditActive(inputEdit.current)) inputEdit.current = actions.beginRotation();
+  const beginInput = (kind = 'typing') => {
+    const stepping = kind === 'stepping';
+    const sameKind = Boolean(stepEdit.current && stepEdit.current.edit === inputEdit.current) === stepping;
+    if (!actions.isPhotoEditActive(inputEdit.current) || !sameKind) {
+      const previous = inputEdit.current; inputEdit.current = null;
+      actions.finishRotation(previous);
+      inputEdit.current = actions.beginRotation();
+      stepEdit.current = stepping && inputEdit.current ? { edit: inputEdit.current, keys: new Set() } : null;
+    }
     return inputEdit.current;
   };
   const changeInput = (event) => {
@@ -54,7 +62,7 @@ export default function RotationControls({ config, state, actions }) {
     if (Number.isFinite(number)) applied.current = actions.updateRotation(number, edit);
   };
   const finishInput = () => {
-    const edit = inputEdit.current; inputEdit.current = null;
+    const edit = inputEdit.current; inputEdit.current = null; stepEdit.current = null;
     applied.current = actions.finishRotation(edit);
     setDraft(String(applied.current ?? ''));
   };
@@ -62,17 +70,26 @@ export default function RotationControls({ config, state, actions }) {
     if (event.key === 'Enter') { event.preventDefault(); finishInput(); }
     if (event.key === 'Escape') {
       event.preventDefault();
-      const edit = inputEdit.current; inputEdit.current = null;
+      const edit = inputEdit.current; inputEdit.current = null; stepEdit.current = null;
       applied.current = actions.cancelRotation(edit); setDraft(String(applied.current ?? ''));
     }
     if (['ArrowUp', 'ArrowDown'].includes(event.key)) {
       event.preventDefault();
-      applied.current = actions.stepRotation(event.key === 'ArrowUp' ? 1 : -1, beginInput()); setDraft(String(applied.current));
+      const edit = beginInput('stepping');
+      stepEdit.current?.keys.add(event.key);
+      applied.current = actions.stepRotation(event.key === 'ArrowUp' ? 1 : -1, edit); setDraft(String(applied.current));
     }
+  };
+  // LOGIC — only release of held stepping keys finishes this edit; typing keeps Enter/blur semantics.
+  const inputKeyUp = (event) => {
+    const stepping = stepEdit.current;
+    if (!stepping || !stepping.keys.has(event.key)) return;
+    stepping.keys.delete(event.key);
+    if (stepping.keys.size === 0 && stepping.edit === inputEdit.current) finishInput();
   };
   const acceptSliderValue = (next) => {
     if (actions.isPhotoEditActive(inputEdit.current)) return;
-    inputEdit.current = null; applied.current = next; setDraft(String(next ?? ''));
+    inputEdit.current = null; stepEdit.current = null; applied.current = next; setDraft(String(next ?? ''));
   };
 
   // UI — Rotation supplies content to the shared proportional sub-parent; its old visual tree is gone.
@@ -80,7 +97,7 @@ export default function RotationControls({ config, state, actions }) {
     partNames={{ decrease: 'left', value: 'field', increase: 'right', input: 'input', unit: 'degree' }}
     buttonActions={{ decrease: () => actions.rotateBy(-settings.buttonStep), increase: () => actions.rotateBy(settings.buttonStep) }}
     valueControl={{ editor: { draft, unit: config.unit, invalid: !disabled && !Number.isFinite(parseRotationDraft(draft)),
-      inputMode: 'decimal', onChange: changeInput, onBlur: finishInput, onKeyDown: inputKeyDown } }}
+      inputMode: 'decimal', onChange: changeInput, onBlur: finishInput, onKeyDown: inputKeyDown, onKeyUp: inputKeyUp } }}
     sliderControl={{ value: value ?? settings.min, min: settings.min, max: settings.max, step: settings.step, shiftStep: settings.step,
       begin: actions.beginRotation, update: actions.updateRotation, finish: actions.finishRotation,
       cancel: actions.cancelRotation, onValue: acceptSliderValue, isActive: actions.isPhotoEditActive, subscribe: actions.subscribe }} />;
