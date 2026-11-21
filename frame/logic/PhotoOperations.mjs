@@ -116,23 +116,24 @@ export function createPhotoOperations({ history, photoState, settings, size, out
     const photo = photoOf(), frame = frameOf();
     return photo && frame && size ? sizePercentOf(current(), photo, frame, size.precision) : null;
   };
-  const gestureActive = (gesture) => Boolean(gesture) && canEdit()
+  const gestureOwned = (gesture) => Boolean(gesture)
     && photoOf()?.photoId === gesture.photoId && history.isEditActive(gesture.token);
+  const gestureActive = (gesture) => gestureOwned(gesture) && canEdit();
   const updateRotation = (value, gesture) => {
-    if (gesture && !gestureActive(gesture)) return current()?.rotation;
+    if (!gestureActive(gesture)) return current()?.rotation;
     if (!canEdit() || !Number.isFinite(value) || !settings) return current()?.rotation;
     const next = { ...current(), rotation: normalizeRotation(value, settings) };
-    publish(history.updateEdit(next, gesture?.token));
+    publish(history.updateEdit(next, gesture.token));
     return next.rotation;
   };
   const updateSize = (percent, anchor, gesture) => {
-    if (gesture && !gestureActive(gesture)) return percentOf();
+    if (!gestureActive(gesture)) return percentOf();
     if (!canEdit() || !Number.isFinite(percent) || !size) return percentOf();
     if (anchor && ![anchor.x, anchor.y].every(Number.isFinite)) return percentOf();
     const photo = photoOf(), frame = frameOf();
     if (!photo || !frame) return percentOf();
     const clamped = Math.min(size.max, Math.max(size.min, percent));
-    publish(history.updateEdit(resizedDocument(current(), scaleFromPercent(clamped, photo, frame), anchor), gesture?.token));
+    publish(history.updateEdit(resizedDocument(current(), scaleFromPercent(clamped, photo, frame), anchor), gesture.token));
     return percentOf();
   };
   const operations = {};
@@ -143,8 +144,8 @@ export function createPhotoOperations({ history, photoState, settings, size, out
       return { token: history.beginEdit(), photoId: photoOf().photoId, document: current() };
     },
     isPhotoEditActive: gestureActive,
-    finishPhotoEdit: (gesture) => { if (gesture) publish(history.finishEdit(gesture.token)); },
-    cancelPhotoEdit: (gesture) => { if (gesture) publish(history.cancelEdit(gesture.token)); },
+    finishPhotoEdit: (gesture) => { if (gestureOwned(gesture)) publish(history.finishEdit(gesture.token)); },
+    cancelPhotoEdit: (gesture) => { if (gestureOwned(gesture)) publish(history.cancelEdit(gesture.token)); },
     updateMove: (delta, gesture, fromStart = false) => {
       if (!gestureActive(gesture) || ![delta?.x, delta?.y].every(Number.isFinite)) return current();
       const origin = fromStart ? gesture.document : current();
@@ -163,18 +164,18 @@ export function createPhotoOperations({ history, photoState, settings, size, out
     },
   });
   if (settings) Object.assign(operations, {
-    beginRotation: () => { if (canEdit()) history.beginEdit(); },
+    beginRotation: operations.beginPhotoEdit,
     updateRotation,
-    stepRotation: (direction) => [-1, 1].includes(direction) ? updateRotation(current().rotation + direction * settings.step) : current()?.rotation,
-    finishRotation: () => { publish(history.finishEdit()); return current()?.rotation; },
-    cancelRotation: () => { publish(history.cancelEdit()); return current()?.rotation; },
+    stepRotation: (direction, gesture) => [-1, 1].includes(direction) ? updateRotation(current().rotation + direction * settings.step, gesture) : current()?.rotation,
+    finishRotation: (gesture) => { operations.finishPhotoEdit(gesture); return current()?.rotation; },
+    cancelRotation: (gesture) => { operations.cancelPhotoEdit(gesture); return current()?.rotation; },
     rotateBy: (delta) => {
       if (!canEdit() || !Number.isFinite(delta) || !settings) return;
       publish(history.commit({ ...current(), rotation: normalizeRotation(current().rotation + delta, settings) }));
     },
   });
   if (size) Object.assign(operations, {
-    beginSize: () => { if (canEdit()) history.beginEdit(); },
+    beginSize: operations.beginPhotoEdit,
     updateSize,
     stepSize: (direction) => {
       const percent = percentOf();
@@ -185,8 +186,8 @@ export function createPhotoOperations({ history, photoState, settings, size, out
       publish(history.commit({ ...current(), scale: scaleFromPercent(clamped, photo, frame) }));
       return percentOf();
     },
-    finishSize: () => { publish(history.finishEdit()); return percentOf(); },
-    cancelSize: () => { publish(history.cancelEdit()); return percentOf(); },
+    finishSize: (gesture) => { operations.finishPhotoEdit(gesture); return percentOf(); },
+    cancelSize: (gesture) => { operations.cancelPhotoEdit(gesture); return percentOf(); },
   });
   operations.reset = () => {
     const photo = photoOf(), frame = frameOf();

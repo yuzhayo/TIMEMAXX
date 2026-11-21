@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Box from '@mui/material/Box';
 import InputBase from '@mui/material/InputBase';
 import Slider from '@mui/material/Slider';
@@ -8,6 +8,7 @@ import { boundsStyle, configuredBounds, configuredSx, fill } from './appearance.
 
 export const adjustmentPartKeys = ['decrease', 'value', 'increase', 'slider', 'control', 'rail', 'track', 'thumb', 'popup'];
 export const adjustmentPartConfigKeys = { popup: ['portal'] };
+const sliderStepKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End'];
 
 // LOGIC — validate the reusable adjustment sub-parent once for every feature adapter.
 export function validateAdjustmentConfig(config, report) {
@@ -57,31 +58,87 @@ export default function AdjustmentControls({
   const { decrease, value, increase, slider, control, rail, track, thumb, popup } = config.parts;
   const [popupOpen, setPopupOpen] = useState(false);
   const operations = useRef(sliderControl);
-  const gesture = useRef({ pointer: false, keyboard: false, canceled: false });
+  const gesture = useRef(null);
+  const pointerListeners = useRef(null);
+  const popupGeneration = useRef(0);
+  const mounted = useRef(false);
+  const availability = useRef({ disabled, open: popupOpen });
   operations.current = sliderControl;
+  availability.current = { disabled, open: popupOpen };
+  const generation = popupGeneration.current;
   const name = (role) => partNames[role] ?? role;
   const id = (role) => `${config.id}-${name(role)}`;
-  const openPopup = () => { if (!disabled) setPopupOpen(true); };
-  const closePopup = () => setPopupOpen(false);
+  const openPopup = () => {
+    if (disabled || availability.current.open) return;
+    popupGeneration.current += 1;
+    setPopupOpen(true);
+  };
   const publishValue = (next) => {
     if (next !== undefined) operations.current.onValue?.(next);
     return next;
   };
-  const beginSlider = () => {
-    publishValue(operations.current.finish?.());
-    operations.current.begin?.();
-  };
-  const finishSlider = () => publishValue(operations.current.finish?.());
-  const cancelSlider = () => publishValue(operations.current.cancel?.());
-  const resetGesture = () => { gesture.current = { pointer: false, keyboard: false, canceled: false }; };
-  useEffect(() => {
-    const blur = () => {
-      if (gesture.current.pointer || gesture.current.keyboard) finishSlider();
-      resetGesture();
-    };
-    window.addEventListener('blur', blur);
-    return () => { window.removeEventListener('blur', blur); blur(); };
+  // LOGIC — every callback carries the edit it owns; stale callbacks cannot settle a different edit.
+  const removePointerListeners = useCallback(() => {
+    const listeners = pointerListeners.current;
+    pointerListeners.current = null;
+    if (!listeners) return;
+    window.removeEventListener('pointerup', listeners.up);
+    window.removeEventListener('pointercancel', listeners.cancel);
+    if (listeners.element?.hasPointerCapture(listeners.id)) listeners.element.releasePointerCapture(listeners.id);
   }, []);
+  const settleSlider = useCallback((reason, close = true, notify = true) => {
+    const previous = gesture.current;
+    gesture.current = null;
+    removePointerListeners();
+    if (close) {
+      availability.current.open = false;
+      if (mounted.current) setPopupOpen(false);
+    }
+    if (!previous) return;
+    const active = previous.operations.isActive(previous.edit);
+    const cancel = reason === 'escape' || reason === 'pointercancel';
+    const next = cancel ? previous.operations.cancel(previous.edit) : previous.operations.finish(previous.edit);
+    if (notify && mounted.current && active && next !== undefined) previous.operations.onValue?.(next);
+  }, [removePointerListeners]);
+  const closePopup = useCallback((reason) => settleSlider(reason), [settleSlider]);
+  const beginSlider = (kind, event) => {
+    if (!mounted.current || generation !== popupGeneration.current || availability.current.disabled || !availability.current.open) return false;
+    const previous = gesture.current;
+    if (previous && previous.operations.isActive(previous.edit)) {
+      if (kind === 'keyboard' || previous.kind === kind && previous.pointerId === event.pointerId) return true;
+      return false;
+    }
+    settleSlider('superseded', false, false);
+    const owner = operations.current;
+    const edit = owner.begin();
+    if (!edit) return false;
+    gesture.current = { kind, edit, operations: owner, pointerId: event?.pointerId };
+    if (kind === 'pointer') {
+      const pointerId = event.pointerId;
+      const up = (next) => { if (next.pointerId === pointerId && gesture.current?.edit === edit) settleSlider('commit'); };
+      const cancel = (next) => { if (next.pointerId === pointerId && gesture.current?.edit === edit) settleSlider('pointercancel'); };
+      pointerListeners.current = { id: pointerId, element: event.currentTarget, up, cancel };
+      window.addEventListener('pointerup', up);
+      window.addEventListener('pointercancel', cancel);
+    }
+    return true;
+  };
+  useEffect(() => {
+    mounted.current = true;
+    const blur = () => settleSlider('blur');
+    const unsubscribe = operations.current.subscribe(() => {
+      const current = gesture.current;
+      if (current && !current.operations.isActive(current.edit)) settleSlider('invalidated');
+    });
+    window.addEventListener('blur', blur);
+    return () => {
+      mounted.current = false;
+      unsubscribe();
+      window.removeEventListener('blur', blur);
+      settleSlider('unmount', true, false);
+    };
+  }, [sliderControl.subscribe, settleSlider]);
+  useEffect(() => { if (disabled) settleSlider('disabled'); }, [disabled, settleSlider]);
   // UI — managed rail/track/thumb dimensions query the positioned control's own axes.
   const managedPart = (part) => ({ ...configuredSx(part), height: `${part.size.height}cqh` });
   const buttonConfig = (role, part) => ({ ...part, id: id(role), label: config.labels[role], icon: config.icons[role] });
@@ -106,42 +163,36 @@ export default function AdjustmentControls({
       </> : valueControl.text}
     </ActionButton>;
   const changeSlider = (event, next) => {
-    if (gesture.current.canceled) return;
-    if (event.type === 'keydown' && !gesture.current.keyboard) {
-      beginSlider(); gesture.current.keyboard = true;
-    }
-    publishValue(operations.current.update(next));
+    const current = gesture.current;
+    if (!mounted.current || generation !== popupGeneration.current || !current) return;
+    if (availability.current.disabled || !current.operations.isActive(current.edit)) { settleSlider('invalidated'); return; }
+    const applied = current.operations.update(next, current.edit);
+    if (gesture.current === current && applied !== undefined) current.operations.onValue?.(applied);
   };
-  const commitSlider = (event) => {
-    if (event.type === 'keydown') return;
-    if (!gesture.current.canceled) finishSlider();
-    resetGesture(); closePopup();
+  const commitSlider = () => {
+    if (generation === popupGeneration.current && gesture.current?.kind === 'pointer') settleSlider('commit');
   };
   const pointerDown = (event) => {
     if (event.button !== 0 || disabled) return;
-    beginSlider(); gesture.current = { pointer: true, keyboard: false, canceled: false };
-    window.addEventListener('pointerup', resetGesture, { once: true });
+    if (!beginSlider('pointer', event)) event.preventDefault();
   };
-  const pointerCancel = () => {
-    gesture.current.canceled = true; cancelSlider(); resetGesture(); closePopup();
+  const pointerCancel = (event) => {
+    if (generation === popupGeneration.current && gesture.current?.kind === 'pointer'
+      && event.pointerId === gesture.current.pointerId) settleSlider('pointercancel');
   };
-  const sliderKeyDown = (event) => {
-    if (event.key !== 'Escape') return;
-    event.preventDefault();
-    const pointerActive = gesture.current.pointer;
-    gesture.current.canceled = true; cancelSlider(); closePopup();
-    if (!pointerActive) resetGesture();
+  const sliderKeyDownCapture = (event) => {
+    if (generation !== popupGeneration.current) return;
+    if (event.key === 'Escape') { event.preventDefault(); settleSlider('escape'); return; }
+    if (sliderStepKeys.includes(event.key)
+      && !event.defaultPrevented && !event.isComposing) beginSlider('keyboard', event);
   };
-  const sliderKeyUp = () => {
-    if (!gesture.current.keyboard) return;
-    finishSlider(); resetGesture();
+  const sliderKeyUp = (event) => {
+    if (generation === popupGeneration.current && sliderStepKeys.includes(event.key)
+      && gesture.current?.kind === 'keyboard') settleSlider('commit', false);
   };
-  const sliderBlur = () => {
-    if (gesture.current.pointer || gesture.current.keyboard) finishSlider();
-    resetGesture();
-  };
+  const sliderBlur = () => { if (generation === popupGeneration.current) settleSlider('blur'); };
   const activateButton = (action) => {
-    publishValue(operations.current.finish?.());
+    settleSlider('commit');
     publishValue(action());
   };
 
@@ -157,7 +208,7 @@ export default function AdjustmentControls({
           <Slider aria-label={config.labels.slider} disabled={disabled} value={sliderControl.value}
             min={sliderControl.min} max={sliderControl.max} step={sliderControl.step} shiftStep={sliderControl.shiftStep ?? sliderControl.step}
             onChange={changeSlider} onChangeCommitted={commitSlider}
-            onBlur={sliderBlur} onKeyUp={sliderKeyUp} onKeyDown={sliderKeyDown}
+            onBlur={sliderBlur} onKeyUp={sliderKeyUp} onKeyDownCapture={sliderKeyDownCapture}
             onPointerDown={pointerDown} onPointerCancel={pointerCancel}
             sx={{ ...configuredSx(control), ...boundsStyle(control.bounds), boxSizing: 'border-box', containerType: 'size' }}
             slotProps={{

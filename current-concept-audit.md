@@ -51,18 +51,18 @@ MUI source was consulted for disabled-state and Slider event behavior.
 | Area / file | Actual owner and audit result |
 | --- | --- |
 | Windows Bar | JSON row layout owns sibling order/gap; native window operations are outside JSX. Four-percent height and right-lane Placement/maximize/X are configured. Findings A02, A08. |
-| Action Bar | JSON row layout owns external gaps. Shared buttons, percentage geometry and popup contract are repaired (A02–A04). A05–A08 retain gesture, row and state gaps. Existing y=8%, h=84% and visible part heights are unchanged. |
+| Action Bar | JSON row layout owns external gaps. Shared buttons, percentage geometry, popup contract and slider ownership are repaired (A02–A05). A06–A08 retain field key-release, row and state gaps. Existing layout is unchanged. |
 | Frame/body | Remaining-height section contains preview plus non-intercepting DropTarget. Painter/input/operations are separate owners. Findings A05, A10–A13 concern remaining boundaries and failure paths. |
 | Bottom Bar | `FrameInfo.jsx` is the only live status outlet, with intrinsic wrapping height and percentage-padding calculation. No toast stack exists. Finding A13 concerns diagnostic attribution/summary, not the presence of this owner. |
 | Overlays | All Information/notices JSX files are empty; no active overlay implementation or hand-built child registry exists. Info placement and deferred orchestration must follow the latest decisions above. |
 | `ActionButton.jsx` | A02 repaired: common icon/text/editable-host renderer for file buttons, window actions, adjustment buttons/values and Undo/Redo. History icons are configured through JSON. |
-| `AdjustmentControls.jsx` | Shared button/geometry/popup validation now delegates to existing owners and declares popup-specific config keys. A05–A08 remain open. No size/rotation math is copied here. |
-| `ConfiguredPopover.jsx` | A04 repaired: owns validated placement, anchor-relative offset and configured stacking with viewport size base. Its separate dismissal/edit lifetime remains under A05. |
+| `AdjustmentControls.jsx` | A05 repaired: retains one token-owned slider edit, rejects expired/reopened-popup callbacks and removes pointer/subscription listeners on settlement. A06 field behavior, A07 row and A08 states remain open. No size/rotation math is copied here. |
+| `ConfiguredPopover.jsx` | Shared validated geometry/placement plus reasoned Escape/outside dismissal. Edit settlement is delegated to its content owner; it does not manipulate history. |
 | `appearance.mjs` | Active `configuredAppearance/configuredSx/configuredBounds` translate resolved config. Legacy helpers coexist for the reference app; Frame does not import the legacy renderer path. A08 identifies missing MUI-slot state application, not a second active theme in this file. |
 | `config.cjs`, `controls.jsx`, `NodeContext.jsx` | Legacy/reference configuration and controls; read in full and checked for Frame consumers. No active Frame imports were found. Keep reference callers intact; their existence alone is not a Frame defect. |
 | `FileControls.jsx` | Correctly owns baked Load/Reset/Save composition and provenance; calls shared buttons and session actions. It validates row width, unlike adjustments. Hardcoded part order is noted in A07. |
-| `SizeControls.jsx` | Thin value/operation adapter; no longer contains its own slider handlers. Percent formatting is local presentation. Its un-tokened operation interface participates in A05. |
-| `RotationControls.jsx` | Thin shared-row adapter with legitimate local degree draft parsing/Enter/Escape behavior. Still carries old DOM-name mapping and un-tokened edit completion: A05, A06. |
+| `SizeControls.jsx` | Thin value/operation adapter, passing edit handles through the same history owner as canvas inputs. No local slider handlers or history calculations. |
+| `RotationControls.jsx` | Shared-row adapter with a separate owned text edit; blur/unmount cannot finish another control's edit. Degree-field arrow key release still needs A06. Existing DOM-name mapping is unchanged. |
 | `ActionSeparator.jsx` | Renders configured separator only. Sibling placement is no longer calculated in this component; this boundary fits. |
 | `UndoButton.jsx`, `RedoButton.jsx` | A02 repaired: thin session adapters using shared ActionButton with validated JSON icons. Their disabled state still ignores busy: A12. |
 | `FileName.jsx` | Read-only filename/path presentation. JSON slot has pointer pass-through and inherited drag region. No file-operation or window-drag rules are copied into the leaf; this fits. |
@@ -81,7 +81,7 @@ MUI source was consulted for disabled-state and Slider event behavior.
 | `view/main.jsx` | Composition/bootstrap and shortcut attachment. Development reconfigure changes the layout plan but leaves session policies from initial startup; treat it as visual reconfiguration, not proof that all runtime policy edits apply. |
 | `styles.css`, `index.html`, `vite.config.mjs` | Resets, drag/pointer mechanics, CSP and build-time aliases/catalog support. No section-specific assembly registry or engine/input import found. |
 | `FrameSession.mjs` | Connects independent state/action owners; derived percentage projection is not duplicated size math. No monolithic UI controller. |
-| `PhotoOperations.mjs`, `PhotoHistory.mjs` | Correct shared math/history placement, but inconsistent token APIs and sizing guards remain: A05, A06, A12. |
+| `PhotoOperations.mjs`, `PhotoHistory.mjs` | A05 repaired: all live continuous updates/completions use the existing history token owner. Feature math stays centralized. A06 field completion and A12 discrete-step busy guard remain open. |
 | `ViewState.mjs`, `ViewOperations.mjs` | Inspection state is separate from photo document/history and is not sent to exporter. No copied photo math; preserve this separation. |
 | `PhotoState.mjs`, `ImageFileActions.mjs` | Loaded identity/URL/dirty ownership and common Load/drop acceptance are sensible. Multi-stage native-load commit consistency remains A10. |
 | `KeyboardShortcuts.mjs` | Only Ctrl+S/Ctrl+Z; delegates existing actions and excludes inputs/menus/popovers. This gate is more complete than preview inputs: A11. |
@@ -234,9 +234,9 @@ exercised during this audit are labeled **code-derived risk**.
   was closed before normal app relaunch. Native DIP, fonts and border units remain
   distinct from proportional control/portal layout.
 
-#### A05 — High: slider lifecycle still bypasses history gesture ownership
+#### A05 — High at audit; slider edit ownership and cleanup repair complete
 
-- **Evidence:** pointer/wheel use tokenized `beginPhotoEdit` / update / finish /
+- **Evidence at audit revision:** pointer/wheel used tokenized `beginPhotoEdit` / update / finish /
   cancel (`PhotoOperations.mjs:119–163`, `PhotoHistory.mjs:36–77`). Slider adapters
   use un-tokened `beginSize/beginRotation` and `finishSize/finishRotation`
   (`PhotoOperations.mjs:165–189`). `AdjustmentControls.jsx:69–83,114–147` keeps its
@@ -252,8 +252,36 @@ exercised during this audit are labeled **code-derived risk**.
   too. The shared adjustment component should retain one gesture handle and pass
   it to update/finish/cancel; disable/dismiss/blur/unmount must explicitly settle
   that handle and remove listeners. Keep rollback in PhotoHistory, not JSX.
-- **Status:** confirmed API split; late-event failures are code-derived risks,
-  not freshly reproduced runtime failures.
+- **Status:** repaired in the fifth piece. `beginRotation`/`beginSize` reuse the
+  existing photo-edit begin operation and return its handle. Rotation/Size live
+  updates require a valid handle; finish/cancel verify token and photo identity
+  and cannot settle another edit. Feature wrappers still return their own current
+  value, without duplicating size/rotation math. Missing/stale/malformed handles
+  are no-ops. All live adapters were migrated together; obsolete no-handle test
+  calls are not a reason to reintroduce an ownership bypass (A14 remains open).
+- **Shared lifecycle:** AdjustmentControls captures the handle and operation
+  callbacks for the active pointer/keyboard edit. It subscribes to existing
+  session state to close invalidated edits, and uses popup generations to reject
+  callbacks from a previous opening. Escape/pointer cancellation rolls back the
+  owned edit; release, outside dismissal, blur, disable and unmount finish it.
+  Pointer release/cancel listeners are removed explicitly, pointer IDs are
+  matched, and callbacks are suppressed after unmount. No new controller/service
+  was added. ConfiguredPopover forwards only the dismissal reason to this owner.
+- **Text dependency:** Rotation's draft now retains its own handle, so its blur
+  and cleanup cannot finish a newly started slider or another control's edit.
+  Text parsing, Enter and Escape remain local. Its arrow-key release completion
+  remains A06; geometry, ranges, buttons and all feature calculations are unchanged.
+- **Validation for A05:** focused operation checks passed for missing/stale/
+  malformed handles, separate gesture history, cancellation and photo replacement.
+  Live inspection passed for both slider paths, text-to-slider handoff, grouped
+  Undo/Redo, Escape with late movement, reopened keyboard input, external Undo,
+  outside dismissal, window blur, disable/unmount and listener removal. Window
+  pointer listener counts returned to zero after settlement. A focused cancellation
+  follow-up at startup/minimum sizes verified that only the matching pointer is
+  canceled. No layout diagnostics or renderer errors occurred. UI build passed;
+  no broad suite or permanent test file was added. Records are under
+  `frame/.runtime/checks/slider-lifetime/`. Inspection windows were closed before
+  normal app relaunch.
 
 #### A06 — Medium: keyboard edit completion is not consistently key-release based
 
@@ -271,8 +299,12 @@ exercised during this audit are labeled **code-derived risk**.
   contract's key-release completion for stepping without forcing normal typing
   to commit every character. Treat MUI committed notifications according to the
   active gesture, not just a single event.type comparison.
-- **Status:** confirmed missing field keyup path; premature slider completion is
-  a code-derived risk requiring a focused interaction check when repaired.
+- **Status after A05:** the shared slider now begins keyboard edits in capture
+  phase, ignores value-committed notifications while a keyboard edit owns the
+  gesture, and finishes on the matching stepping key's release. Its repeated-key
+  grouping/reopen path was checked in A05. The remaining A06 defect is the
+  Rotation degree field's missing arrow-key keyup completion. Normal typing must
+  still finish on Enter/blur, not every character.
 
 #### A07 — Medium: baked row layout is duplicated and its validation is uneven
 
@@ -467,11 +499,13 @@ not mounted. Preserve unrelated skeletons; do not fill them just because they ex
    with explicit portal/container bases.
    **Done — A04:** configured/validated placement, anchor offsets and stacking;
    per-part options prevent unused/raw fields from being silently accepted.
-   **Next piece: A05, shared slider gesture-token ownership and cleanup.**
+   **Done — A05:** token-owned slider/text edits, reasoned settlement and listener
+   cleanup; stale callbacks cannot revive or finish a foreign edit.
+   **Next piece: A06, Rotation degree-field arrow-key release.**
 2. Repair the existing popup/slider geometry and slot-state application at their
    shared owners (A03/A04 done; A08 slot states remains open).
 3. Make edit ownership/lifetime consistent across controls and canvas inputs
-   (A05, A06), then close busy/input-isolation gaps (A11, A12).
+   (A05 done; A06 field release remains), then close busy/input-isolation gaps (A11, A12).
 4. Strengthen the existing parent/baked-row contracts rather than introducing a
    new layout/registration system (A07, A09).
 5. Repair multi-stage load acceptance and diagnostic origin/formatting in their
@@ -490,7 +524,7 @@ The standalone `@APPS/frame/` currently implements its native window, four
 configured sections, discovery/validation before mounting, diagnostics, inspection,
 Undo/Redo, Load/drop/Save, Rust photo/black export, Rotation/Size, Placement,
 photo pointer/wheel input, separate inspection state and Ctrl+S/Ctrl+Z.
-These are implemented features, not a blanket compliance verdict: A05–A14 in the
+These are implemented features, not a blanket compliance verdict: A06–A14 in the
 source audit remain open. The current task is to repair that list piece by piece.
 Info and background orchestration are deferred, not the next automatic features.
 Preserve `output-frame/` as reference only; do not recreate/reconfirm the skeleton.
@@ -555,14 +589,15 @@ opens a portaled surface that closes on commit, Escape or an outside press.
 Both open from their entire visible value control, not a small unit symbol.
 Rotation remains editable. A03 now supplies a viewport-relative popup size and
 parent-relative inner geometry. A04 now reads placement, anchor-relative offsets
-and stacking from validated popup config; A05 retains gesture-lifetime work.
+and stacking from validated popup config. A05 now owns slider settlement through
+history handles, including Escape/outside/blur/disable/unmount.
 
 `components/AdjustmentControls.jsx` now owns the one reusable proportional row,
 value/editor trigger, popup slider and common configuration validation. Rotation
 and Size use the same `decrease/value/increase/slider/control/rail/track/thumb/popup`
 part contract. Group/row allocations and managed slider parts use explicit
 percentage bases after A03. Feature adapters supply state, labels, icons and
-commands; remaining state/lifetime/row gaps are A05–A08.
+commands; remaining field-release/state/row gaps are A06–A08.
 
 ## Baked size controls and Reset
 
@@ -642,7 +677,7 @@ Action Bar
 └── ActionSeparator
 ```
 
-`RotationControls.jsx` now owns degree-text behavior and maps its
+`RotationControls.jsx` owns a scoped degree-text edit and maps its
 commands into the shared sub-parent. `SizeControls.jsx` does the same for percent
 state and size commands. The previous Rotation-specific MUI row, field measuring,
 buttons, popup and slider composition were deleted. JSON uses the same named part
@@ -917,6 +952,10 @@ declared dependencies, not an undeclared ancestor installation.
   keyboard repeats at key release/blur. Escape restores the gesture's starting
   document; canceled pointer movement cannot restart it. Button edits, Undo/Redo,
   Load and Save settle pending edits through that same history owner.
+- Continuous UI edits carry that owner's token through update/finish/cancel.
+  Slider and degree-text cleanup must never finish a global edit by omission of
+  its handle. Shared popup dismissal reports a reason; the input owner decides
+  commit versus rollback and removes its own listeners/subscriptions.
 
 ## Structure contract
 
@@ -1032,8 +1071,8 @@ uses its own declared owners; no old controller or stamp runtime was copied in.
 
 1. **Current task: repair A01–A14 piece by piece**, using the audit's repair order
    and per-finding status. A01 documentation and A02 shared button rendering are
-   complete; A03 geometry and A04 popup contracts are complete. A05 slider gesture
-   ownership is next. Later findings remain open.
+   complete; A03 geometry, A04 popup contracts and A05 edit ownership are complete.
+   A06 Rotation field arrow-key release is next. Later findings remain open.
 2. Preserve implemented photo/file/history/input features and the latest UI.
    Make each repair in its existing owning files; remove directly superseded code
    after checking callers. Do not replace the app with another framework or host.
@@ -1058,7 +1097,7 @@ re-audit unrelated files or repeatedly reconfirm an already-correct skeleton.
 ## Acceptance checklist
 
 Checked items describe implemented structure or earlier evidence, not a fresh
-runtime verification of the audited revision. Open A05–A14 findings qualify
+runtime verification of the audited revision. Open A06–A14 findings qualify
 those claims. Deferred features are listed separately and are not this repair's
 definition of done.
 

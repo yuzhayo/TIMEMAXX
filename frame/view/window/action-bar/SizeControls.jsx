@@ -18,5 +18,6 @@ export default function SizeControls({ config, state, actions }) {
     buttonActions={{ decrease: () => actions.stepSize(-1), increase: () => actions.stepSize(1) }}
     valueControl={{ text: percent === null ? '—' : `${percent}%` }}
     sliderControl={{ value: percent ?? settings.min, min: settings.min, max: settings.max, step: settings.step,
-      begin: actions.beginSize, update: actions.updateSize, finish: actions.finishSize, cancel: actions.cancelSize }} />;
+      begin: actions.beginSize, update: (next, edit) => actions.updateSize(next, undefined, edit),
+      finish: actions.finishSize, cancel: actions.cancelSize, isActive: actions.isPhotoEditActive, subscribe: actions.subscribe }} />;
 }

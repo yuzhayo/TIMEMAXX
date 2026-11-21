@@ -22,45 +22,57 @@ export default function RotationControls({ config, state, actions }) {
   const value = state.document?.rotation;
   const disabled = !state.photo || state.busy || !actions.updateRotation;
   const [draft, setDraft] = useState(String(value ?? ''));
-  const editing = useRef(false);
+  const inputEdit = useRef(null);
   const applied = useRef(value);
 
   // LOGIC — Rotation adapts its draft/gesture behavior to the shared adjustment sub-parent.
   useEffect(() => {
-    if (!editing.current || value !== applied.current || disabled) {
-      editing.current = false; applied.current = value; setDraft(String(value ?? ''));
+    if (!actions.isPhotoEditActive(inputEdit.current) || value !== applied.current || disabled) {
+      inputEdit.current = null; applied.current = value; setDraft(String(value ?? ''));
     }
-  }, [value, state.photo?.photoId, disabled]);
+  }, [value, state.photo?.photoId, disabled, actions]);
   useEffect(() => {
     const blur = () => {
-      applied.current = actions.finishRotation(); editing.current = false;
+      const edit = inputEdit.current; inputEdit.current = null;
+      applied.current = actions.finishRotation(edit);
       setDraft(String(applied.current ?? ''));
     };
     window.addEventListener('blur', blur);
-    return () => { window.removeEventListener('blur', blur); actions.finishRotation(); };
+    return () => {
+      window.removeEventListener('blur', blur);
+      const edit = inputEdit.current; inputEdit.current = null;
+      actions.finishRotation(edit);
+    };
   }, [actions]);
+  const beginInput = () => {
+    if (!actions.isPhotoEditActive(inputEdit.current)) inputEdit.current = actions.beginRotation();
+    return inputEdit.current;
+  };
   const changeInput = (event) => {
-    editing.current = true; setDraft(event.target.value);
+    const edit = beginInput(); setDraft(event.target.value);
     const number = parseRotationDraft(event.target.value);
-    if (Number.isFinite(number)) applied.current = actions.updateRotation(number);
+    if (Number.isFinite(number)) applied.current = actions.updateRotation(number, edit);
   };
   const finishInput = () => {
-    editing.current = false; applied.current = actions.finishRotation();
+    const edit = inputEdit.current; inputEdit.current = null;
+    applied.current = actions.finishRotation(edit);
     setDraft(String(applied.current ?? ''));
   };
   const inputKeyDown = (event) => {
     if (event.key === 'Enter') { event.preventDefault(); finishInput(); }
     if (event.key === 'Escape') {
-      event.preventDefault(); editing.current = false;
-      applied.current = actions.cancelRotation(); setDraft(String(applied.current ?? ''));
+      event.preventDefault();
+      const edit = inputEdit.current; inputEdit.current = null;
+      applied.current = actions.cancelRotation(edit); setDraft(String(applied.current ?? ''));
     }
     if (['ArrowUp', 'ArrowDown'].includes(event.key)) {
-      event.preventDefault(); editing.current = true;
-      applied.current = actions.stepRotation(event.key === 'ArrowUp' ? 1 : -1); setDraft(String(applied.current));
+      event.preventDefault();
+      applied.current = actions.stepRotation(event.key === 'ArrowUp' ? 1 : -1, beginInput()); setDraft(String(applied.current));
     }
   };
   const acceptSliderValue = (next) => {
-    editing.current = false; applied.current = next; setDraft(String(next ?? ''));
+    if (actions.isPhotoEditActive(inputEdit.current)) return;
+    inputEdit.current = null; applied.current = next; setDraft(String(next ?? ''));
   };
 
   // UI — Rotation supplies content to the shared proportional sub-parent; its old visual tree is gone.
@@ -71,5 +83,5 @@ export default function RotationControls({ config, state, actions }) {
       inputMode: 'decimal', onChange: changeInput, onBlur: finishInput, onKeyDown: inputKeyDown } }}
     sliderControl={{ value: value ?? settings.min, min: settings.min, max: settings.max, step: settings.step, shiftStep: settings.step,
       begin: actions.beginRotation, update: actions.updateRotation, finish: actions.finishRotation,
-      cancel: actions.cancelRotation, onValue: acceptSliderValue }} />;
+      cancel: actions.cancelRotation, onValue: acceptSliderValue, isActive: actions.isPhotoEditActive, subscribe: actions.subscribe }} />;
 }

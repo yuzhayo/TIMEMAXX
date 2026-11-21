@@ -39,7 +39,7 @@ export function validatePopoverConfig(config, report) {
 export default function ConfiguredPopover({ id, config, open, onClose, trigger, children }) {
   const anchor = useRef(null);
   const surface = useRef(null);
-  const close = useCallback(() => onClose?.(), [onClose]);
+  const close = useCallback((reason) => onClose?.(reason), [onClose]);
 
   // UI — Popper's resolved placement determines which trigger axes supply skid/gap.
   const offset = ({ placement, reference }) => {
@@ -53,11 +53,11 @@ export default function ConfiguredPopover({ id, config, open, onClose, trigger, 
   // LOGIC — Escape belongs to the popup, so a drag can be cancelled with it.
   useEffect(() => {
     if (!open) return undefined;
-    const onKey = (event) => { if (event.key === 'Escape') close(); };
+    const onKey = (event) => { if (event.key === 'Escape') close('escape'); };
     const onPointerDown = (event) => {
       const inAnchor = anchor.current?.contains(event.target);
       const inSurface = surface.current?.contains(event.target);
-      if (!inAnchor && !inSurface) close();
+      if (!inAnchor && !inSurface) close('outside');
     };
     window.addEventListener('keydown', onKey);
     window.addEventListener('pointerdown', onPointerDown, true);
