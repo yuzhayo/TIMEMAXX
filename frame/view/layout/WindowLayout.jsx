@@ -20,25 +20,17 @@ export default function WindowLayout({ plan, session, diagnostics, inspection, g
   const issues = state.diagnostics ?? [];
   const settings = plan.development;
   const inspect = inspection && settings;
-  // Generic height policies: fixed percentages, remaining space, or intrinsic child content.
-  const flow = plan.sections.some((section) => section.sizing);
-  const rows = new Map(), tracks = [];
-  let edge = 0;
-  if (flow) for (const section of [...plan.sections].sort((a, b) => a.bounds.y - b.bounds.y)) {
-    if (section.bounds.y > edge) tracks.push(`${section.bounds.y - edge}%`);
-    tracks.push(section.sizing === 'content' ? 'auto' : section.sizing === 'remaining' ? 'minmax(0, 1fr)' : `${section.bounds.height}%`);
-    rows.set(section.id, tracks.length);
-    edge = section.bounds.y + section.bounds.height;
-  }
+  // The validated plan owns mode/tracks; losing a section cannot silently switch layout mechanisms.
+  const flow = plan.sectionLayout?.mode === 'vertical-flow';
   return (
     <main className="frame-root" data-ready="true" style={{ backgroundColor: plan.window?.background,
-      ...(flow ? { display: 'grid', gridTemplateRows: tracks.join(' '), alignContent: 'start' } : {}),
+      ...(flow ? { display: 'grid', gridTemplateRows: plan.sectionLayout.tracks.join(' '), alignContent: 'start' } : {}),
     }}>
       {plan.sections.map((section) => (
         <Box component="section" key={section.id} id={section.id} aria-label={section.label}
           className={`frame-section${section.draggable ? ' frame-drag' : ''}`}
           sx={{ ...boundsStyle(section.bounds), ...configuredSx(section),
-            ...(flow ? { position: 'relative', top: 'auto', height: 'auto', gridRow: rows.get(section.id) } : {}),
+            ...(flow ? { position: 'relative', top: 'auto', height: 'auto', gridRow: plan.sectionLayout.rows[section.id] } : {}),
             ...(section.sizing === 'content' ? { containerType: 'inline-size' } : {}),
           }}>
           {inspect && <LayoutInspector node={section} settings={settings} />}

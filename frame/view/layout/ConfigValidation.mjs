@@ -159,7 +159,7 @@ function mergeVisual(base, patch) {
 
 export function validateFrameConfig(raw, catalog, diagnostics) {
   const report = (code, path, expected, actual, meta = {}) => diagnostics.report({ code, configPath: path, expected, actual, ...meta });
-  const result = { sections: [], instances: [], development: null, window: null, document: null, history: null, output: null, rotation: null, size: null, view: null };
+  const result = { sections: [], instances: [], sectionLayout: null, development: null, window: null, document: null, history: null, output: null, rotation: null, size: null, view: null };
 
   function checkKeys(value, keys, path, meta, code = 'INVALID_VISUAL') {
     if (!object(value)) { report(code, path, 'object', value, meta); return false; }
@@ -216,12 +216,14 @@ export function validateFrameConfig(raw, catalog, diagnostics) {
     return valid;
   }
 
-  if (!checkKeys(raw, ['schemaVersion', 'window', 'document', 'history', 'output', 'rotation', 'size', 'view', 'presets', 'sections', 'instances', 'development'], 'config', { action: 'layout isolated' }, 'INVALID_CONFIG_ROOT') || raw.schemaVersion !== 1) {
+  if (!checkKeys(raw, ['schemaVersion', 'window', 'sectionLayout', 'document', 'history', 'output', 'rotation', 'size', 'view', 'presets', 'sections', 'instances', 'development'], 'config', { action: 'layout isolated' }, 'INVALID_CONFIG_ROOT') || raw.schemaVersion !== 1) {
     if (object(raw) && raw.schemaVersion !== 1) report('INVALID_CONFIG_ROOT', 'schemaVersion', 1, raw.schemaVersion, { action: 'layout isolated' });
     return result;
   }
   if (nativeWindowValid(raw.window)) result.window = raw.window;
   else report('INVALID_WINDOW_CONFIG', 'window', 'valid native settings', raw.window, { action: 'native settings unavailable' });
+  if (allowed(raw.sectionLayout, ['mode']) && ['absolute', 'vertical-flow'].includes(raw.sectionLayout.mode)) result.sectionLayout = { mode: raw.sectionLayout.mode };
+  else report('INVALID_SECTION_LAYOUT', 'sectionLayout', 'explicit {mode: absolute | vertical-flow}', raw.sectionLayout, { action: 'section assembly skipped; no layout mode inferred' });
   if (allowed(raw.document, ['scale', 'x', 'y', 'rotation']) && ['scale', 'x', 'y', 'rotation'].every((key) => Number.isFinite(raw.document[key])) && raw.document.scale > 0) result.document = raw.document;
   else report('INVALID_DOCUMENT', 'document', 'finite photo transform with positive scale', raw.document, { action: 'save unavailable until a valid photo document is loaded' });
   if (allowed(raw.history, ['limit']) && Number.isInteger(raw.history.limit) && raw.history.limit > 0) result.history = raw.history;
@@ -322,13 +324,20 @@ export function validateFrameConfig(raw, catalog, diagnostics) {
     if (own(node, 'sizing') && !['content', 'remaining'].includes(node.sizing)) {
       report('INVALID_SECTION', `${path}.sizing`, 'content | remaining; omit for fixed percentage height', node.sizing, meta); return;
     }
+    if (own(node, 'sizing') && result.sectionLayout?.mode === 'absolute') {
+      report('INVALID_SECTION_SIZING', `${path}.sizing`, 'intrinsic/remaining sizing only in vertical-flow mode', node.sizing, meta); return;
+    }
+    if (node.sizing === 'content' && (own(node, 'layout') || node.nativeSafeArea)) {
+      report('INVALID_CONTENT_LAYOUT', path, 'single intrinsic child in normal flow, without sibling layout or native safe-area positioning',
+        { layout: node.layout, nativeSafeArea: node.nativeSafeArea }, meta); return;
+    }
     if (own(node, 'layout')) {
       const problem = siblingLayoutProblem(node.layout, `${path}.layout`);
       if (problem) { report('INVALID_SECTION_LAYOUT', problem.path, problem.expected, problem.actual, meta); return; }
     }
     if (duplicateIds.has(node.id) || duplicateFolders.has(node.folder)) { report('DUPLICATE_SECTION', path, 'unique section ID/folder', node.id, meta); return; }
     const visual = resolveVisual(node, path, meta);
-    if (visual && node.enabled) result.sections.push({ ...node, ...visual, configPath: path });
+    if (visual && node.enabled && result.sectionLayout) result.sections.push({ ...node, ...visual, configPath: path });
   });
 
   // Symmetric isolation: every conflicting sibling is blocked, never first/last wins.
@@ -338,14 +347,23 @@ export function validateFrameConfig(raw, catalog, diagnostics) {
       const a = result.sections[i], b = result.sections[j];
       const x = Math.min(a.bounds.x + a.bounds.width, b.bounds.x + b.bounds.width) - Math.max(a.bounds.x, b.bounds.x);
       const y = Math.min(a.bounds.y + a.bounds.height, b.bounds.y + b.bounds.height) - Math.max(a.bounds.y, b.bounds.y);
-      if (x <= 0.00001 || y <= 0.00001) continue;
+      const flow = result.sectionLayout.mode === 'vertical-flow';
+      if (y <= 0.00001 || !flow && x <= 0.00001) continue;
       for (const [node, other] of [[a, b], [b, a]]) {
         overlaps.add(node.id);
-        report('SECTION_OVERLAP', `${node.configPath}.bounds`, 'non-overlapping sibling section', { with: other.id, bounds: node.bounds }, { sectionId: node.id, action: 'section subtree skipped' });
+        report(flow ? 'SECTION_FLOW_OVERLAP' : 'SECTION_OVERLAP', `${node.configPath}.bounds`,
+          flow ? 'vertically disjoint declared section footprints in vertical-flow mode' : 'non-overlapping sibling section',
+          { with: other.id, bounds: node.bounds }, { sectionId: node.id, action: 'section subtree skipped' });
       }
     }
   }
   result.sections = result.sections.filter((node) => !overlaps.has(node.id));
+  const remaining = result.sections.filter((node) => node.sizing === 'remaining');
+  if (remaining.length > 1) {
+    for (const node of remaining) report('MULTIPLE_REMAINING_SECTIONS', `${node.configPath}.sizing`, 'at most one section owns remaining height',
+      remaining.map((section) => section.id), { sectionId: node.id, action: 'conflicting section subtree skipped' });
+    result.sections = result.sections.filter((node) => node.sizing !== 'remaining');
+  }
 
   instances.forEach((node, index) => {
     const path = `instances[${index}]`;
@@ -377,6 +395,10 @@ export function validateFrameConfig(raw, catalog, diagnostics) {
     } else {
       if (!checkBounds(node.bounds, `${path}.bounds`, meta, 'INVALID_INSTANCE')) return;
       if (own(node, 'placement')) { report('INVALID_SIBLING_PLACEMENT', `${path}.placement`, 'placement only when the configured parent owns a sibling layout', node.placement, meta); return; }
+    }
+    if (configuredParent.sizing === 'content' && (bounds.y !== 0 || bounds.height !== 100 || own(node, 'aspectRatio'))) {
+      report('INVALID_INTRINSIC_BOUNDS', `${path}.bounds`, 'intrinsic child fills parent height: y=0, height=100, no aspect ratio; x/width remain configured',
+        { bounds, aspectRatio: node.aspectRatio }, meta); return;
     }
     if (own(node, 'aspectRatio') && (!Number.isFinite(node.aspectRatio) || node.aspectRatio <= 0)) {
       report('INVALID_INSTANCE', `${path}.aspectRatio`, 'positive finite width/height ratio', node.aspectRatio, meta); return;
@@ -476,6 +498,29 @@ export function validateFrameConfig(raw, catalog, diagnostics) {
     }
   }
   if (invalidLayoutParents.size) result.instances = result.instances.filter((node) => !invalidLayoutParents.has(node.parentId));
+  // LOGIC — intrinsic composition is explicit, never an unconfigured source-order stack.
+  const invalidContentParents = new Set();
+  for (const section of result.sections.filter((node) => node.sizing === 'content')) {
+    const children = result.instances.filter((node) => node.parentId === section.id);
+    if (children.length <= 1) continue;
+    invalidContentParents.add(section.id);
+    report('CONTENT_LAYOUT_CONFLICT', section.configPath, 'at most one enabled intrinsic child; a multi-child row needs its own supported contract',
+      children.map((node) => node.id), { sectionId: section.id, action: 'content section subtree skipped' });
+  }
+  result.sections = result.sections.filter((node) => !invalidContentParents.has(node.id));
+  result.instances = result.instances.filter((node) => !invalidContentParents.has(node.parentId));
+  // LOGIC — plan tracks only after isolation, without changing the explicitly selected mode.
+  if (result.sectionLayout?.mode === 'vertical-flow') {
+    const tracks = [], rows = {};
+    let edge = 0;
+    for (const section of [...result.sections].sort((a, b) => a.bounds.y - b.bounds.y)) {
+      if (section.bounds.y > edge) tracks.push(`${section.bounds.y - edge}%`);
+      tracks.push(section.sizing === 'content' ? 'auto' : section.sizing === 'remaining' ? 'minmax(0, 1fr)' : `${section.bounds.height}%`);
+      rows[section.id] = tracks.length;
+      edge = section.bounds.y + section.bounds.height;
+    }
+    result.sectionLayout = { ...result.sectionLayout, tracks, rows };
+  }
   const referenced = new Set(instances.map((node) => node?.componentId));
   for (const entry of catalog) if (!referenced.has(entry.componentId)) report('COMPONENT_WITHOUT_CONFIG', null, 'configured or intentionally disabled instance', null, entry);
 

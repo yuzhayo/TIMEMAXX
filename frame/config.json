@@ -10,6 +10,7 @@
     "background": "#111418",
     "caption": { "mode": "custom" }
   },
+  "sectionLayout": { "mode": "vertical-flow" },
   "document": { "scale": 1, "x": 0, "y": 0, "rotation": 0 },
   "history": { "limit": 60 },
   "rotation": { "min": -180, "max": 180, "step": 0.1, "precision": 1, "buttonStep": 90 },

@@ -76,8 +76,8 @@ MUI source was consulted for disabled-state and Slider event behavior.
 | `DropTarget.jsx` | Explicit file-drop-only handlers; no click loader. Feedback is pointer-transparent. Native replacement is shared correctly, with failure consistency caveat A10. |
 | `FrameInfo.jsx` | Owns text measurement/padding, not file operations or record persistence. It imports the diagnostic formatter and shows both message and summary. Readability/ownership limitations: A13. |
 | `ComponentDiscovery.mjs` | Collects full catalog and stable exports before mounting; now validates component-declared per-part option keys without a named-control registry. Empty skeletons/helpers remain excluded. |
-| `ConfigValidation.mjs` | Resolves parent-owned named vertical allocations before mounting, rejecting manual y/height overrides and unknown allocations. Existing presets, duplicate/folder isolation and sibling x placement remain here. A09 section-flow validation remains open. |
-| `WindowLayout.jsx` | One generic mount owner, error boundaries and inspector composition; no named feature imports. Row coordinates are resolved beforehand. Its vertical-flow specialization is not validated: A09. |
+| `ConfigValidation.mjs` | A09 repaired: validates explicit section mode, vertical footprints and intrinsic composition, then plans tracks after isolation. Named child allocations, presets, duplicate/folder isolation and sibling x placement remain here. |
+| `WindowLayout.jsx` | One generic mount owner, error boundaries and inspector composition; no named feature imports. Consumes validated section mode/tracks and child bounds instead of inferring flow from surviving sections. |
 | `LayoutDiagnostics.mjs`, `DiagnosticLog.cjs` | One renderer record/dedup owner plus native persistence adapter is correct. Some callers bypass the complete provenance and human-readable summary contract: A13. |
 | `LayoutInspector.jsx` | Development-only non-intercepting badges plus global identity summary. No separate inspector framework. No new defect established in source. |
 | `view/main.jsx` | Composition/bootstrap and shortcut attachment. Development reconfigure changes the layout plan but leaves session policies from initial startup; treat it as visual reconfiguration, not proof that all runtime policy edits apply. |
@@ -365,7 +365,8 @@ exercised during this audit are labeled **code-derived risk**.
   Initial proof-selector mistakes were corrected; passing geometry checks were
   not repeated. Evidence is under `frame/.runtime/checks/configured-row/`.
   No broad suite or permanent test file was added. A08 slot-state routing was left
-  for the next piece below; A09 section-flow mismatch remains open.
+  for the next piece below. A09 section-flow mismatch was subsequently repaired
+  in its own piece below.
 
 #### A08 — High at audit; value/dropdown state routing repair complete
 
@@ -415,11 +416,11 @@ exercised during this audit are labeled **code-derived risk**.
   No renderer errors occurred in passing checks. Native captures at both sizes
   were inspected. Evidence is in `frame/.runtime/checks/value-states/`; the final
   UI/glyph checks cover the latest renderer. No broad suite or committed test
-  file was added. A09–A14 remain open.
+  file was added. A09 was left for the following piece; A10–A14 remain open.
 
-#### A09 — Medium: generic section flow accepts geometry it cannot represent
+#### A09 — Medium at audit; section geometry/flow repair complete
 
-- **Evidence:** `WindowLayout.jsx:24–42` switches every section into a sequential
+- **Evidence at audit revision:** `WindowLayout.jsx:24–42` switches every section into a sequential
   grid row if any section has `sizing`. It sorts by y, uses y only to add gaps,
   then clears top/height. `ConfigValidation.mjs:300–336` permits nonoverlapping
   side-by-side sections at the same y and does not constrain this flow topology.
@@ -433,8 +434,43 @@ exercised during this audit are labeled **code-derived risk**.
   supported geometry. Before implementing deferred Bottom Bar Info, define its
   parent-owned row composition; do not simply add an absolutely positioned button
   to the current content-height stack.
-- **Status:** confirmed accepted-model/rendering mismatch. The current four-section
-  vertical arrangement itself matches the renderer.
+- **Status:** repaired in the ninth piece. JSON now explicitly declares
+  `sectionLayout.mode`. `vertical-flow` supports vertically disjoint declared
+  footprints, fixed percentage tracks, intrinsic content tracks and at most one
+  remaining-height owner. `absolute` supports non-overlapping two-dimensional
+  bounds without intrinsic/remaining sizing. Missing/invalid mode is logged;
+  no renderer inference or alternate layout is invented.
+- **Flow contract:** bounds y/height establish declared order/footprints and
+  window-relative gaps, not the runtime heights of content/remaining sections.
+  Bounds x/width still determine horizontal placement. Side-by-side sections
+  with overlapping vertical footprints are symmetrically isolated in flow mode,
+  but are supported in explicit absolute mode. Multiple remaining owners are
+  also isolated rather than given an unconfigured equal-weight rule.
+- **Intrinsic contract:** a content section supports at most one enabled valid
+  intrinsic child in normal flow, without sibling layout/native-safe-area
+  positioning. Its child uses y=0, height=100 and no aspect ratio; x/width remain
+  configurable. Unsupported bounds are logged, not cleared silently. Multiple
+  enabled children isolate the content subtree; a disabled extra child does not
+  create a conflict and malformed disabled entries still validate. Future Info
+  needs an approved parent-owned row contract; neither that row nor Info was
+  implemented by this repair.
+- **Ownership:** ConfigValidation creates the section track/row plan after all
+  isolation. WindowLayout only renders that plan. Disabling/removing flexible
+  sections cannot switch the selected mode. Current JSON retains the same four
+  sections, percentages, child allocations and appearance; photo/history/math,
+  native geometry and FrameInfo's own text/padding calculation are unchanged.
+- **Validation for A09:** the old accepted-but-stacked side-by-side configuration
+  was reproduced live. Twenty-one focused checks of the actual validator and a
+  UI build passed. Live startup 934×1359 and minimum 760×700 geometry matched A08
+  within 0.2 DIP. Actual Load/cancellation messages proved Bottom Bar upward
+  expansion/shrink and 1% padding without moving top bars or covering the body.
+  JSON gap and intrinsic x/width edits applied; absolute side-by-side rendering,
+  flow conflict isolation, multiple-content-child isolation and stable mode after
+  disabling flexible sections passed. No renderer errors occurred. Native
+  expanded-message captures at both sizes were inspected. Evidence is under
+  `frame/.runtime/checks/section-flow/`. No broad suite or committed test file was
+  added; the inspection instance was closed before normal relaunch. A10–A14 remain
+  open, and deferred Info/orchestration were not started.
 
 #### A10 — High: failed replacement can leave native and renderer photo identities split
 
@@ -576,13 +612,15 @@ not mounted. Preserve unrelated skeletons; do not fill them just because they ex
    parent-owned named vertical allocation; existing arrangement is unchanged.
    **Done — A08:** configured value/editor text fill and state precedence,
    separate Placement portal/indicator parts and stable first-mount sizing.
-   **Next piece: A09, accepted section geometry versus rendered flow.**
+   **Done — A09:** explicit validated section modes/track plan and supported
+   single-child intrinsic composition; current layout/Bottom Bar behavior kept.
+   **Next piece: A10, transactional photo replacement across worker/native/UI.**
 2. Repair the existing popup/slider geometry and slot-state application at their
    shared owners (A03/A04/A08 done).
 3. Make edit ownership/lifetime consistent across controls and canvas inputs
    (A05/A06 done), then close busy/input-isolation gaps (A11, A12).
 4. Strengthen the existing parent/baked-row contracts rather than introducing a
-   new layout/registration system (A07 done; A09 remains open).
+   new layout/registration system (A07/A09 done).
 5. Repair multi-stage load acceptance and diagnostic origin/formatting in their
    existing owners (A10, A13).
 
@@ -599,7 +637,7 @@ The standalone `@APPS/frame/` currently implements its native window, four
 configured sections, discovery/validation before mounting, diagnostics, inspection,
 Undo/Redo, Load/drop/Save, Rust photo/black export, Rotation/Size, Placement,
 photo pointer/wheel input, separate inspection state and Ctrl+S/Ctrl+Z.
-These are implemented features, not a blanket compliance verdict: A09–A14 in the
+These are implemented features, not a blanket compliance verdict: A10–A14 in the
 source audit remain open. The current task is to repair that list piece by piece.
 Info and background orchestration are deferred, not the next automatic features.
 Preserve `output-frame/` as reference only; do not recreate/reconfirm the skeleton.
@@ -718,10 +756,12 @@ Development-only layout inspection remains a separate developer surface.
 `presets.status.geometry.paddingY` is **1% per side** of the text outlet's height;
 1–2% is the requested range. Font, line height, horizontal placement and error
 color remain configured. `FrameInfo.jsx` measures its own text and resolves that
-percentage without preferred-height callbacks. Generic section `sizing` supports
-`content` and `remaining`; omitted sizing keeps fixed percentage height. Declared
-bounds still establish section ordering, horizontal placement and validation
-footprints, not the runtime heights of content/remaining sections.
+percentage without preferred-height callbacks. Explicit `sectionLayout.mode:
+"vertical-flow"` permits section `sizing: "content"` or `"remaining"`; omitted
+sizing keeps fixed percentage height. Declared bounds establish section order,
+horizontal placement, gaps and validation footprints, not live content/remaining
+heights. The current content section has one intrinsic child; a multi-child row
+is not currently supported or permission to start the deferred Info feature.
 
 Earlier implementation evidence, not rerun for this repair: 27 Bottom Bar/contract tests passed, UI build passed, and
 native Bottom Bar plus guardrail proofs passed at default/minimum sizes. The bar
@@ -1053,6 +1093,15 @@ instead be reserved separately, leaving three content sections. Native-caption
 mode respects its measured safe area. Current custom-caption mode
 uses the full configured Windows Bar; no unused native control space is reserved.
 
+JSON must declare `sectionLayout.mode` as `vertical-flow` or `absolute`. Flow
+requires vertically disjoint declared section footprints, with at most one
+remaining-height section. Absolute mode preserves two-dimensional bounds but
+does not accept intrinsic/remaining section sizing. ConfigValidation selects and
+plans the supported mode before mounting; it never changes mode after isolation.
+Intrinsic sections currently allow one normal-flow child with y=0, height=100,
+no aspect ratio, and configured x/width. Multiple children require a separately
+approved parent composition contract rather than an implicit source-order stack.
+
 Control folders are `windows-bar/`, `action-bar/`, `frame-body/`, `bottom-bar/`,
 with owned overlay controls. Do not create per-section parent components with
 manual child imports. A build-time catalog discovers files from those folders;
@@ -1163,8 +1212,8 @@ uses its own declared owners; no old controller or stamp runtime was copied in.
    and per-finding status. A01 documentation and A02 shared button rendering are
    complete; A03 geometry, A04 popup contracts and A05 edit ownership are complete.
    A06 field release and A07 row mechanics/order/validation are complete.
-   A08 configured value/dropdown slot states is complete. A09 section geometry/
-   flow validation is next. Later findings remain open.
+   A08 value/dropdown states and A09 section geometry/flow validation are complete.
+   A10 transactional replacement is next. Later findings remain open.
 2. Preserve implemented photo/file/history/input features and the latest UI.
    Make each repair in its existing owning files; remove directly superseded code
    after checking callers. Do not replace the app with another framework or host.
@@ -1189,7 +1238,7 @@ re-audit unrelated files or repeatedly reconfirm an already-correct skeleton.
 ## Acceptance checklist
 
 Checked items describe implemented structure or earlier evidence, not a fresh
-runtime verification of the audited revision. Open A09–A14 findings qualify
+runtime verification of the audited revision. Open A10–A14 findings qualify
 those claims. Deferred features are listed separately and are not this repair's
 definition of done.
 
