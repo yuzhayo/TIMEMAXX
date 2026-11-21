@@ -1,7 +1,7 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import Typography from '@mui/material/Typography';
 import { configuredSx, fill } from '@ui/appearance.mjs';
-import { diagnosticSummary } from '../../layout/LayoutDiagnostics.mjs';
+import { diagnosticSummary } from '@frame/view/layout/LayoutDiagnostics.mjs';
 
 export const componentId = 'file.status';
 

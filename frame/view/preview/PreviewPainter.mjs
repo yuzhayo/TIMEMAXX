@@ -10,7 +10,7 @@ export class PreviewPainter {
     this.photo = null;
     this.document = null;
     this.source = null;
-    this.observer = new ResizeObserver(() => this.draw());
+    this.observer = new ResizeObserver(() => this.safeDraw('preview-resize'));
     this.observer.observe(canvas.parentElement);
   }
 
@@ -21,9 +21,9 @@ export class PreviewPainter {
     if ((photo?.previewUrl ?? null) !== this.source) {
       this.source = photo?.previewUrl ?? null;
       this.image = preparedPreviewOf(photo);
-      if (photo && !this.image) this.onError('Missing prepared photo preview');
+      if (photo && !this.image) this.onError('Missing prepared photo preview', 'preview-resource');
     }
-    this.draw();
+    this.safeDraw('preview-update');
   }
 
   // UI — one geometry owner supplies both rendering and input hit/coordinate mapping.
@@ -74,6 +74,11 @@ export class PreviewPainter {
     context.scale(transform.scale * scale, transform.scale * scale);
     context.drawImage(this.image, -this.photo.width / 2, -this.photo.height / 2, this.photo.width, this.photo.height);
     context.restore();
+  }
+
+  safeDraw(operation) {
+    try { this.draw(); return true; }
+    catch (error) { this.onError(error.message, operation); return false; }
   }
 
   dispose() { this.observer.disconnect(); this.image = null; this.photo = null; }

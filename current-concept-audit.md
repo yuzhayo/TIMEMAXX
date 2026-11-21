@@ -52,8 +52,8 @@ MUI source was consulted for disabled-state and Slider event behavior.
 | --- | --- |
 | Windows Bar | JSON row layout owns sibling order/gap; native window operations are outside JSX. Placement's text/indicator/menu state routing is repaired in A08. Four-percent height and right-lane Placement/maximize/X are unchanged. |
 | Action Bar | Parent JSON owns shared vertical allocations and external gaps; baked row mechanics/order are shared. A08 value text/editor states now reach the visible content. Default geometry is unchanged. |
-| Frame/body | Remaining-height section contains preview plus non-intercepting DropTarget. A10 prepares previews transactionally; A11 shares input blocking; A12 aligns operation/UI busy guards. A13 diagnostics remains. |
-| Bottom Bar | `FrameInfo.jsx` is the only live status outlet, with intrinsic wrapping height and percentage-padding calculation. No toast stack exists. Finding A13 concerns diagnostic attribution/summary, not the presence of this owner. |
+| Frame/body | Remaining-height section contains preview plus non-intercepting DropTarget. A10–A12 repair replacement/input/busy guards; A13 attributes and contains preview/pointer/wheel failures at their adapters. |
+| Bottom Bar | `FrameInfo.jsx` remains the only status outlet, with intrinsic wrapping height. A13's shared summary now names owner, reason and action; full details stay in the local log. No toast stack exists. |
 | Overlays | All Information/notices JSX files are empty; no active overlay implementation or hand-built child registry exists. Info placement and deferred orchestration must follow the latest decisions above. |
 | `ActionButton.jsx` | A02 repaired: common icon/text/editable-host renderer for file buttons, window actions, adjustment buttons/values and Undo/Redo. History icons are configured through JSON. |
 | `AdjustmentControls.jsx` | Token-owned slider edits/cleanup remain here; row mechanics delegate to ConfiguredRow. Text/input/unit explicitly share the value part's appearance, including native text fill, fonts and alignment. Editor callbacks stay feature-owned. |
@@ -68,21 +68,21 @@ MUI source was consulted for disabled-state and Slider event behavior.
 | `ActionSeparator.jsx` | Renders configured separator only. Sibling placement is no longer calculated in this component; this boundary fits. |
 | `UndoButton.jsx`, `RedoButton.jsx` | Thin session adapters using shared ActionButton and validated JSON icons. A12 includes native busy in their disabled fact while history availability remains owned by PhotoHistory. |
 | `FileName.jsx` | Read-only filename/path presentation. JSON slot has pointer pass-through and inherited drag region. No file-operation or window-drag rules are copied into the leaf; this fits. |
-| `PlacementDropdown.jsx` | A08 repaired: separate menu/list/item/indicator parts, explicit shared arrow ID, parent-relative indicator bounds and configured label/slot states. Owns options/commands only; placement math is unchanged. |
+| `PlacementDropdown.jsx` | Separate configured parts and options remain here. A13 catches command exceptions, reports full instance origin and leaves placement math in PhotoOperations. |
 | `WindowActionButton.jsx` | Uses shared icon button and native operation adapter; respects separate vertical-maximized state. No photo logic in window controls; this fits. |
-| `PhotoPreview.jsx` | Composes painter and input helpers through stable `@frame` aliases. No section registry, policy copy or photo math. Invalid input config still isolates the preview at its existing component validator boundary. |
-| `PhotoPointerInput.mjs` | Owns pointer capture/cancellation and photo-versus-view spatial rules; calls shared blocking policy before starts/updates/Space. Focus moving to a blocking owner cancels its incomplete edit. |
-| `PhotoWheelInput.mjs` | Owns configured modifiers, conversion and idle grouping; shared policy suppresses starts and settles an active group on blocked focus/input. Frame-only scope remains local. |
+| `PhotoPreview.jsx`, `PreviewPainter.mjs` | Compose painter/input through stable aliases. A13 routes setup/update/resource/ResizeObserver draw failures once with preview origin; no page exception or extra painter owner. |
+| `PhotoPointerInput.mjs` | Owns capture/cancellation/spatial rules and A11 blocking. A13 wraps its event/subscription callbacks, cancels its owned edit and reports pointer operation/origin. |
+| `PhotoWheelInput.mjs` | Owns modifiers/conversion/idle grouping and A11 blocking. A13 wraps its callbacks, cancels failed grouping and reports wheel operation/origin. |
 | `DropTarget.jsx` | Explicit file-drop-only handlers; no click loader. Feedback is pointer-transparent. Load/drop share the repaired A10 transaction; this control has no separate decoder or acceptance policy. |
-| `FrameInfo.jsx` | Owns text measurement/padding, not file operations or record persistence. It imports the diagnostic formatter and shows both message and summary. Readability/ownership limitations: A13. |
+| `FrameInfo.jsx` | Owns text measurement/padding only, imports the shared formatter through `@frame`, and shows operation text plus the readable diagnostic summary. |
 | `ComponentDiscovery.mjs` | Collects full catalog and stable exports before mounting; now validates component-declared per-part option keys without a named-control registry. Empty skeletons/helpers remain excluded. |
 | `ConfigValidation.mjs` | A09 repaired: validates explicit section mode, vertical footprints and intrinsic composition, then plans tracks after isolation. Named child allocations, presets, duplicate/folder isolation and sibling x placement remain here. |
 | `WindowLayout.jsx` | One generic mount owner, error boundaries and inspector composition; no named feature imports. Consumes validated section mode/tracks and child bounds instead of inferring flow from surviving sections. |
-| `LayoutDiagnostics.mjs`, `DiagnosticLog.cjs` | One renderer record/dedup owner plus native persistence adapter is correct. Some callers bypass the complete provenance and human-readable summary contract: A13. |
+| `LayoutDiagnostics.mjs`, `DiagnosticLog.cjs` | One renderer identity/dedup/format/delivery owner plus native persistence adapter. A13 completes readable reason/action summaries without changing full records or adding another logger. |
 | `LayoutInspector.jsx` | Development-only non-intercepting badges plus global identity summary. No separate inspector framework. No new defect established in source. |
 | `view/main.jsx` | Composition/bootstrap and shortcut attachment. Development reconfigure changes the layout plan but leaves session policies from initial startup; treat it as visual reconfiguration, not proof that all runtime policy edits apply. |
 | `styles.css`, `index.html`, `vite.config.mjs` | Resets, drag/pointer mechanics, CSP and build-time aliases/catalog support. No section-specific assembly registry or engine/input import found. |
-| `FrameSession.mjs` | Connects independent state/action owners; derived percentage projection is not duplicated size math. No monolithic UI controller. |
+| `FrameSession.mjs` | Connects independent owners and exposes A13's narrow UI-failure report boundary, merging adapter origin into the existing diagnostic owner. No calculations/event handling moved here. |
 | `PhotoOperations.mjs`, `PhotoHistory.mjs` | Continuous and discrete feature commands use the shared `canEdit` boundary; A12 closes the size-step busy bypass. Math/history ownership remains centralized. |
 | `ViewState.mjs`, `ViewOperations.mjs` | Inspection state is separate from photo document/history and is not sent to exporter. No copied photo math; preserve this separation. |
 | `PhotoState.mjs`, `ImageFileActions.mjs` | A10 repaired: PhotoState owns preview decode/URL resources outside plain published metadata; ImageFileActions owns ticket acceptance, history reset, rejection and completion sequencing for Load/drop. |
@@ -624,9 +624,9 @@ exercised during this audit are labeled **code-derived risk**.
   `frame/.runtime/checks/busy-guards/`. No broad suite or committed test file was
   added. A13/A14 remain open.
 
-#### A13 — Medium: diagnostics have one storage owner but incomplete origin/readability
+#### A13 — Medium at audit; diagnostic origin/readability repair complete
 
-- **Evidence:** `FrameSession.mjs:56` reports preview failure without component,
+- **Evidence at audit revision:** `FrameSession.mjs:56` reports preview failure without component,
   instance, source or config identity. `DropTarget` supplies full origin but
   placement/photo input failures have no equivalent origin wrapper. Render error
   boundaries (`WindowLayout.jsx:6–14`) do not catch asynchronous event-handler
@@ -642,8 +642,40 @@ exercised during this audit are labeled **code-derived risk**.
   boundary, format a concise readable reason/action in the shared formatter, and
   use the stable alias for FrameInfo's dependency. Keep detailed records in the
   existing log; do not add banners or separate log services.
-- **Status:** confirmed provenance/summary omissions. No new event failure was
-  triggered. Existing record deduplication and persistence separation should stay.
+- **Status:** repaired in the thirteenth piece. FrameSession exposes one narrow
+  `reportUiFailure` action that normalizes an Error/message and merges the adapter's
+  component, instance, parent, source and config identity into the existing
+  diagnostics owner. It does not catch events, format summaries, persist records
+  or own feature recovery. Existing previewFailed delegates through this boundary.
+- **Adapter recovery:** PhotoPreview supplies origin and distinct config subpaths
+  to pointer/wheel owners. Their existing event/subscription lifetimes are wrapped
+  locally; failure cancels the owned edit/group and reports the exact operation.
+  Placement catches its command callback and reports the selected mode. Preview
+  setup/update/resource and ResizeObserver draw callbacks route through one guarded
+  preview report, suppressing the same persistent paint failure until a successful
+  update clears it. React render boundaries still own render failures; A13 does
+  not pretend they catch browser event/observer callbacks.
+- **Readable outlet:** diagnosticSummary now shows issue count, latest code/owner,
+  concise reason, recovery action and repeat count. Values are whitespace-normalized,
+  bounded and tolerate non-JSON data. It omits internal config-path prose from the
+  Bottom Bar while complete expected/actual/path/action/timestamps/count/message
+  remain in the structured local log. FrameInfo uses the stable `@frame` alias.
+  No toast, banner, second persistence path or selector-specific theme was added.
+- **Validation for A13:** UI build and five focused diagnostic-contract checks
+  passed (origin, deduplication, reason/action summary, operation and formatter
+  tolerance). The first live preview injection exposed an uncaught ResizeObserver
+  draw path; routing PreviewPainter through the same guarded callback fixed it.
+  The final preview proof produced one attributed record, no recursive publication
+  and no page error after recovery. A final live run injected repeated pointer,
+  wheel and Placement failures: documents remained unchanged, repeat count reached
+  two for the identical pointer issue, all origin/operation fields matched their
+  configured instances, and normal handlers worked after restoration. Bottom Bar
+  displayed owner/code/reason/action without overlays; complete detailed messages
+  persisted to the existing log. Native startup/minimum captures were inspected.
+  Passing checks had no renderer errors or COMPONENT_RENDER_FAILED records.
+  Evidence is under `frame/.runtime/checks/diagnostic-origin/`. Existing logging-
+  failure coverage was not rerun; no broad suite or committed test file was added.
+  A14 remains open.
 
 #### A14 — Medium: retained checks and PASS claims target superseded UI contracts
 
@@ -719,7 +751,9 @@ not mounted. Preserve unrelated skeletons; do not fill them just because they ex
    shortcut mechanics and preserved photo-frame/inspection-canvas distinctions.
    **Done — A12:** discrete size uses the shared edit guard and history controls
    visibly reflect native busy without changing history ownership.
-   **Next piece: A13, diagnostic origin and readable Bottom Bar summaries.**
+   **Done — A13:** complete UI failure origin, local event/observer recovery and
+   readable Bottom Bar reason/action through the existing diagnostic owner.
+   **Next piece: A14, retire/update superseded checks and historical PASS claims.**
 2. Repair the existing popup/slider geometry and slot-state application at their
    shared owners (A03/A04/A08 done).
 3. Make edit ownership/lifetime consistent across controls and canvas inputs
@@ -727,7 +761,7 @@ not mounted. Preserve unrelated skeletons; do not fill them just because they ex
 4. Strengthen the existing parent/baked-row contracts rather than introducing a
    new layout/registration system (A07/A09 done).
 5. Repair multi-stage load acceptance and diagnostic origin/formatting in their
-   existing owners (A10 done; A13 remains open).
+   existing owners (A10/A13 done).
 
 Preserve the parts that already fit: complete discovery before mount, stable
 component IDs and aliases, generic parent-owned sibling gaps, shared photo math,
@@ -742,7 +776,7 @@ The standalone `@APPS/frame/` currently implements its native window, four
 configured sections, discovery/validation before mounting, diagnostics, inspection,
 Undo/Redo, Load/drop/Save, Rust photo/black export, Rotation/Size, Placement,
 photo pointer/wheel input, separate inspection state and Ctrl+S/Ctrl+Z.
-These are implemented features, not a blanket compliance verdict: A13/A14 in the
+These are implemented features, not a blanket compliance verdict: A14 in the
 source audit remain open. The current task is to repair that list piece by piece.
 Info and background orchestration are deferred, not the next automatic features.
 Preserve `output-frame/` as reference only; do not recreate/reconfirm the skeleton.
@@ -1277,6 +1311,8 @@ issue code, component/instance ID, file/config paths, expected and actual values
 action taken, timestamps and repeat count. Deduplicate identical issues per run.
 For example: `undo: found in windows-bar/, config assigns actionBar; skipped`.
 Logging itself must not crash the app.
+The concise Bottom Bar form identifies the latest owner/code, actual reason and
+recovery action; internal paths and full expected/actual detail remain in the log.
 
 Development-only inspection mode draws section boundaries and labels component
 ID, instance ID, `parentId` and source file. Off during normal use; it must not
@@ -1334,7 +1370,8 @@ uses its own declared owners; no old controller or stamp runtime was copied in.
    A06 field release and A07 row mechanics/order/validation are complete.
    A08 value/dropdown states and A09 section geometry/flow validation are complete.
    A10 transactional replacement, A11 input isolation and A12 busy guard
-   consistency are complete. A13 diagnostic origin/readability is next. A14 remains.
+   consistency and A13 diagnostic origin/readability are complete. A14 retained
+   check/claim maintenance is next and is the final open audit finding.
 2. Preserve implemented photo/file/history/input features and the latest UI.
    Make each repair in its existing owning files; remove directly superseded code
    after checking callers. Do not replace the app with another framework or host.
@@ -1359,7 +1396,7 @@ re-audit unrelated files or repeatedly reconfirm an already-correct skeleton.
 ## Acceptance checklist
 
 Checked items describe implemented structure or earlier evidence, not a fresh
-runtime verification of the audited revision. Open A13/A14 findings qualify
+runtime verification of the audited revision. Open A14 findings qualify
 those claims. Deferred features are listed separately and are not this repair's
 definition of done.
 

@@ -18,9 +18,10 @@ export function wheelSettingsProblem(settings) {
   return null;
 }
 
-export function attachPhotoWheelInput({ canvas, painter, settings, actions, isBlocked }) {
+export function attachPhotoWheelInput({ canvas, painter, settings, actions, isBlocked, onError }) {
   let gesture = null;
   let timeout = null;
+  let reportingFailure = false;
   const clearTimer = () => { if (timeout !== null) clearTimeout(timeout); timeout = null; };
   const end = (cancel = false) => {
     clearTimer();
@@ -35,6 +36,16 @@ export function attachPhotoWheelInput({ canvas, painter, settings, actions, isBl
   };
   const active = () => gesture && (gesture.kind === 'viewZoom'
     ? actions.isViewEditActive(gesture.edit) : actions.isPhotoEditActive(gesture.edit));
+  const failed = (operation, error) => {
+    if (reportingFailure) return;
+    reportingFailure = true;
+    try { try { end(true); } catch {} onError?.(operation, error); }
+    finally { reportingFailure = false; }
+  };
+  const safe = (operation, handler) => (...args) => {
+    try { return handler(...args); }
+    catch (error) { failed(operation, error); return undefined; }
+  };
   const wheel = (event) => {
     const state = actions.getSnapshot();
     if (!settings.enabled || interactionBlocked({ document, target: event.target, state }) || isBlocked()) { if (gesture) end(); return; }
@@ -65,16 +76,19 @@ export function attachPhotoWheelInput({ canvas, painter, settings, actions, isBl
   };
   const focusIn = (event) => { if (gesture && interactionBlocked({ document, target: event.target, state: actions.getSnapshot(), controls: 'keyboard' })) end(); };
   const blur = () => end();
-  canvas.addEventListener('wheel', wheel, { passive: false });
-  canvas.addEventListener('blur', blur); window.addEventListener('keydown', keyDown); window.addEventListener('focusin', focusIn); window.addEventListener('blur', blur);
-  const unsubscribe = actions.subscribe(() => { if (gesture && (!active() || actions.getSnapshot().busy)) end(); });
+  const handlers = { wheel: safe('wheel', wheel), canvasBlur: safe('canvas-blur', blur), keydown: safe('keydown', keyDown),
+    focusin: safe('focusin', focusIn), windowBlur: safe('window-blur', blur), state: safe('state', () => { if (gesture && (!active() || actions.getSnapshot().busy)) end(); }) };
+  canvas.addEventListener('wheel', handlers.wheel, { passive: false });
+  canvas.addEventListener('blur', handlers.canvasBlur); window.addEventListener('keydown', handlers.keydown);
+  window.addEventListener('focusin', handlers.focusin); window.addEventListener('blur', handlers.windowBlur);
+  const unsubscribe = actions.subscribe(handlers.state);
   return {
     finish: () => end(),
     dispose: () => {
       unsubscribe();
-      canvas.removeEventListener('wheel', wheel); canvas.removeEventListener('blur', blur);
-      window.removeEventListener('keydown', keyDown); window.removeEventListener('focusin', focusIn); window.removeEventListener('blur', blur);
-      end();
+      canvas.removeEventListener('wheel', handlers.wheel); canvas.removeEventListener('blur', handlers.canvasBlur);
+      window.removeEventListener('keydown', handlers.keydown); window.removeEventListener('focusin', handlers.focusin); window.removeEventListener('blur', handlers.windowBlur);
+      safe('dispose', end)();
     },
   };
 }

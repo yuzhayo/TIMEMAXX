@@ -41,6 +41,14 @@ export function createFrameSession(config, services = {}) {
     snapshot = read();
   }
   const unsubscribeDiagnostics = services.diagnostics?.subscribe(() => publish(true));
+  const reportUiFailure = (failure, origin = {}) => services.diagnostics?.report({
+    code: failure.code ?? 'UI_INTERACTION_FAILED', operation: failure.operation,
+    componentId: origin.componentId, instanceId: origin.instanceId, parentId: origin.parentId,
+    filePath: origin.filePath, configPath: origin.configPath,
+    expected: failure.expected ?? 'successful UI interaction',
+    actual: failure.error instanceof Error ? failure.error.message : String(failure.error ?? 'Unknown UI interaction failure'),
+    action: failure.action ?? 'interaction stopped; current state retained',
+  });
   return {
     subscribe: (listener) => { listeners.add(listener); return () => listeners.delete(listener); },
     getSnapshot: () => snapshot,
@@ -53,6 +61,8 @@ export function createFrameSession(config, services = {}) {
     ...(photoOperations ?? {}),
     ...(viewOperations ?? {}),
     setOutputWidth: (width) => { if (photoState && !photoState.busy) { photoState.setOutputWidth(width); publish(true); } },
-    previewFailed: (message) => services.diagnostics?.report({ code: 'PHOTO_PREVIEW_FAILED', expected: 'decoded photo preview', actual: message, action: 'original photo retained for export' }),
+    reportUiFailure,
+    previewFailed: (message, origin, operation = 'preview') => reportUiFailure({ code: 'PHOTO_PREVIEW_FAILED', operation,
+      expected: 'decoded photo preview', error: message, action: 'preview update stopped; original photo retained for export' }, origin),
     dispose: () => { unsubscribeDiagnostics?.(); files?.dispose(); windowActions?.dispose(); photoState?.dispose(); listeners.clear(); },  };
 }

@@ -51,10 +51,19 @@ export default function PlacementDropdown({ config, state, actions }) {
   const disabled = !state.photo || state.busy || typeof actions.placePhoto !== 'function';
   const indicatorStyle = (style) => ({ ...style, ...boundsStyle(indicator.bounds), pointerEvents: 'none' });
   const focusSelector = '&:has(:where(.MuiSelect-select):focus-visible)';
+  const activate = (event) => {
+    const mode = event.target.value;
+    try { actions.placePhoto(mode); }
+    catch (error) {
+      actions.reportUiFailure?.({ code: 'PLACEMENT_ACTION_FAILED', operation: mode, expected: 'successful configured photo placement',
+        error, action: 'placement command stopped; current photo transform retained' },
+      { componentId: config.componentId, instanceId: config.id, parentId: config.parentId, filePath: config.filePath, configPath: config.configPath });
+    }
+  };
 
   // UI — one configured action selector; it does not retain a fake placement mode.
   return <Select id={config.id} value="" displayEmpty renderValue={() => config.label} IconComponent={actionIconOf(indicator.icon)}
-    inputProps={{ 'aria-label': config.label }} disabled={disabled} onChange={(event) => actions.placePhoto(event.target.value)}
+    inputProps={{ 'aria-label': config.label }} disabled={disabled} onChange={activate}
     variant="standard" disableUnderline MenuProps={{ slotProps: {
       paper: { 'data-part': 'placement-menu', sx: fontRelativeSx(menu) },
       list: { 'data-part': 'placement-list', disablePadding: true, sx: fontRelativeSx(list) },
