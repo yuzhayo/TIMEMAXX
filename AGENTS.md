@@ -1,9 +1,9 @@
 # @APPS working agreement
 
 Work only inside `@APPS` unless the user authorizes another location. Follow the
-user's current request. `current-concept-audit.md` holds the current target and
-acceptance checklist. Keep notes current in place; do not accumulate superseded
-plans, decision histories or competing recommendations.
+user's current request. `frame-current-state.md` describes the implemented Frame
+app and its active boundaries. Keep notes current in place; do not accumulate
+superseded plans, decision histories or competing recommendations.
 
 ## Notes-only tasks: strictly no skill or completion ritual
 
@@ -47,17 +47,14 @@ additional Yuzskill groups or a reason to run the whole list.
 
 ## Goal and stage
 
-Prove the parent-child contract in the new standalone `frame/` target, then reuse
-it in `ui-control` and apply its ownership principle to `engine`. Folders identify
-ownership; files identify jobs; source sections identify where to fix them.
+The standalone `frame/` parent-child contract is complete. Folders identify
+ownership; files identify jobs; source sections identify where to fix them. Reuse
+the proven mechanism in `ui-control` or apply its ownership
+principle to `engine` only when the user explicitly requests that work.
 
-The skeleton and first layout/history slice are complete. Implement only the
-approved next slice, using the target map. Leave unrelated skeleton files empty
-and existing `output-frame/` as a reference, not a source for blind copying.
-Notes must distinguish implemented features from requirements. The source-audit
-repair list in `current-concept-audit.md` is the current work queue; do not start
-deferred features while repairing it. The user's latest explicit decisions take
-precedence over older examples, existing code and historical test expectations.
+Keep unrelated empty skeleton files empty. Do not infer a new work queue from them.
+Notes must distinguish implemented features from deferred requirements. The user's
+latest explicit decisions take precedence over older examples and historical tests.
 
 ## Unified parent-child mechanism
 
@@ -175,7 +172,7 @@ No separate inspection framework/service is needed.
   duplicate preview, and Input creates no duplicate Frame display. Frame may
   display a finished combined preview supplied by that orchestrator without
   interpreting overlay content. Combined Save is coordinated there. Do not
-  implement this integration yet; the current work is source-audit repair.
+  implement this integration until the user explicitly requests and approves it.
 - Photo transforms affect photo only; view transforms affect inspection only.
   Future stale-overlay rejection, clearing and accepted-revision consistency are
   orchestrator responsibilities. Photo replacement must not mutate its overlay.
@@ -185,7 +182,7 @@ No separate inspection framework/service is needed.
 ## Proof and discipline
 
 Prove JSON changes actual control appearance without affecting siblings; parent
-resize uses parent-relative geometry; one Load/Save preset changes both; moving
+resize uses parent-relative geometry; one Load/Reset/Save preset changes all; moving
 Undo/Redo needs only file moves and JSON edits; malformed entries are logged and
 isolated. Prove disabled instances, filename-independent IDs, duplicate detection
 before mount, deduplicated readable logs, and inspection mode.
@@ -194,7 +191,7 @@ Prove standalone photo/black export and separation of photo and inspection state
 Future combined-layer checks belong to the deferred orchestrator integration;
 they are not missing standalone Frame features to implement during this repair.
 Keep source protection, replacement, shortcuts, history, notices and exact 3:4
-exports (1200×1600, 2400×3200, 3024×4032). Inspect affected native UI at default and
+exports (1200×1600, 2400×3200, 3024×4032). Inspect affected native UI at startup and
 minimum sizes. A build/default screenshot alone does not prove config ownership.
 Use focused checks; repeat only for relevant changes or concrete uncertainty.
 Audit requests authorize inspection/reports, not app edits. Report actual checks
