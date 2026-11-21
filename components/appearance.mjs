@@ -52,6 +52,7 @@ export function configuredAppearance(node, state) {
     justifyContent: content.direction === 'column' ? content.verticalAlign : content.horizontalAlign,
     textAlign: content.textAlign,
     whiteSpace: content.whiteSpace,
+    overflowWrap: content.overflowWrap,
     overflow: content.overflow,
     flexWrap: content.wrap,
     minWidth: 0,

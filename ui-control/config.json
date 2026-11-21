@@ -9,5 +9,70 @@
     "height": { "base": "workArea", "percent": 100 },
     "placement": { "x": "beforeFrame", "y": "workAreaStart" },
     "background": "#111418"
+  },
+  "initialLanguage": "en",
+  "languages": [{ "id": "en", "label": "English" }, { "id": "id", "label": "Indonesia" }],
+  "presets": {
+    "base": {
+      "colors": { "background": "transparent", "foreground": "#e4e9ef", "border": "transparent", "outline": "transparent" },
+      "geometry": { "paddingX": 0, "paddingY": 0, "gap": 0, "radius": 0, "borderWidth": 0, "borderStyle": "solid", "outlineWidth": 0, "outlineStyle": "solid", "outlineOffset": 0, "fontSize": 14, "lineHeight": 1.3, "letterSpacing": 0, "opacity": 1, "shadow": "none", "transition": "none" },
+      "typography": { "family": "\"Segoe UI\", system-ui, sans-serif", "weight": 400 },
+      "content": { "direction": "row", "verticalAlign": "center", "horizontalAlign": "flex-start", "textAlign": "left", "whiteSpace": "normal", "overflow": "hidden", "wrap": "nowrap", "overflowWrap": "normal" },
+      "states": {}
+    },
+    "root": { "preset": "base", "colors": { "background": "#111418" }, "geometry": { "paddingX": 4, "paddingY": 0.5 }, "content": { "direction": "column", "verticalAlign": "flex-start", "horizontalAlign": "stretch" } },
+    "sectionHeader": {
+      "preset": "base", "colors": { "background": "#1d252f" }, "geometry": { "paddingX": 5 },
+      "content": { "direction": "row", "horizontalAlign": "space-between" },
+      "states": {
+        "hover": { "colors": { "background": "#303d4c" } },
+        "focusVisible": { "colors": { "outline": "#ffc44d" }, "geometry": { "outlineWidth": 1 } }
+      },
+      "bounds": { "width": 100, "height": 20 },
+      "parts": {
+        "title": { "preset": "base", "bounds": { "width": 82, "height": 100 }, "typography": { "weight": 600 } },
+        "icon": { "preset": "base", "bounds": { "width": 12, "height": 60 }, "name": "expandMore", "rotation": { "closed": 0, "open": 180 } }
+      }
+    },
+    "sectionDetails": { "preset": "base", "geometry": { "paddingX": 5, "paddingY": 6 }, "content": { "direction": "column", "verticalAlign": "flex-start", "horizontalAlign": "stretch" } },
+    "sectionCard": {
+      "preset": "base", "colors": { "background": "#171c22", "border": "#43505f" },
+      "geometry": { "borderWidth": 1, "radius": 6 }, "content": { "direction": "column", "verticalAlign": "flex-start", "horizontalAlign": "stretch" },
+      "animation": { "durationMs": 0 },
+      "parts": { "header": { "preset": "sectionHeader" }, "details": { "preset": "sectionDetails" } }
+    },
+    "languageField": {
+      "preset": "base", "colors": { "background": "#1d252f", "border": "#43505f" },
+      "geometry": { "borderWidth": 1, "radius": 4, "fontSize": 13 }, "bounds": { "width": 100, "height": 28 },
+      "states": { "focusVisible": { "colors": { "outline": "#ffc44d" }, "geometry": { "outlineWidth": 1 } } },
+      "parts": {
+        "value": { "preset": "base", "geometry": { "paddingX": 6, "paddingY": 0, "fontSize": 13 } },
+        "icon": { "preset": "base", "bounds": { "width": 14, "height": 60 }, "name": "arrowDropDown" },
+        "menu": {
+          "preset": "base", "colors": { "background": "#171c22", "border": "#43505f" }, "geometry": { "borderWidth": 1, "radius": 4, "fontSize": 13 },
+          "content": { "direction": "column", "verticalAlign": "flex-start", "horizontalAlign": "stretch", "overflow": "auto" },
+          "portal": { "base": "inputViewport", "widthBase": "anchor", "maxHeight": 30, "anchorOrigin": { "vertical": "bottom", "horizontal": "left" }, "transformOrigin": { "vertical": "top", "horizontal": "left" } }
+        },
+        "option": {
+          "preset": "base", "geometry": { "fontSize": 13, "paddingX": 4, "paddingY": 0.4 },
+          "states": { "hover": { "colors": { "background": "#303d4c" } }, "selected": { "colors": { "background": "#303d4c" } }, "focusVisible": { "colors": { "background": "#1d252f" } } }
+        }
+      }
+    },
+    "diagnostic": { "preset": "base", "colors": { "foreground": "#ffe2a0" }, "geometry": { "fontSize": 10, "paddingY": 0.5 }, "content": { "overflow": "auto", "overflowWrap": "anywhere" } },
+    "inspection": { "preset": "base", "colors": { "border": "#ffc44d", "foreground": "#ffc44d" }, "geometry": { "borderWidth": 1, "fontSize": 8 }, "content": { "verticalAlign": "flex-start", "whiteSpace": "normal" } }
+  },
+  "root": { "id": "inputRoot", "preset": "root" },
+  "diagnostics": { "preset": "diagnostic", "height": 8 },
+  "development": { "inspectionEnabled": false, "inspector": { "preset": "inspection", "zIndex": 10 } },
+  "sections": [
+    { "id": "language", "componentId": "input.language", "parentId": "inputRoot", "folder": "language", "enabled": true, "expanded": true, "bounds": { "width": 100, "height": 16 }, "preset": "sectionCard", "parts": { "field": { "preset": "languageField" } } },
+    { "id": "code", "componentId": "input.code", "parentId": "inputRoot", "folder": "code", "enabled": true, "expanded": true, "bounds": { "width": 100, "height": 16 }, "preset": "sectionCard" },
+    { "id": "date", "componentId": "input.date", "parentId": "inputRoot", "folder": "date", "enabled": true, "expanded": true, "bounds": { "width": 100, "height": 16 }, "preset": "sectionCard" },
+    { "id": "time", "componentId": "input.time", "parentId": "inputRoot", "folder": "time", "enabled": true, "expanded": true, "bounds": { "width": 100, "height": 16 }, "preset": "sectionCard" }
+  ],
+  "layouts": {
+    "en": { "gapY": 1, "order": ["language", "code", "date", "time"], "sections": { "language": { "label": "Language" }, "code": { "label": "Code" }, "date": { "label": "Date" }, "time": { "label": "Time" } } },
+    "id": { "gapY": 1, "order": ["language", "code", "date", "time"], "sections": { "language": { "label": "Bahasa" }, "code": { "label": "Kode" }, "date": { "label": "Tanggal" }, "time": { "label": "Waktu" } } }
   }
 }

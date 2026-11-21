@@ -96,12 +96,16 @@ latest explicit decisions take precedence over older examples and historical tes
   control opens the popup. Rotation's value remains editable. Shared UI owns the
   common rendering/input mechanics; adapters supply feature values and commands.
 - Action Bar contains one standalone/orphan Edit button with a pencil icon after
-  Size. Its approved command toggles the blank Input screen in `ui-control/`:
+  Size. Its approved command toggles the Input screen in `ui-control/`:
   closed → open, open → close. Input is frameless with no caption, native controls,
   title text or reserved Windows-Bar area. On each opening its width is 25% of
   current Frame width, height is the full current monitor work area excluding the
   taskbar, and its right edge touches Frame's left edge: `[ Input ][ Frame ]`.
-  Do not add input fields or assign editing/data behavior until the user requests it.
+  Input currently contains Language, Code, Date and Time card foundations. They
+  share `components/SectionCard.jsx`; headers expand/collapse independently without
+  resetting selection. Language is the one global English/Indonesia choice.
+  Layouts/labels/visuals are configured separately per locale. Generator/date/time
+  business controls, LongLat and other data sections remain deferred.
 - Startup and vertical maximize use the approved narrow configured width, full
   monitor work-area height excluding the taskbar, and right alignment. Restore
   returns to previous bounds. Native geometry is not photo or section-layout logic.
@@ -168,7 +172,7 @@ No separate inspection framework/service is needed.
 
 - `frame/` owns its window, output settings, photo editing, photo preview and
   standalone photo/black export. Its only approved Input link is the lazy public
-  launch-only contract `ui-control/screen.cjs`: toggle one blank native screen
+  launch-only contract `ui-control/screen.cjs`: toggle one native Input screen
   and close it with Frame. Missing/invalid Input must not break Frame startup/export.
   No Input internals, data integration, build dependencies or engine calls/launches.
   It does not interpret overlay settings or own overlay
@@ -176,11 +180,17 @@ No separate inspection framework/service is needed.
 - `ui-control/` owns facts/settings, input controls and its config. `engine/` owns
   normalized content, verified stamp/layout rules and headless prepared output.
   Rust uses the ownership principle, not the UI schema or artificial UI sections.
-  Currently Input has only a blank frameless HTML client area, with no Windows Bar.
+  Input has its own React/MUI renderer and build under `ui-control/`, with no
+  Windows Bar. Run `ui-control/build.cmd` to prepare it; Frame does not build Input.
   `ui-control/config.json` owns frame-relative width, work-area-relative height,
   adjoining-left placement, native-frame flags and background; computed native
   bounds use DIP. Its title is metadata only, never rendered. It has
-  no fields, persistence, preview, renderer bridge, engine or overlay behavior.
+  only a scoped config/diagnostic preload, a global language selector and four
+  discovered section adapters. Code/Date/Time bodies remain intentionally empty;
+  no generation, data persistence, preview, Frame/file bridge, engine or overlay.
+  Each section exports a filename-independent ID and is assigned by JSON folder/
+  parent. Shared catalog/diagnostic owners live in `components/`; Frame's old paths
+  are compatibility reexports, not duplicated implementations.
   Rapid toggles are serialized; closing Input leaves Frame alive. Bounds are
   recalculated when opening, not saved from manual coordinates or tied to photo state.
 - Future joint routing and composition belong to a background orchestrator with

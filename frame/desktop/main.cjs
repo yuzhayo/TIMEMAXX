@@ -63,7 +63,8 @@ app.whenReady().then(async () => {
       if (!inputScreen) {
         const { BrowserWindow, screen } = require('electron');
         const { createInputScreen } = require('../../ui-control/screen.cjs');
-        inputScreen = createInputScreen({ BrowserWindow, screen, parent: window });
+        inputScreen = createInputScreen({ BrowserWindow, screen, parent: window, ipcMain,
+          development: !app.isPackaged, inspectionRequested: !app.isPackaged && process.argv.includes('--inspect-layout') });
       }
       const state = await inputScreen.toggle();
       return { ok: true, ...state };
@@ -97,7 +98,7 @@ app.on('before-quit', (event) => {
   event.preventDefault();
   quitting = true;
   (async () => {
-    try { await files?.dispose(); }
+    try { await inputScreen?.dispose(); await files?.dispose(); }
     finally {
       await worker?.close();
       if (sessionDirectory) await fs.promises.rm(sessionDirectory, { recursive: true, force: true });

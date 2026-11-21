@@ -1,5 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const { randomUUID } = require('node:crypto');
+const { DiagnosticLog } = require('../components/DiagnosticLog.cjs');
 
 // UI — native DIP geometry derives from the current host and monitor, never photo state.
 function inputWindowBounds(frame, area, config) {
@@ -14,9 +16,12 @@ function inputWindowBounds(frame, area, config) {
 
 // LOGIC — public launch-only contract. The host supplies native services and lifetime;
 // Input owns its config/page. No photo, settings, engine, or overlay data is accepted.
-function createInputScreen({ BrowserWindow, screen, parent, configPath = path.join(__dirname, 'config.json') }) {
+function createInputScreen({ BrowserWindow, screen, parent, ipcMain, development = false, inspectionRequested = false, configPath = path.join(__dirname, 'config.json') }) {
+  if (typeof ipcMain?.handle !== 'function' || typeof ipcMain?.removeHandler !== 'function') throw new Error('Input configuration transport is unavailable; restart the updated Frame');
   let window;
   let queue = Promise.resolve();
+  let disposed = false;
+  const log = new DiagnosticLog(path.join(__dirname, '.runtime/logs'));
 
   const settings = () => {
     const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
@@ -30,7 +35,7 @@ function createInputScreen({ BrowserWindow, screen, parent, configPath = path.jo
       || typeof value.background !== 'string' || !/^#[0-9a-f]{6}$/i.test(value.background)) {
       throw new Error(`${configPath}: invalid Input window settings; expected frame/workArea percentages, beforeFrame placement, native-frame flags and #RRGGBB background`);
     }
-    return value;
+    return config;
   };
 
   const closeWindow = (target) => {
@@ -40,27 +45,41 @@ function createInputScreen({ BrowserWindow, screen, parent, configPath = path.jo
 
   // UI — frameless client area fills the configured bounds; no caption or Windows-Bar space.
   const create = async () => {
-    const config = settings();
+    const configuration = settings(), config = configuration.window;
     const frame = parent.getBounds();
     const area = screen.getDisplayMatching(frame).workArea;
+    const token = randomUUID();
+    const bootstrapChannel = `input:${token}:bootstrap`, diagnosticsChannel = `input:${token}:diagnostics`;
     const created = new BrowserWindow({
       title: config.title, parent, modal: false, show: false,
       ...inputWindowBounds(frame, area, config), frame: config.frame, thickFrame: config.thickFrame,
       backgroundColor: config.background, autoHideMenuBar: true,
-      webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
+      webPreferences: { preload: path.join(__dirname, 'desktop/preload.cjs'), additionalArguments: [`--input-token=${token}`],
+        contextIsolation: true, nodeIntegration: false, sandbox: true },
     });
     window = created;
     created.setMenu(null);
     created.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     created.webContents.on('will-navigate', (event) => event.preventDefault());
     created.on('page-title-updated', (event) => event.preventDefault());
-    created.once('closed', () => { if (window === created) window = null; });
+    const allowed = (event) => event.sender === created.webContents && event.senderFrame === created.webContents.mainFrame;
+    ipcMain.handle(bootstrapChannel, (event) => allowed(event)
+      ? { config: configuration, development, inspectionRequested: development && inspectionRequested, logPath: log.path } : null);
+    ipcMain.handle(diagnosticsChannel, (event, records) => {
+      if (!allowed(event) || !Array.isArray(records) || records.length > 1000) return { ok: false, error: 'Unknown Input sender or invalid diagnostic records' };
+      return log.write(records);
+    });
+    created.once('closed', () => {
+      ipcMain.removeHandler(bootstrapChannel); ipcMain.removeHandler(diagnosticsChannel);
+      if (window === created) window = null;
+    });
     try {
-      await created.loadFile(path.join(__dirname, 'view/InputScreen.html'));
+      await created.loadFile(path.join(__dirname, 'view-built/index.html'));
       if (created.isDestroyed()) throw new Error('Input screen closed while opening');
       return created;
     } catch (error) {
       await closeWindow(created);
+      if (error.code === 'ERR_FILE_NOT_FOUND') throw new Error('Input renderer is not built; run ui-control/build.cmd');
       throw error;
     }
   };
@@ -70,7 +89,7 @@ function createInputScreen({ BrowserWindow, screen, parent, configPath = path.jo
   return {
     toggle: () => {
       const command = queue.then(async () => {
-        if (parent.isDestroyed()) throw new Error('Frame window is closed');
+        if (disposed || parent.isDestroyed()) throw new Error('Frame window is closed');
         if (window && !window.isDestroyed()) {
           await closeWindow(window);
           return { visible: false };
@@ -83,6 +102,7 @@ function createInputScreen({ BrowserWindow, screen, parent, configPath = path.jo
       return command;
     },
     close: () => { if (window && !window.isDestroyed()) window.close(); },
+    dispose: async () => { disposed = true; await closeWindow(window); await queue; await log.queue; },
   };
 }
 

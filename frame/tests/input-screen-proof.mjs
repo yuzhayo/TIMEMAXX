@@ -22,18 +22,18 @@ const metrics = [];
 let finished = false;
 
 const inputCount = () => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()
-  .filter((win) => !win.isDestroyed() && !win.webContents.isDestroyed() && win.webContents.getURL().includes('/InputScreen.html')).length);
+  .filter((win) => !win.isDestroyed() && !win.webContents.isDestroyed() && win.webContents.getURL().includes('/ui-control/view-built/index.html')).length);
 const closeInput = async (page) => {
   const closed = page.waitForEvent('close');
   await app.evaluate(({ BrowserWindow }) => {
-    const win = BrowserWindow.getAllWindows().find((item) => item.webContents.getURL().includes('/InputScreen.html'));
+    const win = BrowserWindow.getAllWindows().find((item) => item.webContents.getURL().includes('/ui-control/view-built/index.html'));
     return new Promise((resolve) => { win.once('closed', resolve); win.close(); });
   });
   await closed;
 };
 const captureNative = async (page, name, pair = false) => {
   await app.evaluate(({ BrowserWindow }) => {
-    const win = BrowserWindow.getAllWindows().find((item) => item.webContents.getURL().includes('/InputScreen.html'));
+    const win = BrowserWindow.getAllWindows().find((item) => item.webContents.getURL().includes('/ui-control/view-built/index.html'));
     win.show(); win.focus();
   });
   // Allow the native show/resize animation to settle for visual evidence only.
@@ -45,7 +45,7 @@ const captureNative = async (page, name, pair = false) => {
   // Windows omits owned child windows from window-source inventory. Retain only
   // Input's exact native rectangle; the rest of the monitor is never written.
   const native = await app.evaluate(async ({ BrowserWindow, desktopCapturer, screen }, includeFrame) => {
-    const win = BrowserWindow.getAllWindows().find((item) => item.webContents.getURL().includes('/InputScreen.html'));
+    const win = BrowserWindow.getAllWindows().find((item) => item.webContents.getURL().includes('/ui-control/view-built/index.html'));
     let bounds = win.getBounds();
     const display = screen.getDisplayMatching(bounds);
     if (includeFrame) {
@@ -69,15 +69,21 @@ const captureNative = async (page, name, pair = false) => {
 const checkInput = async (page, settings, name) => {
   page.on('pageerror', (error) => errors.push(error.message));
   await page.waitForSelector('main[aria-label="Input"]');
-  assert.equal(await page.locator('main').textContent(), '');
-  assert.equal(await page.locator('main > *').count(), 0);
-  assert.equal(await page.locator('input, textarea, select, button, canvas, img, iframe').count(), 0);
+  await page.evaluate(() => window.inputDev?.inspect(false));
+  await page.waitForFunction(() => document.querySelectorAll('[data-section-card]').length === 4);
+  assert.equal(await page.locator('[data-section-card]').count(), 4, 'Input renders the four approved foundation sections');
+  assert.deepEqual(await page.locator('[data-section-title]').allTextContents(), ['Language', 'Code', 'Date', 'Time']);
+  assert.equal(await page.locator('[data-card-renderer="shared-mui"]').count(), 4);
+  assert.equal(await page.getByRole('combobox').count(), 1);
+  for (const id of ['code', 'date', 'time']) assert.equal(await page.locator(`#${id} [data-card-content] > *`).count(), 0, `${id} business content remains deferred`);
+  assert.equal(await page.locator('canvas, img, iframe').count(), 0);
   assert.deepEqual(await page.evaluate(() => ({ host: typeof window.frameHost, node: typeof require })),
     { host: 'undefined', node: 'undefined' });
+  assert.deepEqual(await page.evaluate(() => Object.keys(window.inputHost).sort()), ['bootstrap', 'diagnostics']);
   const native = await app.evaluate(async ({ BrowserWindow, screen }) => {
-    const win = BrowserWindow.getAllWindows().find((item) => item.webContents.getURL().includes('/InputScreen.html'));
+    const win = BrowserWindow.getAllWindows().find((item) => item.webContents.getURL().includes('/ui-control/view-built/index.html'));
     const preferences = win.webContents.getLastWebPreferences();
-    const color = await win.webContents.capturePage({ x: 50, y: 50, width: 1, height: 1 });
+    const color = await win.webContents.capturePage({ x: 2, y: 50, width: 1, height: 1 });
     const frame = win.getParentWindow();
     return { title: win.getTitle(), bounds: win.getBounds(), contentBounds: win.getContentBounds(),
       area: screen.getDisplayMatching(frame.getBounds()).workArea, parent: frame.id, frame: frame.getBounds(),
@@ -110,6 +116,85 @@ const checkInput = async (page, settings, name) => {
   metrics.push({ name, native, geometry });
 };
 
+const checkFoundation = async (page) => {
+  const baseline = await page.evaluate(() => structuredClone(window.inputDev.config));
+  const headers = () => page.locator('[data-section-title]').allTextContents();
+  const blurHeaders = () => page.mouse.move(2, 1000);
+  await page.getByRole('combobox').click();
+  await page.getByRole('option', { name: 'Indonesia', exact: true }).click();
+  await page.waitForFunction(() => window.inputDev.snapshot().language === 'id');
+  assert.deepEqual(await headers(), ['Bahasa', 'Kode', 'Tanggal', 'Waktu']);
+  await page.evaluate(() => { window.inputProofContent = document.querySelector('#language [data-card-content]'); });
+  const expandedHeight = (await page.locator('[data-instance="code"]').boundingBox()).height;
+  await page.locator('#code-heading').click();
+  await page.waitForFunction(() => document.getElementById('code-heading').getAttribute('aria-expanded') === 'false');
+  assert.ok((await page.locator('[data-instance="code"]').boundingBox()).height < expandedHeight / 2);
+  assert.equal(await page.locator('#date-heading').getAttribute('aria-expanded'), 'true');
+  assert.equal(await page.locator('#time-heading').getAttribute('aria-expanded'), 'true');
+  await page.locator('#language-heading').click();
+  await page.waitForFunction(() => document.getElementById('language-heading').getAttribute('aria-expanded') === 'false');
+  assert.equal(await page.evaluate(() => window.inputDev.snapshot().language), 'id');
+  assert.equal(await page.evaluate(() => window.inputProofContent === document.querySelector('#language [data-card-content]')), true, 'Collapse keeps content mounted');
+  await page.locator('#language-heading').focus();
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => document.getElementById('language-heading').getAttribute('aria-expanded') === 'true');
+  assert.equal(await page.getByRole('combobox').textContent(), 'Indonesia');
+  assert.equal(await page.locator('#code-heading').getAttribute('aria-expanded'), 'false');
+  await page.locator('#code-heading').click();
+  await blurHeaders();
+
+  const variant = structuredClone(baseline);
+  variant.layouts.id.order = ['language', 'time', 'date', 'code'];
+  variant.layouts.id.sections.code = { label: 'Kode', bounds: { width: 80, height: 16 }, parts: { header: { colors: { background: '#285776' } } } };
+  await page.evaluate((config) => window.inputDev.reconfigure(config), variant);
+  await page.waitForFunction(() => getComputedStyle(document.getElementById('code-heading')).backgroundColor === 'rgb(40, 87, 118)');
+  assert.deepEqual(await page.locator('[data-instance]').evaluateAll((nodes) => nodes.map((node) => node.dataset.instance)), variant.layouts.id.order);
+  const parentWidth = (await page.locator('[data-input-stack]').boundingBox()).width;
+  assert.ok(Math.abs((await page.locator('[data-instance="code"]').boundingBox()).width - parentWidth * 0.8) < 1, 'Section width is parent relative');
+  assert.equal(await page.locator('#date-heading').evaluate((node) => getComputedStyle(node).backgroundColor), 'rgb(29, 37, 47)');
+  await page.getByRole('combobox').click();
+  await page.getByRole('option', { name: 'English', exact: true }).click();
+  await page.getByRole('listbox').waitFor({ state: 'hidden' });
+  assert.deepEqual(await headers(), ['Language', 'Code', 'Date', 'Time']);
+  assert.equal(await page.locator('#code-heading').evaluate((node) => getComputedStyle(node).backgroundColor), 'rgb(29, 37, 47)', 'Indonesian layout override does not alter English');
+
+  const shared = structuredClone(baseline);
+  shared.presets.sectionHeader.colors.background = '#2c6180';
+  await page.evaluate((config) => window.inputDev.reconfigure(config), shared);
+  await blurHeaders();
+  await page.waitForFunction(() => [...document.querySelectorAll('[data-section-card] button')].every((node) => getComputedStyle(node).backgroundColor === 'rgb(44, 97, 128)'));
+  assert.equal(await page.locator('[data-section-card]').count(), 4);
+  await page.screenshot({ path: path.join(artifacts, 'shared-card-preset.png') });
+  await page.evaluate((config) => window.inputDev.reconfigure(config), baseline);
+  await page.evaluate(() => window.inputDev.inspect(true));
+  assert.equal(await page.locator('[data-inspection]').count(), 4);
+  assert.match(await page.locator('[data-inspection="code"]').textContent(), /input.code.*code.*inputRoot.*code\/CodeSection.jsx/);
+  assert.equal(await page.locator('[data-inspection="code"]').evaluate((node) => getComputedStyle(node).pointerEvents), 'none');
+  await page.evaluate(() => window.inputDev.inspect(false));
+
+  const invalid = structuredClone(baseline);
+  invalid.sections[1].parts = { header: { colors: { background: 'not-a-color' } } };
+  await page.evaluate((config) => window.inputDev.reconfigure(config), invalid);
+  await page.waitForFunction(() => document.querySelectorAll('[data-section-card]').length === 3);
+  assert.equal(await page.locator('#language-heading').isEnabled(), true);
+  assert.equal(await page.locator('#date-heading').isEnabled(), true);
+  const records = await page.evaluate(() => window.inputDev.records());
+  assert.ok(records.some((issue) => issue.code === 'INPUT_VISUAL_INVALID' && issue.instanceId === 'code' && issue.filePath === 'code/CodeSection.jsx'));
+  assert.ok(records.every((issue) => issue.code === 'INPUT_VISUAL_INVALID'));
+  assert.match(await page.locator('[data-input-diagnostics]').textContent(), /code/i);
+  assert.equal(await page.locator('[data-input-diagnostics]').evaluate((node) => node.scrollWidth <= node.clientWidth), true, 'Diagnostics wrap without horizontal scrolling');
+  await page.evaluate(() => window.inputDev.flush());
+  const logPath = await page.evaluate(() => window.inputDev.logPath);
+  const persisted = JSON.parse(await fs.readFile(logPath, 'utf8'));
+  assert.ok(persisted.some((issue) => issue.instanceId === 'code'));
+  await page.evaluate((config) => window.inputDev.reconfigure(config), baseline);
+  await page.waitForFunction(() => document.querySelectorAll('[data-section-card]').length === 4);
+  await page.screenshot({ path: path.join(artifacts, 'foundation-en-restored.png') });
+  await page.evaluate(() => window.inputDev.setLanguage('id'));
+  await page.screenshot({ path: path.join(artifacts, 'foundation-id.png') });
+  await page.evaluate(() => window.inputDev.setLanguage('en'));
+};
+
 try {
   const frame = await app.firstWindow();
   frame.on('pageerror', (error) => errors.push(error.message));
@@ -120,8 +205,9 @@ try {
   const frameBounds = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getBounds());
   let [input] = await Promise.all([app.waitForEvent('window'), frame.click('#orphanEdit')]);
   await checkInput(input, config.window, 'startup');
+  await checkFoundation(input);
   const firstId = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()
-    .find((win) => win.webContents.getURL().includes('/InputScreen.html')).id);
+    .find((win) => win.webContents.getURL().includes('/ui-control/view-built/index.html')).id);
   assert.deepEqual(await frame.evaluate(() => window.frameDev.snapshot()), before);
   assert.equal(await inputCount(), 1);
   const firstClosed = input.waitForEvent('close');
@@ -137,7 +223,7 @@ try {
   [input] = await Promise.all([app.waitForEvent('window'), frame.click('#orphanEdit')]);
   await checkInput(input, config.window, 'frame-minimum');
   assert.notEqual(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()
-    .find((win) => win.webContents.getURL().includes('/InputScreen.html')).id), firstId);
+    .find((win) => win.webContents.getURL().includes('/ui-control/view-built/index.html')).id), firstId);
   const minimumClosed = input.waitForEvent('close');
   await frame.click('#orphanEdit');
   await minimumClosed;
@@ -149,7 +235,7 @@ try {
   const rapid = await frame.evaluate(() => Promise.all(Array.from({ length: 5 }, () => window.frameHost.toggleInputScreen())));
   assert.deepEqual(rapid, Array.from({ length: 5 }, (_, index) => ({ ok: true, visible: index % 2 === 0 })));
   assert.equal(await inputCount(), 1);
-  input = app.windows().find((page) => !page.isClosed() && page.url().includes('/InputScreen.html'));
+  input = app.windows().find((page) => !page.isClosed() && page.url().includes('/ui-control/view-built/index.html'));
   assert.ok(input);
   await checkInput(input, config.window, 'rapid-reopened');
   const rapidClosed = input.waitForEvent('close');
@@ -161,12 +247,13 @@ try {
   const variant = structuredClone(config);
   variant.window.width.percent = 35;
   variant.window.background = '#285776';
+  variant.root.colors = { background: '#285776' };
   const variantPath = path.join(artifacts, 'variant.json');
   await fs.writeFile(variantPath, JSON.stringify(variant));
-  [input] = await Promise.all([app.waitForEvent('window'), app.evaluate(async ({ BrowserWindow, screen }, options) => {
+  [input] = await Promise.all([app.waitForEvent('window'), app.evaluate(async ({ BrowserWindow, screen, ipcMain }, options) => {
     const require = process.getBuiltinModule('module').createRequire(options.modulePath);
     const { createInputScreen } = require(options.modulePath);
-    globalThis.inputProofVariant = createInputScreen({ BrowserWindow, screen,
+    globalThis.inputProofVariant = createInputScreen({ BrowserWindow, screen, ipcMain, development: true, inspectionRequested: true,
       parent: BrowserWindow.getAllWindows()[0], configPath: options.configPath });
     await globalThis.inputProofVariant.toggle();
   }, { modulePath: path.join(inputRoot, 'screen.cjs'), configPath: variantPath })]);
@@ -208,7 +295,7 @@ try {
   await input.waitForSelector('main[aria-label="Input"]');
   assert.equal(await inputCount(), 1, 'Input reopens after the isolated failure');
   assert.notEqual(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()
-    .find((win) => win.webContents.getURL().includes('/InputScreen.html')).id), firstId);
+    .find((win) => win.webContents.getURL().includes('/ui-control/view-built/index.html')).id), firstId);
   const records = await frame.evaluate(() => window.frameDev.records());
   assert.deepEqual(records.map((issue) => issue.code), ['INPUT_SCREEN_TOGGLE_FAILED']);
   assert.deepEqual(errors, []);
@@ -225,10 +312,12 @@ try {
   await Promise.all([inputClosed, frameClosed, processExited]);
   assert.equal(child.exitCode, 0);
   finished = true;
-  console.log(JSON.stringify({ pass: true, checked: ['real pencil toggles empty frameless Input', 'rapid-click parity with one live window',
+  console.log(JSON.stringify({ pass: true, checked: ['real pencil toggles four-section frameless Input', 'shared MUI cards and scoped Input bootstrap',
+    'global language dropdown and independent locale layouts', 'keyboard/click collapse preserves selection and mounted content',
+    'shared card preset updates all four headers', 'section parent percentages and sibling isolation', 'invalid UI section logged and isolated', 'development inspection', 'rapid-click parity with one live window',
     '25% Frame width at startup/minimum', 'full work-area height', 'Input right edge touches Frame left edge',
     'no native caption or Windows-Bar space', 'JSON geometry/background without sibling changes', 'isolated Input configuration failure',
-    'black export with invalid Input', 'no renderer bridge/data/preview', 'Input close leaves Frame alive', 'Frame close closes Input'], artifacts }, null, 2));
+    'black export with invalid Input', 'no Frame/file/data/preview bridge', 'Input close leaves Frame alive', 'Frame close closes Input'], artifacts }, null, 2));
 } finally {
   if (!finished) await app.close();
 }

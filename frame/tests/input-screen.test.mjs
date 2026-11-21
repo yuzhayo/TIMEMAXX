@@ -85,6 +85,7 @@ test('rapid open/close toggles serialize loading, preserve parity and recover af
     close() { this.destroyed = true; live--; this.emit('closed'); }
   }
   const controller = inputScreen.createInputScreen({ BrowserWindow: NativeWindow,
+    ipcMain: { handle() {}, removeHandler() {} },
     screen: { getDisplayMatching: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1040 } }) },
     parent: { isDestroyed: () => false, getBounds: () => ({ x: 1120, y: 0, width: 800, height: 1040 }) } });
   const toggles = Promise.all([controller.toggle(), controller.toggle()]);

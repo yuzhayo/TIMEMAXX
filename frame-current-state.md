@@ -4,7 +4,7 @@
 
 `frame/` is a Windows/Electron photo-frame application. Its photo build, editing,
 preview and export remain standalone. The pencil button has one launch-only link
-to the blank Input screen owned by `ui-control/`; no engine or data integration.
+to the Input section foundation owned by `ui-control/`; no engine or data integration.
 
 The active application currently provides:
 
@@ -17,9 +17,9 @@ The active application currently provides:
 - exact PNG/JPEG exports at 1200×1600, 2400×3200, and 3024×4032;
 - Bottom Bar operation messages and structured local diagnostics;
 - development-only layout inspection;
-- toggling one blank frameless Input window from the pencil button.
+- toggling the frameless four-section Input foundation from the pencil button.
 
-There are four configured sections, sixteen configured instances, and fifteen
+Frame has four configured sections, sixteen configured instances, and fifteen
 enabled instances.
 
 ## Run from a clean clone
@@ -70,6 +70,16 @@ npm.cmd run test:window-swap
 Generated dependencies, builds, runtime profiles, logs, and worker artifacts stay
 under ignored Frame directories.
 
+Prepare the Input renderer separately from `@APPS`:
+
+```bat
+ui-control\build.cmd
+```
+
+It installs Input's locked dependencies on first use and builds only Input. Then
+use Frame's pencil button. Frame still builds/starts/exports independently; missing
+Input build output is reported without stopping Frame.
+
 ## Window and layout
 
 - Startup width is 934 DIP.
@@ -103,7 +113,7 @@ Rotation, and Size rows use the shared configured-row mechanism.
 
 - Rotation: rotate left, editable degree value, rotate right, popup slider
 - Size: decrease, percentage value, increase, popup slider
-- standalone/orphan Edit button with pencil icon; toggles the blank Input screen
+- standalone/orphan Edit button with pencil icon; toggles the Input section foundation
 - FileControls: Load, Reset, Save
 - configured separators
 
@@ -161,7 +171,7 @@ module exports a stable component ID independent of its filename. Validation see
 the complete catalog before any component mounts. Invalid or conflicting controls
 are logged and isolated without inventing fallback parents or visuals.
 
-The shared UI mechanisms under `components/` are:
+The shared UI mechanisms under `components/` include:
 
 - `ActionButton.jsx` — common configured button/icon host;
 - `AdjustmentControls.jsx` — common Rotation/Size composition and gesture host;
@@ -169,11 +179,15 @@ The shared UI mechanisms under `components/` are:
 - `ConfiguredPopover.jsx` — popup placement, size, offsets, and dismissal;
 - `ConfiguredContent.mjs` — nested text/slot state routing;
 - `appearance.mjs` — resolved config-to-style translation.
+- `SectionCard.jsx` — configured MUI header/content host with controlled collapse.
+- `ComponentDiscovery.mjs` — shared build-time module catalog normalization.
+- `LayoutDiagnostics.mjs` / `DiagnosticLog.cjs` — shared diagnostic identity and persistence.
 
 ## Diagnostics and inspection
 
-`LayoutDiagnostics.mjs` owns diagnostic identity, deduplication, readable messages,
-repeat counts, and delivery. `DiagnosticLog.cjs` only persists records locally.
+`components/LayoutDiagnostics.mjs` owns diagnostic identity, deduplication, readable
+messages, repeat counts, and delivery. `components/DiagnosticLog.cjs` only persists
+records locally. Frame keeps its old import paths as compatibility adapters.
 
 The Bottom Bar shows a concise latest issue with owner, reason, and recovery action.
 Full records retain component/instance/parent identity, source/config paths,
@@ -224,9 +238,10 @@ frame/
 ## Current boundaries
 
 - Frame owns only standalone photo/window/file/export behavior.
-- `ui-control/` owns the blank Input screen, its native window configuration and
-  future input facts/settings/controls. `screen.cjs` is its public launch-only
-  contract; Frame loads it only on a pencil click. No build step or new dependency.
+- `ui-control/` owns its native window, React/MUI renderer, config, global language
+  and section expansion state. `screen.cjs` is its public window-only contract;
+  Frame loads it only on a pencil click. Input owns its own locked dependencies
+  and Vite build, with no Frame build dependency.
 - Input is one non-modal frameless window: no native caption/buttons/title text or
   reserved Windows-Bar area. Pencil clicks alternate open/close, including rapid
   clicks. Closing Input leaves Frame running; closing Frame closes Input. Toggling
@@ -239,8 +254,21 @@ frame/
   coordinates. Input cannot resize through a native thick-frame border.
 - If there is insufficient room left of Frame, Input reports that placement failure
   without moving Frame, changing the approved ratio or inventing another position.
-- `ui-control/view/InputScreen.html` is deliberately empty: no fields, text,
-  settings, persistence, photo preview or renderer bridge. Detailed input UI is deferred.
+- `ui-control/view/index.html` hosts the renderer. `view/sections/` contains
+  Language, Code, Date and Time adapters discovered through one shared catalog.
+  JSON supplies stable instance/component IDs, assigned folders, parent, bounds,
+  labels, presets and enabled/expanded state. No manual section import registry.
+- All four use the shared MUI SectionCard. Headers support click/keyboard collapse;
+  content stays mounted. Language is one global English/Indonesia selector; both
+  locales have independent order/appearance/label configuration. Current defaults
+  use the approved Language → Code → Date → Time order; detailed generator layouts
+  and format rules per language are not claimed or implemented yet.
+- Code/Date/Time currently contain card foundations only. No fake data or disabled
+  generator fields. LongLat and other data sections are deferred. There is no
+  generator behavior, persistence, photo preview, engine or overlay integration.
+- Input's scoped preload exposes only config bootstrap and diagnostic delivery,
+  never Frame commands or filesystem/Node access. Its local diagnostic outlet is
+  visible only for issues; development inspection is off in normal use.
 - Missing/invalid Input is reported through Frame's existing Bottom Bar diagnostics;
   it does not prevent Frame startup or standalone export.
 - `engine/` owns normalized overlay content and headless prepared output.
@@ -254,7 +282,12 @@ frame/
 ## Input screen verification
 
 `npm.cmd run test:input-screen` checks the window-only command and the real Electron
-pencil path: empty frameless content, 25% width at Frame startup/minimum sizes,
+pencil path: four frameless section cards, 25% width at Frame startup/minimum sizes,
 full work-area height and adjoining-left bounds, JSON-driven geometry/background,
-toggle parity during rapid clicks/loading, unchanged Frame state, failure isolation and
+global language, collapse state/content preservation, per-locale layouts, shared
+preset consumption, section isolation/logging, toggle parity during rapid clicks,
+unchanged Frame state, failure isolation and
 parent-window cleanup. Artifacts stay in ignored `frame/.runtime/checks/input-screen/`.
+
+Input's pure config/state/catalog checks run with `npm.cmd run test:contract` from
+`ui-control/`. Dependencies, built renderer and local logs stay ignored there.
