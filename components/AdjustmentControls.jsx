@@ -5,6 +5,7 @@ import Slider from '@mui/material/Slider';
 import ActionButton, { hasActionIcon } from './ActionButton.jsx';
 import ConfiguredPopover, { validatePopoverConfig } from './ConfiguredPopover.jsx';
 import ConfiguredRow, { validateConfiguredRow } from './ConfiguredRow.jsx';
+import { inheritedTextSx, nativeTextSx } from './ConfiguredContent.mjs';
 import { boundsStyle, configuredSx } from './appearance.mjs';
 
 export const adjustmentPartKeys = ['decrease', 'value', 'increase', 'slider', 'control', 'rail', 'track', 'thumb', 'popup'];
@@ -49,6 +50,13 @@ export function validateAdjustmentConfig(config, report) {
   }
   if (!validatePopoverConfig(config.parts.popup, (property, expected, actual) => report(`parts.popup.${property}`, expected, actual))) valid = false;
   if (!validateConfiguredRow(config, rowPartKeys, report)) valid = false;
+  // The text and editor share the value part's appearance; their composition is one horizontal value row.
+  for (const state of ['', ...Object.keys(config.parts.value.states)]) {
+    const content = { ...config.parts.value.content, ...(state ? config.parts.value.states[state].content : null) };
+    if (content.direction !== 'row' || content.wrap !== 'nowrap') {
+      report(`parts.value.${state ? `states.${state}.` : ''}content`, 'one non-wrapping value-content row', content); valid = false;
+    }
+  }
   return valid;
 }
 
@@ -149,14 +157,14 @@ export default function AdjustmentControls({
     {editor ? <>
         <InputBase value={editor.draft} disabled={disabled} readOnly={editor.readOnly} error={editor.invalid}
           onChange={editor.onChange} onBlur={editor.onBlur} onKeyDown={editor.onKeyDown} onKeyUp={editor.onKeyUp}
-          sx={{ height: '100%', minWidth: 0, flex: '1 1 auto', color: 'inherit', font: 'inherit' }}
+          sx={{ ...inheritedTextSx, height: '100%', minWidth: 0, flex: '1 1 auto' }}
           slotProps={{ input: { id: id('input'), 'aria-label': config.labels.value, 'aria-invalid': editor.invalid,
-            inputMode: editor.inputMode, autoComplete: 'off', className: 'configured-native-input', 'data-part': name('input') } }} />
+            inputMode: editor.inputMode, autoComplete: 'off', className: 'configured-native-input', 'data-part': name('input'), sx: nativeTextSx } }} />
         <Box component="span" aria-hidden="true" aria-disabled={disabled} data-part={name('unit')}
-          sx={{ height: '100%', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+          sx={{ ...inheritedTextSx, height: '100%', flexShrink: 0, display: 'flex', alignItems: 'inherit', justifyContent: 'inherit' }}>
           {editor.unit}
         </Box>
-      </> : valueControl.text}
+      </> : <Box component="span" data-part={name('text')} sx={inheritedTextSx}>{valueControl.text}</Box>}
     </ActionButton>;
   const changeSlider = (event, next) => {
     const current = gesture.current;

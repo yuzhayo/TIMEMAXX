@@ -13,7 +13,9 @@ import PhotoSizeSelectLargeRoundedIcon from '@mui/icons-material/PhotoSizeSelect
 import RestartAltRoundedIcon from '@mui/icons-material/RestartAltRounded';
 import UndoRoundedIcon from '@mui/icons-material/UndoRounded';
 import RedoRoundedIcon from '@mui/icons-material/RedoRounded';
-import { configuredAppearance, configuredSx, fill, iconStyle } from './appearance.mjs';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+import { fill, iconStyle } from './appearance.mjs';
+import { configuredHostSx } from './ConfiguredContent.mjs';
 
 const icons = {
   folderOpen: FolderOpenRoundedIcon, save: SaveRoundedIcon, close: CloseRoundedIcon,
@@ -22,10 +24,12 @@ const icons = {
   photoSizeSmall: PhotoSizeSelectSmallRoundedIcon, photoSizeLarge: PhotoSizeSelectLargeRoundedIcon,
   restartAlt: RestartAltRoundedIcon,
   undo: UndoRoundedIcon, redo: RedoRoundedIcon,
+  arrowDropDown: ArrowDropDownIcon,
 };
 
 // LOGIC — reusable rendering capability; file/window actions stay with their owners.
 export const hasActionIcon = (name) => typeof name === 'string' && Object.hasOwn(icons, name);
+export const actionIconOf = (name) => icons[name];
 
 export function validateActionIcon(config, report) {
   if (hasActionIcon(config.icon)) return true;
@@ -40,9 +44,8 @@ export default function ActionButton({ config, disabled, onClick, icon = config.
     tabIndex={editable ? -1 : undefined} id={config.id} aria-label={config.label} title={config.label}
     aria-invalid={invalid || undefined}
     disabled={disabled} onClick={onClick} variant="text" disableRipple disableElevation
-    data-button-renderer="shared-action" data-icon={icon} sx={{ ...fill, ...configuredSx(config),
+    data-button-renderer="shared-action" data-icon={icon} sx={{ ...fill, ...configuredHostSx(config, editable ? '&:focus-within' : null),
       ...(children !== undefined ? { cursor: disabled ? 'default' : 'pointer' } : {}),
-      ...(editable ? { '&:focus-within': configuredAppearance(config, 'focusVisible') } : {}),
     }}>
     {children !== undefined ? children : <Icon style={iconStyle(config)} />}
   </Button>;

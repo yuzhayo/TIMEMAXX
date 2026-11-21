@@ -50,16 +50,17 @@ MUI source was consulted for disabled-state and Slider event behavior.
 
 | Area / file | Actual owner and audit result |
 | --- | --- |
-| Windows Bar | JSON row layout owns sibling order/gap; native window operations are outside JSX. Four-percent height and right-lane Placement/maximize/X are configured. Findings A02, A08. |
-| Action Bar | A07 repaired: parent JSON owns shared control/separator vertical allocations and external gaps; baked part order/row mechanics are shared. Default geometry is unchanged. A08 slot-state work remains open. |
+| Windows Bar | JSON row layout owns sibling order/gap; native window operations are outside JSX. Placement's text/indicator/menu state routing is repaired in A08. Four-percent height and right-lane Placement/maximize/X are unchanged. |
+| Action Bar | Parent JSON owns shared vertical allocations and external gaps; baked row mechanics/order are shared. A08 value text/editor states now reach the visible content. Default geometry is unchanged. |
 | Frame/body | Remaining-height section contains preview plus non-intercepting DropTarget. Painter/input/operations are separate owners. Findings A05, A10–A13 concern remaining boundaries and failure paths. |
 | Bottom Bar | `FrameInfo.jsx` is the only live status outlet, with intrinsic wrapping height and percentage-padding calculation. No toast stack exists. Finding A13 concerns diagnostic attribution/summary, not the presence of this owner. |
 | Overlays | All Information/notices JSX files are empty; no active overlay implementation or hand-built child registry exists. Info placement and deferred orchestration must follow the latest decisions above. |
 | `ActionButton.jsx` | A02 repaired: common icon/text/editable-host renderer for file buttons, window actions, adjustment buttons/values and Undo/Redo. History icons are configured through JSON. |
-| `AdjustmentControls.jsx` | Token-owned slider edits and cleanup remain here; row mechanics/containment delegate to ConfiguredRow. Editor callbacks stay feature-owned. A08 nested value states remain open. |
+| `AdjustmentControls.jsx` | Token-owned slider edits/cleanup remain here; row mechanics delegate to ConfiguredRow. Text/input/unit explicitly share the value part's appearance, including native text fill, fonts and alignment. Editor callbacks stay feature-owned. |
 | `ConfiguredRow.jsx` | A07 shared owner for JSON part order, parent-relative slots/gaps and row alignment. Validates complete unique order, width/gap containment and non-wrapping row states for File/Rotation/Size. No feature actions or registry. |
 | `ConfiguredPopover.jsx` | Shared validated geometry/placement plus reasoned Escape/outside dismissal. Edit settlement is delegated to its content owner; it does not manipulate history. |
-| `appearance.mjs` | Active `configuredAppearance/configuredSx/configuredBounds` translate resolved config. Legacy helpers coexist for the reference app; Frame does not import the legacy renderer path. A08 identifies missing MUI-slot state application, not a second active theme in this file. |
+| `appearance.mjs` | Existing config resolution/translation is unchanged. ConfiguredContent adapts its output to actual hosts/slots without a second palette or resolver. Legacy/reference callers are unchanged. |
+| `ConfiguredContent.mjs` | A08 shared text resets, host/slot state routing and intrinsic font-relative spacing validation. Focus matching preserves shared state order. No feature behavior or registered control. |
 | `config.cjs`, `controls.jsx`, `NodeContext.jsx` | Legacy/reference configuration and controls; read in full and checked for Frame consumers. No active Frame imports were found. Keep reference callers intact; their existence alone is not a Frame defect. |
 | `FileControls.jsx` | Owns named file parts, provenance and actions; shared ConfiguredRow renders their JSON order and validates containment. Default remains Load/Reset/Save. |
 | `SizeControls.jsx` | Thin value/operation adapter, passing edit handles through the same history owner as canvas inputs. No local slider handlers or history calculations. |
@@ -67,7 +68,7 @@ MUI source was consulted for disabled-state and Slider event behavior.
 | `ActionSeparator.jsx` | Renders configured separator only. Sibling placement is no longer calculated in this component; this boundary fits. |
 | `UndoButton.jsx`, `RedoButton.jsx` | A02 repaired: thin session adapters using shared ActionButton with validated JSON icons. Their disabled state still ignores busy: A12. |
 | `FileName.jsx` | Read-only filename/path presentation. JSON slot has pointer pass-through and inherited drag region. No file-operation or window-drag rules are copied into the leaf; this fits. |
-| `PlacementDropdown.jsx` | Owns dropdown options and invokes `placePhoto`; calculations remain in PhotoOperations. Surface/item/disabled styling still has A08. |
+| `PlacementDropdown.jsx` | A08 repaired: separate menu/list/item/indicator parts, explicit shared arrow ID, parent-relative indicator bounds and configured label/slot states. Owns options/commands only; placement math is unchanged. |
 | `WindowActionButton.jsx` | Uses shared icon button and native operation adapter; respects separate vertical-maximized state. No photo logic in window controls; this fits. |
 | `PhotoPreview.jsx` | Composes painter and input helpers through stable `@frame` aliases. No section registry or photo math; event-policy gaps are described in A11. Invalid input config currently isolates the whole preview instance, consistent with the current component-level validator boundary; finer isolation would be a separate decision. |
 | `PhotoPointerInput.mjs` | Owns pointer capture/cancellation and calls photo/view operations. Uses painter geometry and edit tokens. Editing/modal gate is incomplete: A11. |
@@ -220,10 +221,10 @@ exercised during this audit are labeled **code-derived risk**.
   their validator delegates to `validatePopoverConfig`. No component names were
   added to generic assembly. `surfaceWidth` and `surfacePadding` are no longer
   accepted anywhere in the active part schema.
-- **Placement compatibility:** its menu declares `paddingEm` with numeric x/y
-  font-size multipliers, replacing the last raw CSS padding string while keeping
-  the prior compact spacing. Its menu surface/item and disabled-state styling are
-  not repaired by this piece; A08 remains open. No feature action, slider edit
+- **Placement compatibility at A04:** its menu declared numeric `paddingEm`,
+  replacing the last raw CSS string while preserving compact spacing. A08 later
+  separated menu/list/item responsibilities and moved item padding to its own
+  part. Surface/item/disabled states were left for that piece. No feature action, slider edit
   lifecycle, button sizing, photo operation or native window geometry changed.
 - **Validation for A04:** UI build and focused discovery-contract checks passed.
   Renderer inspection verified placement, offset and stacking at startup/minimum
@@ -363,12 +364,12 @@ exercised during this audit are labeled **code-derived risk**.
   logged and isolated; valid configuration remounted. No renderer errors occurred.
   Initial proof-selector mistakes were corrected; passing geometry checks were
   not repeated. Evidence is under `frame/.runtime/checks/configured-row/`.
-  No broad suite or permanent test file was added. A08 value/dropdown slot-state
-  routing and A09 section-flow mismatch remain open.
+  No broad suite or permanent test file was added. A08 slot-state routing was left
+  for the next piece below; A09 section-flow mismatch remains open.
 
-#### A08 — High: Placement and value parts do not fully apply configured states
+#### A08 — High at audit; value/dropdown state routing repair complete
 
-- **Evidence:** `PlacementDropdown.jsx:39–50` applies the same `menu` state/visual
+- **Evidence at audit revision:** `PlacementDropdown.jsx:39–50` applies the same `menu` state/visual
   object to popup paper and items, overrides display/padding, and leaves list
   typography/arrow/text state routing partly to MUI. Installed
   `InputBase/InputBase.js:190–194` sets disabled WebkitTextFillColor from its theme;
@@ -384,9 +385,37 @@ exercised during this audit are labeled **code-derived risk**.
   common configured states to MUI's actual visual slots, including text fill;
   define the value editor's shared content/disabled behavior once. Keep a simple
   dropdown; do not add a second theme or local palette.
-- **Status:** confirmed state-routing mismatch by source; no fresh GUI color
-  measurements were taken. The prior oversized-hover fix is not being called
-  unfixed: current percentage menu padding is zero.
+- **Status:** repaired in the eighth piece. Shared ConfiguredContent explicitly
+  resets nested text/native fill to the owning value/selector's configured state,
+  including fonts and alignment. AdjustmentControls keeps its existing text,
+  editor and unit composition; no standalone input/slider was recreated. The
+  value-content contract is one non-wrapping horizontal row in all visual states.
+  Shared ActionButton focus-within now participates in the existing state order,
+  so focus cannot mask an invalid field's error color or a busy disabled state.
+- **Placement parts:** `menu` is the surface, `list` its option parent, `item` the
+  common option visual and `indicator` the arrow. Surface/list/item use explicit
+  `paddingEm` x/y and `gapEm`, based on each part's own font size. Competing
+  percentage spacing or fixed bounds/size are rejected for these intrinsic parts,
+  not silently ignored. Indicator bounds use its selector parent's axes, with
+  an explicit child container-query base for percentage visuals. Its `icon` names
+  the existing shared icon registry; the default arrow glyph is preserved.
+  Label text explicitly inherits selector appearance and native text fill.
+- **First-mount repair:** installed MUI's Select height/min-height rule could win
+  before reconfiguration. The shared fill/text reset now has stable specificity,
+  preserving the same configured box on first mount and later reconfiguration.
+  There is no theme, tuned pixel control layout or feature-specific color override.
+- **Validation for A08:** UI build passed. Live checks reproduced the prior
+  disabled fill mismatch and item-hover surface recolor, then verified configured
+  disabled/normal/hover/focus/error colors, fonts, fill and alignment at startup
+  934×1359 and minimum 760×700. Value popup opening, typing/arrow-release/Undo,
+  keyboard/mouse Fit/Fill/Center and native-busy disabling stayed intact. Portal
+  parts applied independent states and font-relative spacing; indicator-only JSON
+  changes did not move the label or siblings. Forty invalid spacing/part/icon/
+  value-composition cases were logged and isolated, including a disabled instance.
+  No renderer errors occurred in passing checks. Native captures at both sizes
+  were inspected. Evidence is in `frame/.runtime/checks/value-states/`; the final
+  UI/glyph checks cover the latest renderer. No broad suite or committed test
+  file was added. A09–A14 remain open.
 
 #### A09 — Medium: generic section flow accepts geometry it cannot represent
 
@@ -545,9 +574,11 @@ not mounted. Preserve unrelated skeletons; do not fill them just because they ex
    distinct from normal typing and protected against stale keyup.
    **Done — A07:** shared baked row mechanics/containment, JSON part order and
    parent-owned named vertical allocation; existing arrangement is unchanged.
-   **Next piece: A08, configured value/dropdown slot-state application.**
+   **Done — A08:** configured value/editor text fill and state precedence,
+   separate Placement portal/indicator parts and stable first-mount sizing.
+   **Next piece: A09, accepted section geometry versus rendered flow.**
 2. Repair the existing popup/slider geometry and slot-state application at their
-   shared owners (A03/A04 done; A08 slot states remains open).
+   shared owners (A03/A04/A08 done).
 3. Make edit ownership/lifetime consistent across controls and canvas inputs
    (A05/A06 done), then close busy/input-isolation gaps (A11, A12).
 4. Strengthen the existing parent/baked-row contracts rather than introducing a
@@ -568,7 +599,7 @@ The standalone `@APPS/frame/` currently implements its native window, four
 configured sections, discovery/validation before mounting, diagnostics, inspection,
 Undo/Redo, Load/drop/Save, Rust photo/black export, Rotation/Size, Placement,
 photo pointer/wheel input, separate inspection state and Ctrl+S/Ctrl+Z.
-These are implemented features, not a blanket compliance verdict: A08–A14 in the
+These are implemented features, not a blanket compliance verdict: A09–A14 in the
 source audit remain open. The current task is to repair that list piece by piece.
 Info and background orchestration are deferred, not the next automatic features.
 Preserve `output-frame/` as reference only; do not recreate/reconfirm the skeleton.
@@ -642,7 +673,8 @@ and Size use the same `decrease/value/increase/slider/control/rail/track/thumb/p
 part contract. Group/row allocations and managed slider parts use explicit
 percentage bases after A03. Feature adapters supply state, labels, icons and
 commands. ConfiguredRow owns common row mechanics/containment for adjustments
-and file controls after A07; nested value/dropdown state gaps remain A08.
+and file controls after A07. A08 now applies shared value-content resets and
+configured state precedence to text/editor/unit, without changing its operations.
 
 ## Baked size controls and Reset
 
@@ -744,6 +776,10 @@ vertical maximize/restore button and Close/X. Fit and Fill preserve rotation, re
 photo/frame geometry and center the photo; Center changes x/y only. The dropdown
 owns labels/menu interaction, while `PhotoOperations.mjs` owns all placement math
 and commits each effective action through `PhotoHistory`.
+Its `menu`, `list`, `item` and `indicator` parts have separate configured visuals.
+Intrinsic portal spacing uses each part's `paddingEm`/`gapEm`; the indicator has
+parent-relative bounds and an explicit shared icon ID. Selector text inherits its
+configured host state through the shared content reset, including disabled fill.
 
 ## Photo input and inspection
 
@@ -1105,6 +1141,7 @@ black output and 1200×1600 / 2400×3200 / 3024×4032 export sizes.
 | --- | --- |
 | `FileControls.jsx` | One baked file-behavior instance, three named parts (load/reset/save), feature-owned labels/icons/actions and delegation to shared ConfiguredRow/ActionButton. |
 | `components/ConfiguredRow.jsx` | Shared JSON-order row/slot rendering and containment validation for FileControls and AdjustmentControls. No feature behavior. |
+| `components/ConfiguredContent.mjs` | Shared nested-text resets, ordered host/slot state adapters and intrinsic font-relative spacing validation. Uses the existing appearance resolver. |
 | `components/AdjustmentControls.jsx` / `SizeControls.jsx` / `RotationControls.jsx` | One reusable proportional adjustment sub-parent; thin Size and Rotation behavior adapters use the same named-part contract. |
 | `PhotoOperations.mjs` | Shared size and rotation policies, fit/percent/scale rules and history-grouped commands. |
 | `components/ActionButton.jsx` (under `@APPS`) | One rendering/icon mechanism shared by file and window action registrations; no native/file behavior or app-specific appearance. |
@@ -1126,7 +1163,8 @@ uses its own declared owners; no old controller or stamp runtime was copied in.
    and per-finding status. A01 documentation and A02 shared button rendering are
    complete; A03 geometry, A04 popup contracts and A05 edit ownership are complete.
    A06 field release and A07 row mechanics/order/validation are complete.
-   A08 configured value/dropdown slot states is next. Later findings remain open.
+   A08 configured value/dropdown slot states is complete. A09 section geometry/
+   flow validation is next. Later findings remain open.
 2. Preserve implemented photo/file/history/input features and the latest UI.
    Make each repair in its existing owning files; remove directly superseded code
    after checking callers. Do not replace the app with another framework or host.
@@ -1151,7 +1189,7 @@ re-audit unrelated files or repeatedly reconfirm an already-correct skeleton.
 ## Acceptance checklist
 
 Checked items describe implemented structure or earlier evidence, not a fresh
-runtime verification of the audited revision. Open A08–A14 findings qualify
+runtime verification of the audited revision. Open A09–A14 findings qualify
 those claims. Deferred features are listed separately and are not this repair's
 definition of done.
 

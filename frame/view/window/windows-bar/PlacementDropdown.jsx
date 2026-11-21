@@ -1,13 +1,15 @@
 import React from 'react';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
-import { configuredSx, fill } from '@ui/appearance.mjs';
+import { actionIconOf, hasActionIcon } from '@ui/ActionButton.jsx';
+import { boundsStyle, fill } from '@ui/appearance.mjs';
+import { inheritedTextSx, configuredHostSx, configuredSlotSx, fontRelativeSx, validateFontSpacing } from '@ui/ConfiguredContent.mjs';
 
 export const componentId = 'photo.placement';
 export const requires = ['output'];
 export const configKeys = ['options'];
-export const partKeys = ['menu'];
-export const partConfigKeys = { menu: ['paddingEm'] };
+export const partKeys = ['menu', 'list', 'item', 'indicator'];
+export const partConfigKeys = { ...Object.fromEntries(['menu', 'list', 'item'].map((name) => [name, ['paddingEm', 'gapEm']])), indicator: ['icon'] };
 
 // LOGIC — validate the three commands; placement math remains in PhotoOperations.
 export function validateConfig(config, report) {
@@ -27,36 +29,42 @@ export function validateConfig(config, report) {
   if (config.options.length !== expected.length || new Set(values).size !== expected.length || expected.some((value) => !values.includes(value))) {
     report('options', 'exactly one Fit, Fill and Center command', config.options); valid = false;
   }
-  const padding = config.parts.menu.paddingEm;
-  if (!padding || typeof padding !== 'object' || Array.isArray(padding)) {
-    report('parts.menu.paddingEm', 'explicit font-relative x/y padding object', padding); valid = false;
-  } else {
-    for (const key of Object.keys(padding)) if (!['x', 'y'].includes(key)) { report(`parts.menu.paddingEm.${key}`, 'x | y', padding[key]); valid = false; }
-    for (const axis of ['x', 'y']) if (!Number.isFinite(padding[axis]) || padding[axis] < 0) {
-      report(`parts.menu.paddingEm.${axis}`, 'nonnegative font-size multiplier', padding[axis]); valid = false;
+  for (const name of ['menu', 'list', 'item']) {
+    const part = config.parts[name];
+    if (part.bounds || part.size || part.aspectRatio !== undefined) { report(`parts.${name}`, 'intrinsic font-spaced part without competing bounds/size/aspect ratio', part); valid = false; }
+    if (!validateFontSpacing(part, (property, expected, actual) => report(`parts.${name}.${property}`, expected, actual))) valid = false;
+    if (name !== 'item') for (const state of ['', ...Object.keys(part.states)]) {
+      const content = { ...part.content, ...(state ? part.states[state].content : null) };
+      if (content.direction !== 'column' || content.wrap !== 'nowrap') {
+        report(`parts.${name}.${state ? `states.${state}.` : ''}content`, 'one non-wrapping menu column', content); valid = false;
+      }
     }
   }
+  const indicator = config.parts.indicator;
+  if (!indicator.bounds || indicator.size || indicator.aspectRatio !== undefined) { report('parts.indicator', 'explicit parent-relative indicator bounds only', indicator); valid = false; }
+  if (!hasActionIcon(indicator.icon)) { report('parts.indicator.icon', 'registered shared action icon', indicator.icon); valid = false; }
   return valid;
 }
 
 export default function PlacementDropdown({ config, state, actions }) {
-  const menu = config.parts.menu;
+  const { menu, list, item, indicator } = config.parts;
   const disabled = !state.photo || state.busy || typeof actions.placePhoto !== 'function';
+  const indicatorStyle = (style) => ({ ...style, ...boundsStyle(indicator.bounds), pointerEvents: 'none' });
+  const focusSelector = '&:has(:where(.MuiSelect-select):focus-visible)';
 
   // UI — one configured action selector; it does not retain a fake placement mode.
-  return <Select id={config.id} value="" displayEmpty renderValue={() => config.label}
+  return <Select id={config.id} value="" displayEmpty renderValue={() => config.label} IconComponent={actionIconOf(indicator.icon)}
     inputProps={{ 'aria-label': config.label }} disabled={disabled} onChange={(event) => actions.placePhoto(event.target.value)}
     variant="standard" disableUnderline MenuProps={{ slotProps: {
-      paper: { sx: { ...configuredSx(menu), display: 'block', padding: 0 } },
-      list: { disablePadding: true },
+      paper: { 'data-part': 'placement-menu', sx: fontRelativeSx(menu) },
+      list: { 'data-part': 'placement-list', disablePadding: true, sx: fontRelativeSx(list) },
     } }}
-    sx={{ ...fill, ...configuredSx(config),
-      '& .MuiSelect-select': { ...fill, padding: '0 !important', display: 'flex', alignItems: config.content.verticalAlign,
-        justifyContent: config.content.horizontalAlign, textAlign: config.content.textAlign },
-      '& .MuiSelect-icon': { color: 'inherit', width: `${config.geometry.iconWidth}%`, height: `${config.geometry.iconHeight}%`,
-        top: `${(100 - config.geometry.iconHeight) / 2}%`, right: `${config.geometry.paddingX}%` },
+    sx={{ ...fill, ...configuredHostSx(config, focusSelector), containerType: 'size',
+      '&& .MuiSelect-select': { ...fill, ...inheritedTextSx, padding: '0 !important', display: 'flex',
+        alignItems: 'inherit', justifyContent: 'inherit', whiteSpace: 'inherit', overflow: 'inherit' },
+      ...configuredSlotSx(indicator, '.MuiSelect-icon', indicatorStyle, focusSelector),
     }}>
     {config.options.map((option) => <MenuItem key={option.id} id={option.id} value={option.value}
-      sx={{ ...configuredSx(menu), width: '100%', minHeight: 'auto', padding: `${menu.paddingEm.y}em ${menu.paddingEm.x}em !important` }}>{option.label}</MenuItem>)}
+      disableRipple sx={{ ...fontRelativeSx(item), width: '100%' }}>{option.label}</MenuItem>)}
   </Select>;
 }
