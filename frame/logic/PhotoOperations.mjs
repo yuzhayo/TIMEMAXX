@@ -179,7 +179,7 @@ export function createPhotoOperations({ history, photoState, settings, size, out
     updateSize,
     stepSize: (direction) => {
       const percent = percentOf();
-      if (percent === null || ![-1, 1].includes(direction)) return percent;
+      if (!canEdit() || percent === null || ![-1, 1].includes(direction)) return percent;
       // LOGIC — a button step is one discrete history entry, like the rotation buttons.
       const photo = photoOf(), frame = frameOf();
       const clamped = Math.min(size.max, Math.max(size.min, percent + direction * size.step));

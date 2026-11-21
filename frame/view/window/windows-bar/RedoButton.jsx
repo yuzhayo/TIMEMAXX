@@ -7,7 +7,7 @@ export const validateConfig = validateActionIcon;
 
 // LOGIC — shared history is independent of this control's folder and parent.
 export default function RedoButton({ config, state, actions }) {
-  const disabled = !state.canRedo;
+  const disabled = state.busy || !state.canRedo;
   const redo = () => actions.redo();
 
   // UI — no parent geometry or appearance is chosen inside this file.

@@ -52,7 +52,7 @@ MUI source was consulted for disabled-state and Slider event behavior.
 | --- | --- |
 | Windows Bar | JSON row layout owns sibling order/gap; native window operations are outside JSX. Placement's text/indicator/menu state routing is repaired in A08. Four-percent height and right-lane Placement/maximize/X are unchanged. |
 | Action Bar | Parent JSON owns shared vertical allocations and external gaps; baked row mechanics/order are shared. A08 value text/editor states now reach the visible content. Default geometry is unchanged. |
-| Frame/body | Remaining-height section contains preview plus non-intercepting DropTarget. A10 prepares previews transactionally; A11 shares input blocking while painter/pointer/wheel/operations keep separate ownership. A12/A13 remain. |
+| Frame/body | Remaining-height section contains preview plus non-intercepting DropTarget. A10 prepares previews transactionally; A11 shares input blocking; A12 aligns operation/UI busy guards. A13 diagnostics remains. |
 | Bottom Bar | `FrameInfo.jsx` is the only live status outlet, with intrinsic wrapping height and percentage-padding calculation. No toast stack exists. Finding A13 concerns diagnostic attribution/summary, not the presence of this owner. |
 | Overlays | All Information/notices JSX files are empty; no active overlay implementation or hand-built child registry exists. Info placement and deferred orchestration must follow the latest decisions above. |
 | `ActionButton.jsx` | A02 repaired: common icon/text/editable-host renderer for file buttons, window actions, adjustment buttons/values and Undo/Redo. History icons are configured through JSON. |
@@ -66,7 +66,7 @@ MUI source was consulted for disabled-state and Slider event behavior.
 | `SizeControls.jsx` | Thin value/operation adapter, passing edit handles through the same history owner as canvas inputs. No local slider handlers or history calculations. |
 | `RotationControls.jsx` | A06 repaired: owned typing and arrow-step phases are distinct; held arrows finish on final matching key release. Enter/blur/Escape and token isolation are preserved. Existing DOM-name mapping is unchanged. |
 | `ActionSeparator.jsx` | Renders configured separator only. Sibling placement is no longer calculated in this component; this boundary fits. |
-| `UndoButton.jsx`, `RedoButton.jsx` | A02 repaired: thin session adapters using shared ActionButton with validated JSON icons. Their disabled state still ignores busy: A12. |
+| `UndoButton.jsx`, `RedoButton.jsx` | Thin session adapters using shared ActionButton and validated JSON icons. A12 includes native busy in their disabled fact while history availability remains owned by PhotoHistory. |
 | `FileName.jsx` | Read-only filename/path presentation. JSON slot has pointer pass-through and inherited drag region. No file-operation or window-drag rules are copied into the leaf; this fits. |
 | `PlacementDropdown.jsx` | A08 repaired: separate menu/list/item/indicator parts, explicit shared arrow ID, parent-relative indicator bounds and configured label/slot states. Owns options/commands only; placement math is unchanged. |
 | `WindowActionButton.jsx` | Uses shared icon button and native operation adapter; respects separate vertical-maximized state. No photo logic in window controls; this fits. |
@@ -83,7 +83,7 @@ MUI source was consulted for disabled-state and Slider event behavior.
 | `view/main.jsx` | Composition/bootstrap and shortcut attachment. Development reconfigure changes the layout plan but leaves session policies from initial startup; treat it as visual reconfiguration, not proof that all runtime policy edits apply. |
 | `styles.css`, `index.html`, `vite.config.mjs` | Resets, drag/pointer mechanics, CSP and build-time aliases/catalog support. No section-specific assembly registry or engine/input import found. |
 | `FrameSession.mjs` | Connects independent state/action owners; derived percentage projection is not duplicated size math. No monolithic UI controller. |
-| `PhotoOperations.mjs`, `PhotoHistory.mjs` | Continuous updates/completions use the existing history token owner and feature math stays centralized. A06 field completion is repaired in its adapter; A12 discrete-step busy guard remains open. |
+| `PhotoOperations.mjs`, `PhotoHistory.mjs` | Continuous and discrete feature commands use the shared `canEdit` boundary; A12 closes the size-step busy bypass. Math/history ownership remains centralized. |
 | `ViewState.mjs`, `ViewOperations.mjs` | Inspection state is separate from photo document/history and is not sent to exporter. No copied photo math; preserve this separation. |
 | `PhotoState.mjs`, `ImageFileActions.mjs` | A10 repaired: PhotoState owns preview decode/URL resources outside plain published metadata; ImageFileActions owns ticket acceptance, history reset, rejection and completion sequencing for Load/drop. |
 | `InteractionPolicy.mjs`, `KeyboardShortcuts.mjs` | A11 shared busy/editor/control/surface classifications. Shortcuts remain only Ctrl+S/Ctrl+Z and stay available from ordinary buttons while text/menu/dialog owners retain their keys. |
@@ -587,11 +587,12 @@ exercised during this audit are labeled **code-derived risk**.
   remounts. No renderer errors or diagnostics occurred; captures and records are
   under `frame/.runtime/checks/input-isolation/`. A proof-only pending-dialog
   cleanup was corrected to always resolve in `finally`; it did not change app code.
-  UI build passed. No broad suite or committed test file was added. A12–A14 remain open.
+  UI build passed. No broad suite or committed test file was added. A12 was left
+  for the following piece; A13/A14 remain open.
 
-#### A12 — Medium: busy protection depends too much on the caller
+#### A12 — Medium at audit; operation/UI busy guard repair complete
 
-- **Evidence:** `PhotoOperations.mjs:179–186` stepSize checks photo-derived percent
+- **Evidence at audit revision:** `PhotoOperations.mjs:179–186` stepSize checks photo-derived percent
   and direction but never uses `canEdit()`, unlike updateSize/rotateBy/reset.
   `UndoButton.jsx:10`/`RedoButton.jsx:10` ignore busy even though FrameSession
   (`:48–49`) refuses those operations while busy.
@@ -601,8 +602,27 @@ exercised during this audit are labeled **code-derived risk**.
   controls can appear usable while doing nothing. Enforce canEdit in the operation
   and reflect busy in history adapters. Do not invent another state owner or copy
   the busy calculation into the shared visual primitive.
-- **Status:** confirmed missing guards; current disabled size buttons mask the
-  direct stepSize path. No busy operation was triggered during this audit.
+- **Status:** repaired in the twelfth piece. `stepSize` now uses the same existing
+  `canEdit()` boundary as rotate, reset, live size and placement operations before
+  committing a discrete history entry. It still returns the current percentage
+  for unavailable/invalid calls; no duplicate busy calculation or new service was
+  added. Undo/Redo adapters combine their history availability with `state.busy`
+  and continue delegating rendering/states/icons to ActionButton. FrameSession and
+  PhotoHistory remain the command/history owners; history facts are not erased
+  merely because native work is temporarily active.
+- **Validation for A12:** the old UI mismatch was reproduced live: both history
+  flags were true during a native dialog but Undo/Redo remained visibly enabled
+  while their FrameSession actions were no-ops. Focused operation checks verified
+  a normal size step commits once, direct positive/negative calls are no-ops while
+  busy, invalid direction is unchanged, and stepping resumes afterward. UI build
+  passed. Live startup 934×1359 and minimum 760×700 checks retained `canUndo` and
+  `canRedo` while both controls and existing Size buttons were disabled. Undo/Redo
+  used the shared renderer and configured disabled foreground/background/border;
+  clicks and Ctrl+Z did not mutate the document. Canceling the native dialog
+  restored enabled controls and both actions worked. No renderer errors or layout
+  diagnostics occurred. Native captures/records are under
+  `frame/.runtime/checks/busy-guards/`. No broad suite or committed test file was
+  added. A13/A14 remain open.
 
 #### A13 — Medium: diagnostics have one storage owner but incomplete origin/readability
 
@@ -697,11 +717,13 @@ not mounted. Preserve unrelated skeletons; do not fill them just because they ex
    failed handoff preserves the current photo/export, with scoped reconciliation.
    **Done — A11:** one shared input-blocking policy with owner-specific gesture/
    shortcut mechanics and preserved photo-frame/inspection-canvas distinctions.
-   **Next piece: A12, operation/UI busy guard consistency.**
+   **Done — A12:** discrete size uses the shared edit guard and history controls
+   visibly reflect native busy without changing history ownership.
+   **Next piece: A13, diagnostic origin and readable Bottom Bar summaries.**
 2. Repair the existing popup/slider geometry and slot-state application at their
    shared owners (A03/A04/A08 done).
 3. Make edit ownership/lifetime consistent across controls and canvas inputs
-   (A05/A06/A11 done), then close the remaining busy guard gap (A12).
+   (A05/A06/A11/A12 done).
 4. Strengthen the existing parent/baked-row contracts rather than introducing a
    new layout/registration system (A07/A09 done).
 5. Repair multi-stage load acceptance and diagnostic origin/formatting in their
@@ -720,7 +742,7 @@ The standalone `@APPS/frame/` currently implements its native window, four
 configured sections, discovery/validation before mounting, diagnostics, inspection,
 Undo/Redo, Load/drop/Save, Rust photo/black export, Rotation/Size, Placement,
 photo pointer/wheel input, separate inspection state and Ctrl+S/Ctrl+Z.
-These are implemented features, not a blanket compliance verdict: A12–A14 in the
+These are implemented features, not a blanket compliance verdict: A13/A14 in the
 source audit remain open. The current task is to repair that list piece by piece.
 Info and background orchestration are deferred, not the next automatic features.
 Preserve `output-frame/` as reference only; do not recreate/reconfirm the skeleton.
@@ -1311,8 +1333,8 @@ uses its own declared owners; no old controller or stamp runtime was copied in.
    complete; A03 geometry, A04 popup contracts and A05 edit ownership are complete.
    A06 field release and A07 row mechanics/order/validation are complete.
    A08 value/dropdown states and A09 section geometry/flow validation are complete.
-   A10 transactional replacement and A11 input isolation are complete. A12 busy
-   operation/UI guard consistency is next. Later findings remain open.
+   A10 transactional replacement, A11 input isolation and A12 busy guard
+   consistency are complete. A13 diagnostic origin/readability is next. A14 remains.
 2. Preserve implemented photo/file/history/input features and the latest UI.
    Make each repair in its existing owning files; remove directly superseded code
    after checking callers. Do not replace the app with another framework or host.
@@ -1337,7 +1359,7 @@ re-audit unrelated files or repeatedly reconfirm an already-correct skeleton.
 ## Acceptance checklist
 
 Checked items describe implemented structure or earlier evidence, not a fresh
-runtime verification of the audited revision. Open A12–A14 findings qualify
+runtime verification of the audited revision. Open A13/A14 findings qualify
 those claims. Deferred features are listed separately and are not this repair's
 definition of done.
 
