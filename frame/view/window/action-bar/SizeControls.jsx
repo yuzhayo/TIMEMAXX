@@ -1,9 +1,9 @@
 import React from 'react';
-import AdjustmentControls, { adjustmentPartKeys, adjustmentPartConfigKeys, validateAdjustmentConfig } from '@ui/AdjustmentControls.jsx';
+import AdjustmentControls, { adjustmentConfigKeys, adjustmentPartKeys, adjustmentPartConfigKeys, validateAdjustmentConfig } from '@ui/AdjustmentControls.jsx';
 
 export const componentId = 'photo.sizeControls';
 export const requires = ['size', 'output'];
-export const configKeys = ['labels', 'icons'];
+export const configKeys = adjustmentConfigKeys;
 export const partKeys = adjustmentPartKeys;
 export const partConfigKeys = adjustmentPartConfigKeys;
 export const validateConfig = validateAdjustmentConfig;

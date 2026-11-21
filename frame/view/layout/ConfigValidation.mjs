@@ -71,37 +71,49 @@ function boundsProblem(bounds, path) {
   return null;
 }
 
-function siblingBoundsProblem(bounds, path) {
+function siblingBoundsProblem(bounds, path, allocated = false) {
   if (!object(bounds)) return { path, expected: 'parent-laid-out bounds object', actual: bounds };
+  const keys = allocated ? ['width'] : ['y', 'width', 'height'];
   for (const key of Object.keys(bounds)) {
-    if (!['y', 'width', 'height'].includes(key)) return { path: `${path}.${key}`, expected: 'y/width/height only; parent resolves x', actual: bounds[key] };
+    if (!keys.includes(key)) return { path: `${path}.${key}`, expected: allocated ? 'width only; parent allocation resolves y/height and sibling layout resolves x' : 'y/width/height only; parent resolves x', actual: bounds[key] };
   }
-  for (const key of ['y', 'width', 'height']) {
+  for (const key of keys) {
     if (!percent(bounds[key]) || (['width', 'height'].includes(key) && bounds[key] === 0)) return { path: `${path}.${key}`, expected: 'valid parent percentage; dimensions must be positive', actual: bounds[key] };
   }
-  if (bounds.y + bounds.height > 100.00001) return { path, expected: 'vertical bounds contained in parent', actual: bounds };
+  if (!allocated && bounds.y + bounds.height > 100.00001) return { path, expected: 'vertical bounds contained in parent', actual: bounds };
   return null;
 }
 
 function siblingLayoutProblem(layout, path) {
   if (!object(layout)) return { path, expected: 'sibling row layout object', actual: layout };
-  const keys = ['direction', 'siblingGap', 'paddingStart', 'paddingEnd'];
+  const keys = ['direction', 'siblingGap', 'paddingStart', 'paddingEnd', 'allocations'];
   for (const key of Object.keys(layout)) if (!keys.includes(key)) return { path: `${path}.${key}`, expected: 'supported sibling layout property', actual: layout[key] };
   if (layout.direction !== 'row') return { path: `${path}.direction`, expected: 'row', actual: layout.direction };
   for (const key of ['siblingGap', 'paddingStart', 'paddingEnd']) if (!percent(layout[key])) {
     return { path: `${path}.${key}`, expected: '0–100 parent-width percent', actual: layout[key] };
   }
   if (layout.paddingStart + layout.paddingEnd > 100) return { path, expected: 'horizontal padding contained in parent', actual: layout };
+  if (own(layout, 'allocations')) {
+    if (!object(layout.allocations) || !Object.keys(layout.allocations).length) return { path: `${path}.allocations`, expected: 'nonempty named vertical allocations', actual: layout.allocations };
+    for (const [name, allocation] of Object.entries(layout.allocations)) {
+      const allocationPath = `${path}.allocations.${name}`;
+      if (!isId(name) || !allowed(allocation, ['y', 'height'])) return { path: allocationPath, expected: 'named y/height allocation', actual: allocation };
+      if (!percent(allocation.y) || !percent(allocation.height) || allocation.height === 0
+        || allocation.y + allocation.height > 100.00001) return { path: allocationPath, expected: 'positive-height vertical allocation contained within parent', actual: allocation };
+    }
+  }
   return null;
 }
 
-function siblingPlacementProblem(placement, path) {
+function siblingPlacementProblem(placement, path, allocations) {
   if (!object(placement)) return { path, expected: 'parent-owned sibling placement object', actual: placement };
-  for (const key of Object.keys(placement)) if (!['align', 'order'].includes(key)) {
-    return { path: `${path}.${key}`, expected: 'align | order', actual: placement[key] };
+  const keys = allocations ? ['align', 'order', 'allocation'] : ['align', 'order'];
+  for (const key of Object.keys(placement)) if (!keys.includes(key)) {
+    return { path: `${path}.${key}`, expected: keys.join(' | '), actual: placement[key] };
   }
   if (!['start', 'end'].includes(placement.align)) return { path: `${path}.align`, expected: 'start | end', actual: placement.align };
   if (!Number.isInteger(placement.order) || placement.order < 1) return { path: `${path}.order`, expected: 'positive integer sibling order', actual: placement.order };
+  if (allocations && (!isId(placement.allocation) || !own(allocations, placement.allocation))) return { path: `${path}.allocation`, expected: 'named allocation declared by the configured parent', actual: placement.allocation };
   return null;
 }
 
@@ -348,11 +360,20 @@ export function validateFrameConfig(raw, catalog, diagnostics) {
     }
     const configuredParent = sections.find((section) => section?.id === node.parentId);
     if (!configuredParent) { report('UNKNOWN_PARENT', `${path}.parentId`, 'configured section ID', node.parentId, meta); return; }
+    let bounds = node.bounds;
     if (own(configuredParent, 'layout')) {
-      const boundsIssue = siblingBoundsProblem(node.bounds, `${path}.bounds`);
+      const allocations = configuredParent.layout?.allocations;
+      const boundsIssue = siblingBoundsProblem(bounds, `${path}.bounds`, own(configuredParent.layout, 'allocations'));
       if (boundsIssue) { report('INVALID_INSTANCE', boundsIssue.path, boundsIssue.expected, boundsIssue.actual, meta); return; }
-      const placementIssue = siblingPlacementProblem(node.placement, `${path}.placement`);
+      const placementIssue = siblingPlacementProblem(node.placement, `${path}.placement`, allocations);
       if (placementIssue) { report('INVALID_SIBLING_PLACEMENT', placementIssue.path, placementIssue.expected, placementIssue.actual, meta); return; }
+      if (own(configuredParent.layout, 'allocations')) {
+        const allocation = allocations?.[node.placement.allocation];
+        // Invalid parent allocation never becomes fallback child geometry.
+        const allocationIssue = siblingLayoutProblem(configuredParent.layout, `sections[${sections.indexOf(configuredParent)}].layout`);
+        if (allocationIssue) return;
+        bounds = { ...bounds, ...allocation };
+      }
     } else {
       if (!checkBounds(node.bounds, `${path}.bounds`, meta, 'INVALID_INSTANCE')) return;
       if (own(node, 'placement')) { report('INVALID_SIBLING_PLACEMENT', `${path}.placement`, 'placement only when the configured parent owns a sibling layout', node.placement, meta); return; }
@@ -398,7 +419,7 @@ export function validateFrameConfig(raw, catalog, diagnostics) {
     if (duplicateComponents.has(node.componentId)) return;
     if (entry?.validateConfig) {
       try {
-        if (entry.validateConfig({ ...node, ...visual, parts }, (property, expected, actual) => report('INVALID_COMPONENT_CONFIG', `${path}.${property}`, expected, actual, meta)) !== true) return;
+        if (entry.validateConfig({ ...node, bounds, ...visual, parts }, (property, expected, actual) => report('INVALID_COMPONENT_CONFIG', `${path}.${property}`, expected, actual, meta)) !== true) return;
       } catch (error) { report('COMPONENT_CONFIG_FAILED', path, 'valid component-owned config contract', error.message, meta); return; }
     }
     if (entry && entry.folder !== configuredParent.folder) { report('FOLDER_PARENT_MISMATCH', `${path}.parentId`, configuredParent.folder, entry.folder, meta); return; }
@@ -409,7 +430,7 @@ export function validateFrameConfig(raw, catalog, diagnostics) {
     for (const capability of entry.requires ?? []) if (!Object.hasOwn(result, capability) || result[capability] === null) {
       report('MISSING_CAPABILITY', path, `valid ${capability} settings`, null, { ...meta, action: 'dependent control skipped; other controls preserved' }); return;
     }
-    result.instances.push({ ...node, ...visual, parts, ...entry, configPath: path });
+    result.instances.push({ ...node, bounds, ...visual, parts, ...entry, configPath: path });
   });
 
   // LOGIC — configured parents resolve sibling x positions once; leaf controls never place peers.

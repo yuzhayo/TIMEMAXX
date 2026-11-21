@@ -55,14 +55,14 @@
     "popup": { "preset": "base", "colors": { "background": "#1d252f", "border": "#43505f" }, "geometry": { "borderWidth": 1, "radius": 6 } }  },
   "sections": [
     { "id": "windowsBar", "parentId": "window", "label": "Windows bar", "folder": "windows-bar", "enabled": true, "nativeSafeArea": false, "draggable": true, "layout": { "direction": "row", "siblingGap": 1, "paddingStart": 1.5, "paddingEnd": 1 }, "bounds": { "x": 0, "y": 0, "width": 100, "height": 4 }, "preset": "bar" },
-    { "id": "actionBar", "parentId": "window", "label": "Action bar", "folder": "action-bar", "enabled": true, "nativeSafeArea": false, "draggable": false, "layout": { "direction": "row", "siblingGap": 0.425, "paddingStart": 1, "paddingEnd": 1 }, "bounds": { "x": 0, "y": 4, "width": 100, "height": 4 }, "preset": "bar" },
+    { "id": "actionBar", "parentId": "window", "label": "Action bar", "folder": "action-bar", "enabled": true, "nativeSafeArea": false, "draggable": false, "layout": { "direction": "row", "siblingGap": 0.425, "paddingStart": 1, "paddingEnd": 1, "allocations": { "controls": { "y": 8, "height": 84 }, "separator": { "y": 18, "height": 64 } } }, "bounds": { "x": 0, "y": 4, "width": 100, "height": 4 }, "preset": "bar" },
     { "id": "frameBody", "parentId": "window", "label": "Frame body", "folder": "frame-body", "enabled": true, "nativeSafeArea": false, "draggable": false, "sizing": "remaining", "bounds": { "x": 0, "y": 8, "width": 100, "height": 85 }, "preset": "base", "colors": { "background": "#0e1116" } },
     { "id": "bottomBar", "parentId": "window", "label": "Bottom bar", "folder": "bottom-bar", "enabled": true, "nativeSafeArea": false, "draggable": false, "sizing": "content", "bounds": { "x": 0, "y": 93, "width": 100, "height": 7 }, "preset": "bar" }
   ],
   "instances": [
     { "id": "undo", "componentId": "history.undo", "parentId": "windowsBar", "enabled": true, "label": "Undo", "icon": "undo", "placement": { "align": "start", "order": 1 }, "bounds": { "y": 8, "width": 4.5, "height": 84 }, "preset": "button" },
     { "id": "redo", "componentId": "history.redo", "parentId": "windowsBar", "enabled": true, "label": "Redo", "icon": "redo", "placement": { "align": "start", "order": 2 }, "bounds": { "y": 8, "width": 4.5, "height": 84 }, "preset": "button" },
-    { "id": "fileControls", "componentId": "file.controls", "parentId": "actionBar", "enabled": true, "label": "Image file controls", "placement": { "align": "end", "order": 2 }, "bounds": { "y": 8, "width": 25, "height": 84 }, "preset": "base", "geometry": { "gap": 5 }, "content": { "overflow": "visible" },
+    { "id": "fileControls", "componentId": "file.controls", "parentId": "actionBar", "enabled": true, "label": "Image file controls", "placement": { "align": "end", "order": 2, "allocation": "controls" }, "bounds": { "width": 25 }, "order": ["load", "reset", "save"], "preset": "base", "geometry": { "gap": 5 }, "content": { "overflow": "visible" },
       "labels": { "load": "Load image", "save": "Save image", "reset": "Reset photo" }, "icons": { "load": "folderOpen", "save": "save", "reset": "restartAlt" }, "parts": {
         "load": { "preset": "fileAction", "size": { "width": 30, "height": 100 } },
         "save": { "preset": "fileAction", "size": { "width": 30, "height": 100 } },
@@ -88,7 +88,7 @@
     { "id": "windowClose", "componentId": "window.action", "parentId": "windowsBar", "enabled": true, "label": "Close window", "action": "close", "icon": "close", "placement": { "align": "end", "order": 4 }, "bounds": { "y": 8, "width": 4.5, "height": 84 }, "preset": "fileAction" },
     { "id": "rotationControls", "componentId": "photo.rotationControls", "parentId": "actionBar", "enabled": true, "label": "Photo rotation controls", "unit": "°", "icons": { "decrease": "rotateLeft", "increase": "rotateRight" },
       "labels": { "decrease": "Rotate left 90 degrees", "value": "Photo rotation in degrees", "slider": "Photo rotation slider", "increase": "Rotate right 90 degrees" },
-      "placement": { "align": "start", "order": 1 }, "bounds": { "y": 8, "width": 16, "height": 84 }, "preset": "base", "geometry": { "gap": 1.5 }, "content": { "overflow": "visible" }, "parts": {
+      "placement": { "align": "start", "order": 1, "allocation": "controls" }, "bounds": { "width": 16 }, "order": ["decrease", "value", "increase"], "preset": "base", "geometry": { "gap": 1.5 }, "content": { "overflow": "visible" }, "parts": {
       "decrease": { "preset": "fileAction", "size": { "width": 27, "height": 100 } },
       "value": { "preset": "adjustmentValue", "size": { "width": 35, "height": 100 }, "content": { "textAlign": "right" } },
       "slider": { "preset": "base", "size": { "width": 100, "height": 100 }, "content": { "overflow": "visible" } },
@@ -99,8 +99,8 @@
       "increase": { "preset": "fileAction", "size": { "width": 27, "height": 100 } },
       "popup": { "preset": "popup", "size": { "width": 24, "height": 4 }, "geometry": { "paddingX": 6, "paddingY": 24 }, "portal": { "placement": "bottom-start", "offset": { "base": "anchor", "skid": 0, "gap": 20 }, "zIndex": 1300 } }
     } },
-    { "id": "rotationSeparator", "componentId": "layout.separator", "parentId": "actionBar", "enabled": true, "label": "Rotation group separator", "placement": { "align": "start", "order": 2 }, "bounds": { "y": 18, "width": 0.15, "height": 64 }, "preset": "base", "colors": { "background": "#43505f" } },
-    { "id": "sizeControls", "componentId": "photo.sizeControls", "parentId": "actionBar", "enabled": true, "label": "Photo size controls", "placement": { "align": "start", "order": 3 }, "bounds": { "y": 8, "width": 15, "height": 84 }, "preset": "base", "geometry": { "gap": 2 }, "content": { "overflow": "visible" },
+    { "id": "rotationSeparator", "componentId": "layout.separator", "parentId": "actionBar", "enabled": true, "label": "Rotation group separator", "placement": { "align": "start", "order": 2, "allocation": "separator" }, "bounds": { "width": 0.15 }, "preset": "base", "colors": { "background": "#43505f" } },
+    { "id": "sizeControls", "componentId": "photo.sizeControls", "parentId": "actionBar", "enabled": true, "label": "Photo size controls", "placement": { "align": "start", "order": 3, "allocation": "controls" }, "bounds": { "width": 15 }, "order": ["decrease", "value", "increase"], "preset": "base", "geometry": { "gap": 2 }, "content": { "overflow": "visible" },
       "labels": { "decrease": "Decrease photo size", "slider": "Photo size", "value": "Photo size percentage", "increase": "Increase photo size" },
       "icons": { "decrease": "photoSizeSmall", "increase": "photoSizeLarge" }, "parts": {
       "decrease": { "preset": "fileAction", "size": { "width": 30, "height": 100 } },
@@ -113,7 +113,7 @@
       "thumb": { "preset": "rotationThumb", "size": { "width": 8, "height": 78 } },
       "popup": { "preset": "popup", "size": { "width": 24, "height": 4 }, "geometry": { "paddingX": 6, "paddingY": 24 }, "portal": { "placement": "bottom-start", "offset": { "base": "anchor", "skid": 0, "gap": 20 }, "zIndex": 1300 } }
     } },
-    { "id": "sizeSeparator", "componentId": "layout.separator", "parentId": "actionBar", "enabled": true, "label": "Size group separator", "placement": { "align": "end", "order": 1 }, "bounds": { "y": 18, "width": 0.15, "height": 64 }, "preset": "base", "colors": { "background": "#43505f" } }
+    { "id": "sizeSeparator", "componentId": "layout.separator", "parentId": "actionBar", "enabled": true, "label": "Size group separator", "placement": { "align": "end", "order": 1, "allocation": "separator" }, "bounds": { "width": 0.15 }, "preset": "base", "colors": { "background": "#43505f" } }
   ],
   "development": {
     "inspectionEnabled": false,

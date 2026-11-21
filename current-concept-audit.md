@@ -51,16 +51,17 @@ MUI source was consulted for disabled-state and Slider event behavior.
 | Area / file | Actual owner and audit result |
 | --- | --- |
 | Windows Bar | JSON row layout owns sibling order/gap; native window operations are outside JSX. Four-percent height and right-lane Placement/maximize/X are configured. Findings A02, A08. |
-| Action Bar | JSON row layout owns external gaps. Shared buttons, geometry, popup/slider ownership and keyboard completion are repaired (A02–A06). A07/A08 retain row/state gaps. Existing layout is unchanged. |
+| Action Bar | A07 repaired: parent JSON owns shared control/separator vertical allocations and external gaps; baked part order/row mechanics are shared. Default geometry is unchanged. A08 slot-state work remains open. |
 | Frame/body | Remaining-height section contains preview plus non-intercepting DropTarget. Painter/input/operations are separate owners. Findings A05, A10–A13 concern remaining boundaries and failure paths. |
 | Bottom Bar | `FrameInfo.jsx` is the only live status outlet, with intrinsic wrapping height and percentage-padding calculation. No toast stack exists. Finding A13 concerns diagnostic attribution/summary, not the presence of this owner. |
 | Overlays | All Information/notices JSX files are empty; no active overlay implementation or hand-built child registry exists. Info placement and deferred orchestration must follow the latest decisions above. |
 | `ActionButton.jsx` | A02 repaired: common icon/text/editable-host renderer for file buttons, window actions, adjustment buttons/values and Undo/Redo. History icons are configured through JSON. |
-| `AdjustmentControls.jsx` | Token-owned slider edits and cleanup remain here. The optional editor keyup is forwarded to its feature owner; no degree logic or math is copied here. A07 row and A08 states remain open. |
+| `AdjustmentControls.jsx` | Token-owned slider edits and cleanup remain here; row mechanics/containment delegate to ConfiguredRow. Editor callbacks stay feature-owned. A08 nested value states remain open. |
+| `ConfiguredRow.jsx` | A07 shared owner for JSON part order, parent-relative slots/gaps and row alignment. Validates complete unique order, width/gap containment and non-wrapping row states for File/Rotation/Size. No feature actions or registry. |
 | `ConfiguredPopover.jsx` | Shared validated geometry/placement plus reasoned Escape/outside dismissal. Edit settlement is delegated to its content owner; it does not manipulate history. |
 | `appearance.mjs` | Active `configuredAppearance/configuredSx/configuredBounds` translate resolved config. Legacy helpers coexist for the reference app; Frame does not import the legacy renderer path. A08 identifies missing MUI-slot state application, not a second active theme in this file. |
 | `config.cjs`, `controls.jsx`, `NodeContext.jsx` | Legacy/reference configuration and controls; read in full and checked for Frame consumers. No active Frame imports were found. Keep reference callers intact; their existence alone is not a Frame defect. |
-| `FileControls.jsx` | Correctly owns baked Load/Reset/Save composition and provenance; calls shared buttons and session actions. It validates row width, unlike adjustments. Hardcoded part order is noted in A07. |
+| `FileControls.jsx` | Owns named file parts, provenance and actions; shared ConfiguredRow renders their JSON order and validates containment. Default remains Load/Reset/Save. |
 | `SizeControls.jsx` | Thin value/operation adapter, passing edit handles through the same history owner as canvas inputs. No local slider handlers or history calculations. |
 | `RotationControls.jsx` | A06 repaired: owned typing and arrow-step phases are distinct; held arrows finish on final matching key release. Enter/blur/Escape and token isolation are preserved. Existing DOM-name mapping is unchanged. |
 | `ActionSeparator.jsx` | Renders configured separator only. Sibling placement is no longer calculated in this component; this boundary fits. |
@@ -74,7 +75,7 @@ MUI source was consulted for disabled-state and Slider event behavior.
 | `DropTarget.jsx` | Explicit file-drop-only handlers; no click loader. Feedback is pointer-transparent. Native replacement is shared correctly, with failure consistency caveat A10. |
 | `FrameInfo.jsx` | Owns text measurement/padding, not file operations or record persistence. It imports the diagnostic formatter and shows both message and summary. Readability/ownership limitations: A13. |
 | `ComponentDiscovery.mjs` | Collects full catalog and stable exports before mounting; now validates component-declared per-part option keys without a named-control registry. Empty skeletons/helpers remain excluded. |
-| `ConfigValidation.mjs` | A04 accepts only common or declared part keys; obsolete raw-CSS part fields are rejected. Presets, duplicate/folder isolation and sibling placement remain here. A07/A09 retain remaining layout gaps. |
+| `ConfigValidation.mjs` | Resolves parent-owned named vertical allocations before mounting, rejecting manual y/height overrides and unknown allocations. Existing presets, duplicate/folder isolation and sibling x placement remain here. A09 section-flow validation remains open. |
 | `WindowLayout.jsx` | One generic mount owner, error boundaries and inspector composition; no named feature imports. Row coordinates are resolved beforehand. Its vertical-flow specialization is not validated: A09. |
 | `LayoutDiagnostics.mjs`, `DiagnosticLog.cjs` | One renderer record/dedup owner plus native persistence adapter is correct. Some callers bypass the complete provenance and human-readable summary contract: A13. |
 | `LayoutInspector.jsx` | Development-only non-intercepting badges plus global identity summary. No separate inspector framework. No new defect established in source. |
@@ -320,9 +321,9 @@ exercised during this audit are labeled **code-derived risk**.
   `frame/.runtime/checks/rotation-key-release/`. No broad suite or permanent test
   file was added; the inspection window was closed before normal app relaunch.
 
-#### A07 — Medium: baked row layout is duplicated and its validation is uneven
+#### A07 — Medium at audit; shared row/order/containment repair complete
 
-- **Evidence:** `FileControls.jsx:48–58` and `AdjustmentControls.jsx:86–89,154–158`
+- **Evidence at audit revision:** `FileControls.jsx:48–58` and `AdjustmentControls.jsx:86–89,154–158`
   duplicate slot/flex/gap application. FileControls validates total widths plus
   gaps (`:30–32`); `validateAdjustmentConfig` does not. Each part may be a valid
   percentage yet the sum can exceed 100 with flexShrink=0. File order is still
@@ -337,8 +338,33 @@ exercised during this audit are labeled **code-derived risk**.
   Keep feature composition in its owner and configure order in JSON. If equal
   Action Bar height is to remain a maintained rule, represent its allocation once
   rather than copying another hardcoded height into renderers. No new registry.
-- **Status:** confirmed validation/config-ownership gap; current three groups
-  fit, so this is not a claim of present default-window overflow.
+- **Status:** repaired in the seventh piece. `components/ConfiguredRow.jsx` owns
+  slot/flex/gap rendering and validation for both baked groups. Feature owners
+  supply named content/actions; row `order` lists every supported part exactly
+  once in JSON. Defaults remain Load/Reset/Save and decrease/value/increase.
+  Part widths plus gaps must fit 100% of the row's padded content width, with
+  positive content area and one non-wrapping row in every declared visual state.
+  Row gap/alignment state application uses the existing shared appearance owner;
+  no palette, registry, fixed-pixel control override or feature math was added.
+- **Parent allocation:** Action Bar's `layout.allocations.controls` declares
+  y=8%, height=84% once; the three groups select it through `placement.allocation`
+  and keep only their own width. Separators share a shorter named allocation.
+  This is a generic optional section-layout contract, not a control-ID registry.
+  ConfigValidation validates/selects the allocation and produces resolved bounds;
+  unknown selections and competing child y/height are rejected, not overwritten.
+  Parents without allocations retain their existing explicit vertical bounds.
+- **Validation for A07:** UI build passed. Real Frame inspection at startup
+  934×1359 and minimum 760×700 matched the A06 geometry within 0.2 DIP. JSON-only
+  order changes worked for all three groups. Width/gap/padding and hover row
+  alignment changes affected only the intended group; one parent allocation
+  changed all three heights/insets without changing separators or Windows Bar.
+  Reordered Load/Reset/rotation commands, editable degrees and both slider
+  history/popups passed. Forty-two malformed row/order/allocation cases were
+  logged and isolated; valid configuration remounted. No renderer errors occurred.
+  Initial proof-selector mistakes were corrected; passing geometry checks were
+  not repeated. Evidence is under `frame/.runtime/checks/configured-row/`.
+  No broad suite or permanent test file was added. A08 value/dropdown slot-state
+  routing and A09 section-flow mismatch remain open.
 
 #### A08 — High: Placement and value parts do not fully apply configured states
 
@@ -517,13 +543,15 @@ not mounted. Preserve unrelated skeletons; do not fill them just because they ex
    cleanup; stale callbacks cannot revive or finish a foreign edit.
    **Done — A06:** degree-field arrow repeats commit on final matching key release,
    distinct from normal typing and protected against stale keyup.
-   **Next piece: A07, baked row mechanics, order and containment validation.**
+   **Done — A07:** shared baked row mechanics/containment, JSON part order and
+   parent-owned named vertical allocation; existing arrangement is unchanged.
+   **Next piece: A08, configured value/dropdown slot-state application.**
 2. Repair the existing popup/slider geometry and slot-state application at their
    shared owners (A03/A04 done; A08 slot states remains open).
 3. Make edit ownership/lifetime consistent across controls and canvas inputs
    (A05/A06 done), then close busy/input-isolation gaps (A11, A12).
 4. Strengthen the existing parent/baked-row contracts rather than introducing a
-   new layout/registration system (A07, A09).
+   new layout/registration system (A07 done; A09 remains open).
 5. Repair multi-stage load acceptance and diagnostic origin/formatting in their
    existing owners (A10, A13).
 
@@ -540,7 +568,7 @@ The standalone `@APPS/frame/` currently implements its native window, four
 configured sections, discovery/validation before mounting, diagnostics, inspection,
 Undo/Redo, Load/drop/Save, Rust photo/black export, Rotation/Size, Placement,
 photo pointer/wheel input, separate inspection state and Ctrl+S/Ctrl+Z.
-These are implemented features, not a blanket compliance verdict: A07–A14 in the
+These are implemented features, not a blanket compliance verdict: A08–A14 in the
 source audit remain open. The current task is to repair that list piece by piece.
 Info and background orchestration are deferred, not the next automatic features.
 Preserve `output-frame/` as reference only; do not recreate/reconfirm the skeleton.
@@ -608,12 +636,13 @@ parent-relative inner geometry. A04 now reads placement, anchor-relative offsets
 and stacking from validated popup config. A05 now owns slider settlement through
 history handles, including Escape/outside/blur/disable/unmount.
 
-`components/AdjustmentControls.jsx` now owns the one reusable proportional row,
-value/editor trigger, popup slider and common configuration validation. Rotation
+`components/AdjustmentControls.jsx` owns the shared adjustment composition,
+value/editor trigger, popup slider and common adjustment validation. Rotation
 and Size use the same `decrease/value/increase/slider/control/rail/track/thumb/popup`
 part contract. Group/row allocations and managed slider parts use explicit
 percentage bases after A03. Feature adapters supply state, labels, icons and
-commands; remaining row/state gaps are A07/A08.
+commands. ConfiguredRow owns common row mechanics/containment for adjustments
+and file controls after A07; nested value/dropdown state gaps remain A08.
 
 ## Baked size controls and Reset
 
@@ -631,7 +660,8 @@ like the rotation buttons. Undo/Redo settle pending edits through the same owner
 ## Baked file controls and right margins
 
 One `file.controls` instance (`fileControls`) owns Load/Reset/Save composition,
-labels/icons, row sizing and configuration checks. Its shared ActionButton IDs are
+labels/icons and actions. Shared ConfiguredRow consumes its JSON order and row
+sizes and validates containment. Its shared ActionButton IDs are
 `fileControls-load`, `fileControls-reset` and `fileControls-save`: named parts,
 not separate layout registrations. File operations/history stay centralized.
 
@@ -639,8 +669,8 @@ The group occupies 25% of Action Bar width and uses its end lane with 1% parent
 end padding. Each part uses 30% of group width, 100% height, with 5% internal gaps.
 Parent layout computes x; no child stores a competing horizontal position.
 Close/X is also in its parent's end lane, ending at 99%. Minimize remains hidden;
-vertical maximize/restore and X are visible. A07 covers internal-order/row reuse
-gaps; old two-button widths are not the current target.
+vertical maximize/restore and X are visible. Action Bar's common vertical bounds
+come from its named parent allocation. Old two-button widths are not the target.
 
 ## Bottom Bar and deferred Info
 
@@ -895,6 +925,11 @@ Do not weaken folder guards or move feature behavior into the visual primitive.
 The consumer's Vite config resolves shared React/MUI/Emotion imports to frame's
 declared dependencies, not an undeclared ancestor installation.
 
+`@APPS/components/ConfiguredRow.jsx` owns common baked row/slot placement and
+containment. FileControls and AdjustmentControls supply each part's content;
+JSON supplies order, sizes, gaps, padding and alignment. It is not a discovered
+control or a registry and contains no file/photo/history operations.
+
 ### Validated visual values and failure ownership
 
 - Presets have explicit visiting/resolved/invalid resolution states. Cycles stop,
@@ -989,11 +1024,12 @@ each section accepts only files from its assigned folder. Move a control's file
 and change JSON parent/placement to relocate it; no assembly/behavior edits.
 
 Configured sections may own a generic row layout with one `siblingGap`, start/end
-padding and ordered start/end lanes. Children of that section provide width and
-vertical bounds but no `x`; `ConfigValidation.mjs` resolves their horizontal
-bounds before `WindowLayout.jsx` mounts them. Action Bar uses this mechanism, so
-its separators declare only size/order/appearance and cannot independently tune
-their horizontal position.
+padding and ordered start/end lanes. Without named allocations, children provide
+width and vertical bounds but no `x`. With `layout.allocations`, the parent owns
+named y/height pairs; children select `placement.allocation` and provide width
+only. ConfigValidation resolves all bounds before WindowLayout mounts them.
+Action Bar shares one control allocation across File/Rotation/Size and a shorter
+separator allocation; neither leaf assembly nor feature behavior places siblings.
 
 Every control source has UI and LOGIC sections when applicable:
 
@@ -1067,7 +1103,8 @@ black output and 1200×1600 / 2400×3200 / 3024×4032 export sizes.
 
 | Owner | Implemented responsibility |
 | --- | --- |
-| `FileControls.jsx` | One baked file-behavior registration/instance, three named parts (load/save/reset), component-owned labels/icons/row validation and delegation to the shared MUI renderer. |
+| `FileControls.jsx` | One baked file-behavior instance, three named parts (load/reset/save), feature-owned labels/icons/actions and delegation to shared ConfiguredRow/ActionButton. |
+| `components/ConfiguredRow.jsx` | Shared JSON-order row/slot rendering and containment validation for FileControls and AdjustmentControls. No feature behavior. |
 | `components/AdjustmentControls.jsx` / `SizeControls.jsx` / `RotationControls.jsx` | One reusable proportional adjustment sub-parent; thin Size and Rotation behavior adapters use the same named-part contract. |
 | `PhotoOperations.mjs` | Shared size and rotation policies, fit/percent/scale rules and history-grouped commands. |
 | `components/ActionButton.jsx` (under `@APPS`) | One rendering/icon mechanism shared by file and window action registrations; no native/file behavior or app-specific appearance. |
@@ -1088,8 +1125,8 @@ uses its own declared owners; no old controller or stamp runtime was copied in.
 1. **Current task: repair A01–A14 piece by piece**, using the audit's repair order
    and per-finding status. A01 documentation and A02 shared button rendering are
    complete; A03 geometry, A04 popup contracts and A05 edit ownership are complete.
-   A06 field arrow-key release is complete. A07 row mechanics/order/validation is
-   next. Later findings remain open.
+   A06 field release and A07 row mechanics/order/validation are complete.
+   A08 configured value/dropdown slot states is next. Later findings remain open.
 2. Preserve implemented photo/file/history/input features and the latest UI.
    Make each repair in its existing owning files; remove directly superseded code
    after checking callers. Do not replace the app with another framework or host.
@@ -1114,7 +1151,7 @@ re-audit unrelated files or repeatedly reconfirm an already-correct skeleton.
 ## Acceptance checklist
 
 Checked items describe implemented structure or earlier evidence, not a fresh
-runtime verification of the audited revision. Open A07–A14 findings qualify
+runtime verification of the audited revision. Open A08–A14 findings qualify
 those claims. Deferred features are listed separately and are not this repair's
 definition of done.
 

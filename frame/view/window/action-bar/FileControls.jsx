@@ -1,10 +1,9 @@
 import React from 'react';
-import Box from '@mui/material/Box';
 import ActionButton, { hasActionIcon } from '@ui/ActionButton.jsx';
-import { configuredSx, configuredBounds, fill } from '@ui/appearance.mjs';
+import ConfiguredRow, { validateConfiguredRow } from '@ui/ConfiguredRow.jsx';
 
 export const componentId = 'file.controls';
-export const configKeys = ['labels', 'icons'];
+export const configKeys = ['labels', 'icons', 'order'];
 export const partKeys = ['load', 'reset', 'save'];
 
 // LOGIC — one baked file feature owns its parts; file operations retain their shared owner.
@@ -20,16 +19,7 @@ export function validateConfig(config, report) {
       }
     }
   }
-  for (const name of partKeys) {
-    const part = config.parts[name];
-    if (!part.size || part.bounds) { report(`parts.${name}`, 'size-only button allocation in the file row', part); valid = false; }
-  }
-  if (config.content.direction !== 'row' || config.content.wrap !== 'nowrap') {
-    report('content', 'one non-wrapping row for Load/Save/Reset', config.content); valid = false;
-  }
-  if (partKeys.reduce((width, name) => width + (config.parts[name].size?.width ?? 0), config.geometry.gap * (partKeys.length - 1)) > 100) {
-    report('parts', 'button widths plus gaps contained in the row', config.parts); valid = false;
-  }
+  if (!validateConfiguredRow(config, partKeys, report)) valid = false;
   return valid;
 }
 
@@ -45,21 +35,7 @@ export default function FileControls({ config, state, actions }) {
   });
 
   // UI — configured group/parts and the same shared icon-only button renderer.
-  return <Box id={config.id} role="group" aria-label={config.label} sx={{ ...fill, ...configuredSx(config) }}>
-    <Box data-file-content="true" sx={{ ...fill, position: 'relative', containerType: 'size',
-      display: 'flex', flexDirection: config.content.direction, flexWrap: config.content.wrap,
-      alignItems: config.content.verticalAlign, justifyContent: config.content.horizontalAlign, columnGap: `${config.geometry.gap}%`,
-    }}>
-      {partKeys.map((name) => {
-        const part = config.parts[name];
-        return <Box key={name} data-part={name} sx={{
-          ...configuredBounds({ ...part, bounds: { x: 0, y: 0, width: part.size.width, height: part.size.height } }),
-          position: 'relative', left: 'auto', top: 'auto', flexShrink: 0, containerType: 'size',
-        }}>
-          <ActionButton config={{ ...part, id: `${config.id}-${name}`, label: config.labels[name], icon: config.icons[name] }}
-            disabled={disabled(name)} onClick={() => activate(name)} />
-        </Box>;
-      })}
-    </Box>
-  </Box>;
+  return <ConfiguredRow config={config} contentName="file" renderPart={(name, part) =>
+    <ActionButton config={{ ...part, id: `${config.id}-${name}`, label: config.labels[name], icon: config.icons[name] }}
+      disabled={disabled(name)} onClick={() => activate(name)} />} />;
 }

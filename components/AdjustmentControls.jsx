@@ -4,10 +4,13 @@ import InputBase from '@mui/material/InputBase';
 import Slider from '@mui/material/Slider';
 import ActionButton, { hasActionIcon } from './ActionButton.jsx';
 import ConfiguredPopover, { validatePopoverConfig } from './ConfiguredPopover.jsx';
-import { boundsStyle, configuredBounds, configuredSx, fill } from './appearance.mjs';
+import ConfiguredRow, { validateConfiguredRow } from './ConfiguredRow.jsx';
+import { boundsStyle, configuredSx } from './appearance.mjs';
 
 export const adjustmentPartKeys = ['decrease', 'value', 'increase', 'slider', 'control', 'rail', 'track', 'thumb', 'popup'];
 export const adjustmentPartConfigKeys = { popup: ['portal'] };
+export const adjustmentConfigKeys = ['labels', 'icons', 'order'];
+const rowPartKeys = ['decrease', 'value', 'increase'];
 const sliderStepKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End'];
 
 // LOGIC — validate the reusable adjustment sub-parent once for every feature adapter.
@@ -33,7 +36,7 @@ export function validateAdjustmentConfig(config, report) {
   const control = config.parts.control;
   if (!control.bounds) { report('parts.control.bounds', 'explicit parent-relative bounds', undefined); valid = false; }
   if (control.size) { report('parts.control.size', 'bounds-only positioned part', control.size); valid = false; }
-  for (const name of adjustmentPartKeys.filter((name) => name !== 'control')) {
+  for (const name of adjustmentPartKeys.filter((name) => name !== 'control' && !rowPartKeys.includes(name))) {
     const part = config.parts[name];
     if (!part.size) { report(`parts.${name}.size`, 'explicit parent-relative size', undefined); valid = false; }
     if (part.bounds) { report(`parts.${name}.bounds`, 'size-only adjustment part', part.bounds); valid = false; }
@@ -45,9 +48,7 @@ export function validateAdjustmentConfig(config, report) {
     report(`parts.${name}.aspectRatio`, 'aspect ratio belongs to the adjustment button parts', config.parts[name].aspectRatio); valid = false;
   }
   if (!validatePopoverConfig(config.parts.popup, (property, expected, actual) => report(`parts.popup.${property}`, expected, actual))) valid = false;
-  if (config.content.direction !== 'row' || config.content.wrap !== 'nowrap') {
-    report('content', 'one non-wrapping adjustment row', config.content); valid = false;
-  }
+  if (!validateConfiguredRow(config, rowPartKeys, report)) valid = false;
   return valid;
 }
 
@@ -55,7 +56,7 @@ export function validateAdjustmentConfig(config, report) {
 export default function AdjustmentControls({
   config, disabled, contentName, partNames = {}, buttonActions, valueControl, sliderControl,
 }) {
-  const { decrease, value, increase, slider, control, rail, track, thumb, popup } = config.parts;
+  const { value, slider, control, rail, track, thumb, popup } = config.parts;
   const [popupOpen, setPopupOpen] = useState(false);
   const operations = useRef(sliderControl);
   const gesture = useRef(null);
@@ -142,11 +143,6 @@ export default function AdjustmentControls({
   // UI — managed rail/track/thumb dimensions query the positioned control's own axes.
   const managedPart = (part) => ({ ...configuredSx(part), height: `${part.size.height}cqh` });
   const buttonConfig = (role, part) => ({ ...part, id: id(role), label: config.labels[role], icon: config.icons[role] });
-  const slot = (role, part, children) => <Box data-part={name(role)} sx={{
-    ...configuredBounds({ ...part, bounds: { x: 0, y: 0, width: part.size.width, height: part.size.height } }),
-    position: 'relative', left: 'auto', top: 'auto', flexShrink: 0, containerType: 'size',
-  }}>{children}</Box>;
-  const contentAttribute = contentName ? { [`data-${contentName}-content`]: 'true' } : {};
   const editor = valueControl.editor;
   const valueTrigger = <ActionButton config={{ ...value, id: id('value'), label: config.labels.value }}
     disabled={disabled} onClick={openPopup} editable={Boolean(editor)} invalid={editor?.invalid}>
@@ -196,13 +192,9 @@ export default function AdjustmentControls({
     publishValue(action());
   };
 
-  return <Box id={config.id} role="group" aria-label={config.label} sx={{ ...fill, ...configuredSx(config) }}>
-    <Box {...contentAttribute} sx={{ ...fill, position: 'relative', containerType: 'size',
-      display: 'flex', flexDirection: config.content.direction, flexWrap: config.content.wrap,
-      alignItems: config.content.verticalAlign, justifyContent: config.content.horizontalAlign, columnGap: `${config.geometry.gap}%`,
-    }}>
-      {slot('decrease', decrease, <ActionButton config={buttonConfig('decrease', decrease)} disabled={disabled} onClick={() => activateButton(buttonActions.decrease)} />)}
-      {slot('value', value, <ConfiguredPopover id={id('popup')} config={popup} open={popupOpen} onClose={closePopup} trigger={valueTrigger}>
+  return <ConfiguredRow config={config} contentName={contentName} partNames={partNames} renderPart={(role, part) => {
+    if (role !== 'value') return <ActionButton config={buttonConfig(role, part)} disabled={disabled} onClick={() => activateButton(buttonActions[role])} />;
+    return <ConfiguredPopover id={id('popup')} config={popup} open={popupOpen} onClose={closePopup} trigger={valueTrigger}>
         <Box id={id('slider')} aria-disabled={disabled} sx={{ ...configuredSx(slider), position: 'relative',
           width: `${slider.size.width}%`, height: `${slider.size.height}%`, containerType: 'size' }}>
           <Slider aria-label={config.labels.slider} disabled={disabled} value={sliderControl.value}
@@ -217,8 +209,6 @@ export default function AdjustmentControls({
               thumb: { 'data-part': 'thumb', sx: { ...managedPart(thumb), width: `${thumb.size.width}cqw`, '&::before, &::after': { display: 'none' } } },
             }} />
         </Box>
-      </ConfiguredPopover>)}
-      {slot('increase', increase, <ActionButton config={buttonConfig('increase', increase)} disabled={disabled} onClick={() => activateButton(buttonActions.increase)} />)}
-    </Box>
-  </Box>;
+      </ConfiguredPopover>;
+  }} />;
 }
