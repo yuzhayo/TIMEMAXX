@@ -4,7 +4,7 @@ import InputBase from '@mui/material/InputBase';
 import Slider from '@mui/material/Slider';
 import ActionButton, { hasActionIcon } from './ActionButton.jsx';
 import ConfiguredPopover from './ConfiguredPopover.jsx';
-import { configuredBounds, configuredSx, fill } from './appearance.mjs';
+import { boundsStyle, configuredBounds, configuredSx, fill } from './appearance.mjs';
 
 export const adjustmentPartKeys = ['decrease', 'value', 'increase', 'slider', 'control', 'rail', 'track', 'thumb', 'popup'];
 
@@ -41,6 +41,12 @@ export function validateAdjustmentConfig(config, report) {
   }
   for (const name of adjustmentPartKeys) if (!['decrease', 'increase'].includes(name) && config.parts[name].aspectRatio !== undefined) {
     report(`parts.${name}.aspectRatio`, 'aspect ratio belongs to the adjustment button parts', config.parts[name].aspectRatio); valid = false;
+  }
+  for (const name of ['surfaceWidth', 'surfacePadding']) if (config.parts.popup[name] !== undefined) {
+    report(`parts.popup.${name}`, 'popup size percentages of the viewport and configured geometry padding', config.parts.popup[name]); valid = false;
+  }
+  if (config.parts.popup.geometry.paddingX >= 50 || config.parts.popup.geometry.paddingY >= 50) {
+    report('parts.popup.geometry', 'padding below 50% per side so popup content has positive size', config.parts.popup.geometry); valid = false;
   }
   if (config.content.direction !== 'row' || config.content.wrap !== 'nowrap') {
     report('content', 'one non-wrapping adjustment row', config.content); valid = false;
@@ -80,7 +86,8 @@ export default function AdjustmentControls({
     window.addEventListener('blur', blur);
     return () => { window.removeEventListener('blur', blur); blur(); };
   }, []);
-  const managedPart = (part) => ({ ...configuredSx(part), height: `${part.size.height}px` });
+  // UI — managed rail/track/thumb dimensions query the positioned control's own axes.
+  const managedPart = (part) => ({ ...configuredSx(part), height: `${part.size.height}cqh` });
   const buttonConfig = (role, part) => ({ ...part, id: id(role), label: config.labels[role], icon: config.icons[role] });
   const slot = (role, part, children) => <Box data-part={name(role)} sx={{
     ...configuredBounds({ ...part, bounds: { x: 0, y: 0, width: part.size.width, height: part.size.height } }),
@@ -149,17 +156,18 @@ export default function AdjustmentControls({
     }}>
       {slot('decrease', decrease, <ActionButton config={buttonConfig('decrease', decrease)} disabled={disabled} onClick={() => activateButton(buttonActions.decrease)} />)}
       {slot('value', value, <ConfiguredPopover id={id('popup')} config={popup} open={popupOpen} onClose={closePopup} trigger={valueTrigger}>
-        <Box id={id('slider')} aria-disabled={disabled} sx={{ ...configuredSx(slider), position: 'relative', width: '100%', height: `${slider.size.height}px` }}>
+        <Box id={id('slider')} aria-disabled={disabled} sx={{ ...configuredSx(slider), position: 'relative',
+          width: `${slider.size.width}%`, height: `${slider.size.height}%`, containerType: 'size' }}>
           <Slider aria-label={config.labels.slider} disabled={disabled} value={sliderControl.value}
             min={sliderControl.min} max={sliderControl.max} step={sliderControl.step} shiftStep={sliderControl.shiftStep ?? sliderControl.step}
             onChange={changeSlider} onChangeCommitted={commitSlider}
             onBlur={sliderBlur} onKeyUp={sliderKeyUp} onKeyDown={sliderKeyDown}
             onPointerDown={pointerDown} onPointerCancel={pointerCancel}
-            sx={{ ...configuredSx(control) }}
+            sx={{ ...configuredSx(control), ...boundsStyle(control.bounds), boxSizing: 'border-box', containerType: 'size' }}
             slotProps={{
               rail: { 'data-part': 'rail', 'aria-disabled': disabled, sx: { ...managedPart(rail), width: `${rail.size.width}%` } },
               track: { 'data-part': 'track', 'aria-disabled': disabled, sx: { ...managedPart(track), maxWidth: `${track.size.width}%` } },
-              thumb: { 'data-part': 'thumb', sx: { ...managedPart(thumb), width: `${thumb.size.width}px`, '&::before, &::after': { display: 'none' } } },
+              thumb: { 'data-part': 'thumb', sx: { ...managedPart(thumb), width: `${thumb.size.width}cqw`, '&::before, &::after': { display: 'none' } } },
             }} />
         </Box>
       </ConfiguredPopover>)}

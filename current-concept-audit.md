@@ -51,12 +51,12 @@ MUI source was consulted for disabled-state and Slider event behavior.
 | Area / file | Actual owner and audit result |
 | --- | --- |
 | Windows Bar | JSON row layout owns sibling order/gap; native window operations are outside JSX. Four-percent height and right-lane Placement/maximize/X are configured. Findings A02, A08. |
-| Action Bar | JSON row layout owns external gaps. Rotation/Size use the same sub-parent and all three groups currently use y=8%, h=84%, with visible parts at 100% height. Internal contracts still have findings A03–A07. |
+| Action Bar | JSON row layout owns external gaps. Rotation/Size use the same sub-parent and all three groups use y=8%, h=84%, with visible parts at 100% height. A03 percentage geometry is repaired; A04–A08 retain the remaining internal gaps. |
 | Frame/body | Remaining-height section contains preview plus non-intercepting DropTarget. Painter/input/operations are separate owners. Findings A05, A10–A13 concern remaining boundaries and failure paths. |
 | Bottom Bar | `FrameInfo.jsx` is the only live status outlet, with intrinsic wrapping height and percentage-padding calculation. No toast stack exists. Finding A13 concerns diagnostic attribution/summary, not the presence of this owner. |
 | Overlays | All Information/notices JSX files are empty; no active overlay implementation or hand-built child registry exists. Info placement and deferred orchestration must follow the latest decisions above. |
 | `ActionButton.jsx` | A02 repaired: common icon/text/editable-host renderer for file buttons, window actions, adjustment buttons/values and Undo/Redo. History icons are configured through JSON. |
-| `AdjustmentControls.jsx` | Owns shared row and popup/slider wiring, delegates all button hosts to ActionButton, and contains no size/rotation math. A03–A08 remain open. |
+| `AdjustmentControls.jsx` | Shared buttons and A03 geometry are repaired: explicit container axes, consumed slider/control bounds and proportional managed parts. A04–A08 remain open. No size/rotation math is copied here. |
 | `ConfiguredPopover.jsx` | Owns portal, anchor and outside/Escape dismissal. Has hardcoded portal placement/offset and a separate dismissal lifecycle: A04, A05. |
 | `appearance.mjs` | Active `configuredAppearance/configuredSx/configuredBounds` translate resolved config. Legacy helpers coexist for the reference app; Frame does not import the legacy renderer path. A08 identifies missing MUI-slot state application, not a second active theme in this file. |
 | `config.cjs`, `controls.jsx`, `NodeContext.jsx` | Legacy/reference configuration and controls; read in full and checked for Frame consumers. No active Frame imports were found. Keep reference callers intact; their existence alone is not a Frame defect. |
@@ -74,7 +74,7 @@ MUI source was consulted for disabled-state and Slider event behavior.
 | `DropTarget.jsx` | Explicit file-drop-only handlers; no click loader. Feedback is pointer-transparent. Native replacement is shared correctly, with failure consistency caveat A10. |
 | `FrameInfo.jsx` | Owns text measurement/padding, not file operations or record persistence. It imports the diagnostic formatter and shows both message and summary. Readability/ownership limitations: A13. |
 | `ComponentDiscovery.mjs` | Collects full catalog and stable exports before mounting; skips empty skeletons, checks export contracts and does not discover helpers as components. This fits. |
-| `ConfigValidation.mjs` | Owns schema, presets, duplicate isolation, folder matching and sibling-row resolution. A03/A04/A07/A09 show incomplete accepted contracts. |
+| `ConfigValidation.mjs` | Owns schema, presets, duplicate isolation, folder matching and sibling-row resolution. A03 now consumes the existing percentage/bounds schema; remaining accepted-contract gaps are A04/A07/A09. |
 | `WindowLayout.jsx` | One generic mount owner, error boundaries and inspector composition; no named feature imports. Row coordinates are resolved beforehand. Its vertical-flow specialization is not validated: A09. |
 | `LayoutDiagnostics.mjs`, `DiagnosticLog.cjs` | One renderer record/dedup owner plus native persistence adapter is correct. Some callers bypass the complete provenance and human-readable summary contract: A13. |
 | `LayoutInspector.jsx` | Development-only non-intercepting badges plus global identity summary. No separate inspector framework. No new defect established in source. |
@@ -118,7 +118,7 @@ exercised during this audit are labeled **code-derived risk**.
   file map, boundaries, delivery queue and checklist now reflect the latest user
   decisions. Old validation is explicitly historical. Application code, empty
   skeletons and test files were not changed for A01. A02 was subsequently repaired
-  as recorded below; A03–A14 remain open.
+  as recorded below. Subsequent repair status is maintained per finding.
 
 #### A02 — Medium at audit; shared button rendering repair complete
 
@@ -149,9 +149,9 @@ exercised during this audit are labeled **code-derived risk**.
   original bounds and left running. No test suite or loaded-photo interaction
   check was run; A03/A05/A06/A08 are not closed by this rendering-only repair.
 
-#### A03 — High: percentage slider parts are rendered as fixed pixels; bounds are ignored
+#### A03 — High at audit; percentage geometry repair complete
 
-- **Evidence:** `ConfigValidation.mjs:386–390` defines `parts.*.size` as immediate-
+- **Evidence at audit revision:** `ConfigValidation.mjs:386–390` defines `parts.*.size` as immediate-
   parent percentages. `AdjustmentControls.jsx:84,161,171` instead appends `px` to
   slider height and rail/track/thumb dimensions. `parts.control.bounds` is required
   by the shared validator (`:32–34`) but rendering only calls
@@ -165,7 +165,28 @@ exercised during this audit are labeled **code-derived risk**.
   Establish an explicit popup/slider container with a defined proportional height
   base. Translate each size axis consistently and apply supported control bounds.
   Reject fields not actually consumed; do not hide this with new pixel assertions.
-- **Status:** confirmed source/config mismatch.
+- **Status:** repaired in the third piece. ConfiguredPopover consumes popup size
+  as percentages of the app viewport (the portal's explicit reference), providing
+  a definite size-query container. Surface padding now uses configured geometry,
+  not raw pixel strings. The slider wrapper consumes its width/height percentages;
+  the MUI control consumes its x/y/width/height bounds and establishes the query
+  container for rail/track/thumb. Managed heights use cqh and thumb width uses cqw;
+  MUI still owns value-dependent track fill and thumb position. Both features use
+  the same mechanism. Deprecated popup surfaceWidth/surfacePadding fields are
+  rejected by the adjustment validator, and padding must leave positive content.
+- **Current bases/config:** popup width=24% viewport width and height=4% viewport
+  height; surface padding=6% horizontal/24% vertical; slider=100% of surface content;
+  control=x3%, y0%, w94%, h100% of slider; rail/track height=20% and thumb w8%/h78%
+  of control. These replace numbers formerly misread as pixels. No button bounds,
+  row height, feature operation or gesture-lifecycle code changed.
+- **Validation for A03:** UI build passed. Live renderer inspection measured both
+  popups at the actual tall startup viewport and 760×700 minimum. The surface,
+  slider, control, rail and thumb followed their declared percentages; a JSON-only
+  change to slider size, control bounds and managed-part sizes changed the actual
+  elements. Rail clicks changed both values and closed the popup, with zero layout
+  diagnostics. Startup/minimum screenshots were inspected under
+  `frame/.runtime/checks/slider-geometry/`. No broad suite or persistent test file
+  was added. The inspection instance was closed before normal app relaunch.
 
 #### A04 — High: popup placement and geometry have multiple competing owners
 
@@ -182,8 +203,12 @@ exercised during this audit are labeled **code-derived risk**.
   Give the shared popup one validated geometry/placement representation with an
   explicit reference base. Keep stacking as a named shared policy or validated
   config value; remove dead/conflicting fields and raw CSS escape hatches.
-- **Status:** confirmed source mismatch. Native DIP, text and border units are
-  distinct and are not all prohibited just because they are numeric.
+- **Status:** still open, partially reduced by the A03 prerequisite. Popup size and
+  padding strings were removed from both adjustment instances and the renderer;
+  the explicit viewport/container base is now in use. Placement defaults, the
+  hardcoded offset/stacking rule and the generic raw-CSS part fields still need
+  A04's focused contract repair. Native DIP, text and border units are distinct
+  and are not all prohibited just because they are numeric.
 
 #### A05 — High: slider lifecycle still bypasses history gesture ownership
 
@@ -414,7 +439,9 @@ not mounted. Preserve unrelated skeletons; do not fill them just because they ex
    test files remain open under A14.
    **Done — A02:** consolidated icon/text/editable button hosts and JSON history
    icons without changing feature actions or layout.
-   **Next piece: A03, percentage slider geometry and ignored bounds.**
+   **Done — A03:** consumed proportional popup/slider sizes and control bounds,
+   with explicit portal/container bases.
+   **Next piece: A04, popup placement/stacking and remaining contract fields.**
 2. Repair the existing popup/slider geometry and slot-state application at their
    shared owners (A03, A04, A08).
 3. Make edit ownership/lifetime consistent across controls and canvas inputs
@@ -437,7 +464,7 @@ The standalone `@APPS/frame/` currently implements its native window, four
 configured sections, discovery/validation before mounting, diagnostics, inspection,
 Undo/Redo, Load/drop/Save, Rust photo/black export, Rotation/Size, Placement,
 photo pointer/wheel input, separate inspection state and Ctrl+S/Ctrl+Z.
-These are implemented features, not a blanket compliance verdict: A03–A14 in the
+These are implemented features, not a blanket compliance verdict: A04–A14 in the
 source audit remain open. The current task is to repair that list piece by piece.
 Info and background orchestration are deferred, not the next automatic features.
 Preserve `output-frame/` as reference only; do not recreate/reconfirm the skeleton.
@@ -500,15 +527,16 @@ Both sliders now open in a popup instead of occupying Action Bar width.
 `components/ConfiguredPopover.jsx` is the one shared popup mechanism: a trigger
 opens a portaled surface that closes on commit, Escape or an outside press.
 Both open from their entire visible value control, not a small unit symbol.
-Rotation remains editable. JSON must own popup geometry and appearance;
-A03/A04 record where the current implementation still violates that requirement.
+Rotation remains editable. A03 now supplies a viewport-relative popup size and
+parent-relative inner geometry. A04 retains the remaining placement/stacking
+contract work; A05 retains gesture-lifetime work.
 
 `components/AdjustmentControls.jsx` now owns the one reusable proportional row,
 value/editor trigger, popup slider and common configuration validation. Rotation
 and Size use the same `decrease/value/increase/slider/control/rail/track/thumb/popup`
-part contract. Their group/row allocations are percentages, but the popup slider
-still misinterprets some size fields as pixels (A03). Feature adapters supply
-state, labels, icons and commands; remaining geometry/state/lifetime gaps are A03–A08.
+part contract. Group/row allocations and managed slider parts use explicit
+percentage bases after A03. Feature adapters supply state, labels, icons and
+commands; remaining placement/state/lifetime gaps are A04–A08.
 
 ## Baked size controls and Reset
 
@@ -847,8 +875,9 @@ declared dependencies, not an undeclared ancestor installation.
 - The shared adjustment uses decrease/value/increase/slider/control/rail/track/
   thumb/popup parts; old independent input/degree/field parts are not the current
   schema. Positioned control bounds and proportional part sizes must actually be
-  consumed and validated. A03/A04 remain open for ignored bounds, pixel conversion
-  and popup base definitions. MUI owns value-driven track fill and thumb position.
+  consumed and validated. A03 repaired control bounds, percentage translation
+  and popup size bases. A04 retains placement/stacking and remaining schema work.
+  MUI owns value-driven track fill and thumb position.
 - `active` and `error` join supported states. The input, degree label and slider
   managed parts receive their applicable focus/error/disabled/active state styles.
   The native input reset only inherits its configured owner's font/color/alignment;
@@ -973,7 +1002,8 @@ uses its own declared owners; no old controller or stamp runtime was copied in.
 
 1. **Current task: repair A01–A14 piece by piece**, using the audit's repair order
    and per-finding status. A01 documentation and A02 shared button rendering are
-   complete; A03 percentage slider geometry is next. Later findings remain open.
+   complete; A03 percentage geometry is also complete. A04 popup placement and
+   remaining contract fields are next. Later findings remain open.
 2. Preserve implemented photo/file/history/input features and the latest UI.
    Make each repair in its existing owning files; remove directly superseded code
    after checking callers. Do not replace the app with another framework or host.
@@ -998,7 +1028,7 @@ re-audit unrelated files or repeatedly reconfirm an already-correct skeleton.
 ## Acceptance checklist
 
 Checked items describe implemented structure or earlier evidence, not a fresh
-runtime verification of the audited revision. Open A03–A14 findings qualify
+runtime verification of the audited revision. Open A04–A14 findings qualify
 those claims. Deferred features are listed separately and are not this repair's
 definition of done.
 

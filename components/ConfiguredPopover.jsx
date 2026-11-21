@@ -28,10 +28,12 @@ export default function ConfiguredPopover({ id, config, open, onClose, trigger, 
 
   return <>
     <span ref={anchor} data-popover-trigger={id} style={{ ...fill, display: 'inline-flex' }}>{trigger}</span>
-    <Popper open={open} anchorEl={anchor.current} placement={placement} style={{ zIndex: 1300 }}
+    {/* UI — the portal's parent reference is the app viewport; children query this definite size. */}
+    <Popper open={open} anchorEl={anchor.current} placement={placement}
+      style={{ zIndex: 1300, width: `${config.size.width}vw`, height: `${config.size.height}vh`, containerType: 'size' }}
       modifiers={[{ name: 'offset', options: { offset: [0, 8] } }]}>
       <Box ref={surface} data-popover-surface={id} sx={configuredSx(config)}
-        style={{ ...fill, width: config.surfaceWidth, padding: config.surfacePadding }}>
+        style={fill}>
         {children}
       </Box>
     </Popper>
