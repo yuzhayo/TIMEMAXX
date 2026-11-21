@@ -95,6 +95,8 @@ latest explicit decisions take precedence over older examples and historical tes
 - Rotation and Size use one shared adjustment sub-parent. Its whole visible value
   control opens the popup. Rotation's value remains editable. Shared UI owns the
   common rendering/input mechanics; adapters supply feature values and commands.
+- Action Bar contains one standalone/orphan Edit button with a pencil icon after
+  Size. It intentionally has no command behavior until the user assigns one.
 - Startup and vertical maximize use the approved narrow configured width, full
   monitor work-area height excluding the taskbar, and right alignment. Restore
   returns to previous bounds. Native geometry is not photo or section-layout logic.

@@ -43,6 +43,9 @@ try {
   await page.click('#fileControls-load');
   await page.waitForFunction(() => window.frameDev.snapshot().message.startsWith('Loaded ') && !window.frameDev.snapshot().busy);
   assert.equal(await page.locator('#fileName').textContent(), 'loaded-image-name.png');
+  const beforeOrphan = await page.evaluate(() => window.frameDev.snapshot());
+  await page.click('#orphanEdit');
+  assert.deepEqual(await page.evaluate(() => window.frameDev.snapshot()), beforeOrphan, 'Orphan button intentionally has no command behavior');
 
   for (const [name, width, height] of [['startup', ...startupSize], ['minimum', config.window.minWidth, config.window.minHeight]]) {
     await app.evaluate(({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0].setSize(...size), [width, height]);
@@ -53,11 +56,12 @@ try {
         const style = getComputedStyle(element), icon = element.querySelector('svg')?.getBoundingClientRect();
         return { x: rect.x, y: rect.y, right: rect.right, width: rect.width, height: rect.height, textAlign: style.textAlign,
           pointerEvents: style.pointerEvents, background: style.backgroundColor,
+          renderer: element.dataset.buttonRenderer, iconName: element.dataset.icon,
           dx: icon ? icon.x + icon.width / 2 - rect.x - rect.width / 2 : 0,
           dy: icon ? icon.y + icon.height / 2 - rect.y - rect.height / 2 : 0 };
       };
       const bars = Object.fromEntries(['windowsBar', 'actionBar'].map((id) => { const rect = document.getElementById(id).getBoundingClientRect(); return [id, { y: rect.y, height: rect.height, bottom: rect.bottom }]; }));
-      return { width: innerWidth, height: innerHeight, bars, nodes: Object.fromEntries(['undo', 'redo', 'fileName', 'load', 'save', 'reset', 'windowClose'].map((id) => [id, read(id)])) };
+      return { width: innerWidth, height: innerHeight, bars, nodes: Object.fromEntries(['undo', 'redo', 'fileName', 'sizeControls', 'orphanEdit', 'load', 'save', 'reset', 'windowClose'].map((id) => [id, read(id)])) };
     });
     const { nodes } = result;
     assert.ok(nodes.undo.x < width * 0.03);
@@ -72,6 +76,11 @@ try {
     assert.ok(nodes.load.x > width * 0.7 && nodes.load.right < nodes.reset.x);
     assert.ok(nodes.reset.right < nodes.save.x);
     assert.ok(nodes.save.right > width * 0.97 && nodes.save.right <= width);
+    assert.ok(nodes.sizeControls.right < nodes.orphanEdit.x && nodes.orphanEdit.right < nodes.load.x);
+    assert.ok(Math.abs(nodes.orphanEdit.width - width * 0.08) < 1);
+    assert.ok(Math.abs(nodes.orphanEdit.height - nodes.load.height) < 1);
+    assert.equal(nodes.orphanEdit.renderer, 'shared-action');
+    assert.equal(nodes.orphanEdit.iconName, 'edit');
     assert.ok(Math.abs(nodes.load.width - width * 0.075) < 1);
     assert.ok(Math.abs(nodes.reset.width - nodes.load.width) < 1);
     assert.ok(Math.abs(result.bars.windowsBar.height - result.bars.actionBar.height) < 1);
@@ -80,7 +89,7 @@ try {
     const actionInset = nodes.load.y - result.bars.actionBar.y;
     assert.ok(Math.abs(headerInset - actionInset) < 1, 'Both rows share proportional vertical padding');
     assert.ok(Math.abs(actionInset - (result.bars.actionBar.bottom - nodes.load.y - nodes.load.height)) < 1, 'Action Bar top/bottom padding is symmetric');
-    for (const id of ['undo', 'redo', 'load', 'save', 'reset', 'windowClose']) assert.ok(Math.abs(nodes[id].dx) < 1 && Math.abs(nodes[id].dy) < 1, `${id} icon centered`);
+    for (const id of ['undo', 'redo', 'orphanEdit', 'load', 'save', 'reset', 'windowClose']) assert.ok(Math.abs(nodes[id].dx) < 1 && Math.abs(nodes[id].dy) < 1, `${id} icon centered`);
     assert.equal(await page.locator('#windowMinimize').count(), 0);
     assert.equal(await page.locator('#windowMaximize').count(), 1);
     metrics.push({ name, ...result });
@@ -118,6 +127,7 @@ try {
   assert.ok(dragged.dx >= 30 && dragged.dy >= 10, 'Dragging over displayed filename moves the native window');
   const document = await page.evaluate(() => window.frameDev.snapshot().document);
   await page.evaluate((current) => window.frameDev.commit({ ...current, rotation: 15 }), document);
+  await page.waitForFunction(() => window.frameDev.snapshot().canUndo && !document.getElementById('undo').disabled);
   const undoClick = await nativePointer('undo', 0, 0);
   await page.waitForFunction(() => window.frameDev.snapshot().document.rotation === 0);
   assert.equal(undoClick.dx, 0); assert.equal(undoClick.dy, 0);
@@ -127,7 +137,7 @@ try {
   assert.deepEqual(errors, []);
   assert.deepEqual(await page.evaluate(() => window.frameDev.records()), []);
   await fs.writeFile(path.join(artifacts, 'metrics.json'), JSON.stringify({ metrics, dragged, undoClick, redoClick }, null, 2));
-  console.log(JSON.stringify({ pass: true, checked: ['history at far left', 'left filename beside history', 'pass-through transparent filename', 'configured Load/Reset/Save order at right', 'equal Windows Bar button boxes', 'compact equal-height rows with symmetric proportional padding', 'centered icons at startup/minimum sizes', 'actual native filename drag', 'actual native Undo/Redo clicks without moving window'], dragged, artifacts }, null, 2));
+  console.log(JSON.stringify({ pass: true, checked: ['history at far left', 'left filename beside history', 'pass-through transparent filename', 'standalone pencil orphan after Size', 'configured Load/Reset/Save order at right', 'equal Windows Bar button boxes', 'compact equal-height rows with symmetric proportional padding', 'centered icons at startup/minimum sizes', 'actual native filename drag', 'actual native Undo/Redo clicks without moving window'], dragged, artifacts }, null, 2));
 } finally {
   await app.close();
 }

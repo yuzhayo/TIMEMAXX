@@ -164,7 +164,7 @@ if (process.argv.includes('--inspection-only')) {
   moved.instances.forEach((instance, index) => {
     if (!instance.componentId.startsWith('history.')) return;
     instance.parentId = 'actionBar';
-    instance.placement = { align: 'start', order: 4 + index, allocation: 'controls' };
+    instance.placement = { align: 'start', order: 5 + index, allocation: 'controls' };
     instance.bounds = { width: 5 };
   });
   await fs.writeFile(path.join(root, 'config.json'), JSON.stringify(moved, null, 2));

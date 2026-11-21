@@ -18,7 +18,7 @@ The active application currently provides:
 - Bottom Bar operation messages and structured local diagnostics;
 - development-only layout inspection.
 
-There are four configured sections, fifteen configured instances, and fourteen
+There are four configured sections, sixteen configured instances, and fifteen
 enabled instances.
 
 ## Run from a clean clone
@@ -101,6 +101,7 @@ Rotation, and Size rows use the shared configured-row mechanism.
 
 - Rotation: rotate left, editable degree value, rotate right, popup slider
 - Size: decrease, percentage value, increase, popup slider
+- standalone/orphan Edit button with pencil icon; no command attached
 - FileControls: Load, Reset, Save
 - configured separators
 

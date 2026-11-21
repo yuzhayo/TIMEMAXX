@@ -14,6 +14,7 @@ import RestartAltRoundedIcon from '@mui/icons-material/RestartAltRounded';
 import UndoRoundedIcon from '@mui/icons-material/UndoRounded';
 import RedoRoundedIcon from '@mui/icons-material/RedoRounded';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+import EditRoundedIcon from '@mui/icons-material/EditRounded';
 import { fill, iconStyle } from './appearance.mjs';
 import { configuredHostSx } from './ConfiguredContent.mjs';
 
@@ -25,6 +26,7 @@ const icons = {
   restartAlt: RestartAltRoundedIcon,
   undo: UndoRoundedIcon, redo: RedoRoundedIcon,
   arrowDropDown: ArrowDropDownIcon,
+  edit: EditRoundedIcon,
 };
 
 // LOGIC — reusable rendering capability; file/window actions stay with their owners.
