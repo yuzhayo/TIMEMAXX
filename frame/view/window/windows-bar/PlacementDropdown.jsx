@@ -7,6 +7,7 @@ export const componentId = 'photo.placement';
 export const requires = ['output'];
 export const configKeys = ['options'];
 export const partKeys = ['menu'];
+export const partConfigKeys = { menu: ['paddingEm'] };
 
 // LOGIC — validate the three commands; placement math remains in PhotoOperations.
 export function validateConfig(config, report) {
@@ -25,6 +26,15 @@ export function validateConfig(config, report) {
   }
   if (config.options.length !== expected.length || new Set(values).size !== expected.length || expected.some((value) => !values.includes(value))) {
     report('options', 'exactly one Fit, Fill and Center command', config.options); valid = false;
+  }
+  const padding = config.parts.menu.paddingEm;
+  if (!padding || typeof padding !== 'object' || Array.isArray(padding)) {
+    report('parts.menu.paddingEm', 'explicit font-relative x/y padding object', padding); valid = false;
+  } else {
+    for (const key of Object.keys(padding)) if (!['x', 'y'].includes(key)) { report(`parts.menu.paddingEm.${key}`, 'x | y', padding[key]); valid = false; }
+    for (const axis of ['x', 'y']) if (!Number.isFinite(padding[axis]) || padding[axis] < 0) {
+      report(`parts.menu.paddingEm.${axis}`, 'nonnegative font-size multiplier', padding[axis]); valid = false;
+    }
   }
   return valid;
 }
@@ -47,6 +57,6 @@ export default function PlacementDropdown({ config, state, actions }) {
         top: `${(100 - config.geometry.iconHeight) / 2}%`, right: `${config.geometry.paddingX}%` },
     }}>
     {config.options.map((option) => <MenuItem key={option.id} id={option.id} value={option.value}
-      sx={{ ...configuredSx(menu), width: '100%', minHeight: 'auto', padding: `${menu.surfacePadding} !important` }}>{option.label}</MenuItem>)}
+      sx={{ ...configuredSx(menu), width: '100%', minHeight: 'auto', padding: `${menu.paddingEm.y}em ${menu.paddingEm.x}em !important` }}>{option.label}</MenuItem>)}
   </Select>;
 }

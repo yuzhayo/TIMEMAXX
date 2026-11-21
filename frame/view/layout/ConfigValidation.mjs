@@ -378,7 +378,7 @@ export function validateFrameConfig(raw, catalog, diagnostics) {
         if (!checkKeys(node.parts, names, `${path}.parts`, meta, 'INVALID_PART')) return;
         for (const name of names) {
           const partPath = `${path}.parts.${name}`, part = node.parts[name];
-          if (!checkKeys(part, [...visualKeys, 'bounds', 'size', 'aspectRatio', 'surfaceWidth', 'surfacePadding'], partPath, meta, 'INVALID_PART')) return;
+          if (!checkKeys(part, [...visualKeys, 'bounds', 'size', 'aspectRatio', ...(entry.partConfigKeys?.[name] ?? [])], partPath, meta, 'INVALID_PART')) return;
           if (own(part, 'aspectRatio') && (!Number.isFinite(part.aspectRatio) || part.aspectRatio <= 0)) {
             report('INVALID_PART', `${partPath}.aspectRatio`, 'positive finite width/height ratio', part.aspectRatio, meta); return;
           }
@@ -388,12 +388,6 @@ export function validateFrameConfig(raw, catalog, diagnostics) {
             for (const axis of ['width', 'height']) if (!percent(part.size[axis]) || part.size[axis] === 0) {
               report('INVALID_PART', `${partPath}.size.${axis}`, 'positive immediate-parent percentage', part.size[axis], meta); return;
             }
-          }
-          if (own(part, 'surfaceWidth') && (typeof part.surfaceWidth !== 'string' || !part.surfaceWidth.trim())) {
-            report('INVALID_PART', `${partPath}.surfaceWidth`, 'nonempty CSS width for a popup surface', part.surfaceWidth, meta); return;
-          }
-          if (own(part, 'surfacePadding') && (typeof part.surfacePadding !== 'string' || !part.surfacePadding.trim())) {
-            report('INVALID_PART', `${partPath}.surfacePadding`, 'nonempty CSS padding for a popup surface', part.surfacePadding, meta); return;
           }
           const resolved = resolveVisual(part, partPath, meta);
           if (!resolved) return;

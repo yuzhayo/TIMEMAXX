@@ -83,7 +83,7 @@
     { "id": "windowMaximize", "componentId": "window.action", "parentId": "windowsBar", "enabled": true, "label": "Maximize vertically or restore window", "action": "toggleVerticalMaximize", "icon": "maximize", "maximizedIcon": "restore", "placement": { "align": "end", "order": 3 }, "bounds": { "y": 8, "width": 4.5, "height": 84 }, "preset": "fileAction" },
     { "id": "placement", "componentId": "photo.placement", "parentId": "windowsBar", "enabled": true, "label": "Placement", "placement": { "align": "end", "order": 2 }, "bounds": { "y": 8, "width": 10, "height": 84 }, "preset": "placement",
       "options": [{ "id": "placementFit", "value": "fit", "label": "Fit" }, { "id": "placementFill", "value": "fill", "label": "Fill" }, { "id": "placementCenter", "value": "center", "label": "Center" }],
-      "parts": { "menu": { "preset": "placementMenu", "surfacePadding": "0.65em 1em" } }
+      "parts": { "menu": { "preset": "placementMenu", "paddingEm": { "x": 1, "y": 0.65 } } }
     },
     { "id": "windowClose", "componentId": "window.action", "parentId": "windowsBar", "enabled": true, "label": "Close window", "action": "close", "icon": "close", "placement": { "align": "end", "order": 4 }, "bounds": { "y": 8, "width": 4.5, "height": 84 }, "preset": "fileAction" },
     { "id": "rotationControls", "componentId": "photo.rotationControls", "parentId": "actionBar", "enabled": true, "label": "Photo rotation controls", "unit": "°", "icons": { "decrease": "rotateLeft", "increase": "rotateRight" },
@@ -97,7 +97,7 @@
       "track": { "preset": "rotationTrack", "size": { "width": 100, "height": 20 } },
       "thumb": { "preset": "rotationThumb", "size": { "width": 8, "height": 78 } },
       "increase": { "preset": "fileAction", "size": { "width": 27, "height": 100 } },
-      "popup": { "preset": "popup", "size": { "width": 24, "height": 4 }, "geometry": { "paddingX": 6, "paddingY": 24 } }
+      "popup": { "preset": "popup", "size": { "width": 24, "height": 4 }, "geometry": { "paddingX": 6, "paddingY": 24 }, "portal": { "placement": "bottom-start", "offset": { "base": "anchor", "skid": 0, "gap": 20 }, "zIndex": 1300 } }
     } },
     { "id": "rotationSeparator", "componentId": "layout.separator", "parentId": "actionBar", "enabled": true, "label": "Rotation group separator", "placement": { "align": "start", "order": 2 }, "bounds": { "y": 18, "width": 0.15, "height": 64 }, "preset": "base", "colors": { "background": "#43505f" } },
     { "id": "sizeControls", "componentId": "photo.sizeControls", "parentId": "actionBar", "enabled": true, "label": "Photo size controls", "placement": { "align": "start", "order": 3 }, "bounds": { "y": 8, "width": 15, "height": 84 }, "preset": "base", "geometry": { "gap": 2 }, "content": { "overflow": "visible" },
@@ -111,7 +111,7 @@
       "rail": { "preset": "rotationRail", "size": { "width": 100, "height": 20 } },
       "track": { "preset": "rotationTrack", "size": { "width": 100, "height": 20 } },
       "thumb": { "preset": "rotationThumb", "size": { "width": 8, "height": 78 } },
-      "popup": { "preset": "popup", "size": { "width": 24, "height": 4 }, "geometry": { "paddingX": 6, "paddingY": 24 } }
+      "popup": { "preset": "popup", "size": { "width": 24, "height": 4 }, "geometry": { "paddingX": 6, "paddingY": 24 }, "portal": { "placement": "bottom-start", "offset": { "base": "anchor", "skid": 0, "gap": 20 }, "zIndex": 1300 } }
     } },
     { "id": "sizeSeparator", "componentId": "layout.separator", "parentId": "actionBar", "enabled": true, "label": "Size group separator", "placement": { "align": "end", "order": 1 }, "bounds": { "y": 18, "width": 0.15, "height": 64 }, "preset": "base", "colors": { "background": "#43505f" } }
   ],

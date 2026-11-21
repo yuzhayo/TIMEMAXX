@@ -3,10 +3,11 @@ import Box from '@mui/material/Box';
 import InputBase from '@mui/material/InputBase';
 import Slider from '@mui/material/Slider';
 import ActionButton, { hasActionIcon } from './ActionButton.jsx';
-import ConfiguredPopover from './ConfiguredPopover.jsx';
+import ConfiguredPopover, { validatePopoverConfig } from './ConfiguredPopover.jsx';
 import { boundsStyle, configuredBounds, configuredSx, fill } from './appearance.mjs';
 
 export const adjustmentPartKeys = ['decrease', 'value', 'increase', 'slider', 'control', 'rail', 'track', 'thumb', 'popup'];
+export const adjustmentPartConfigKeys = { popup: ['portal'] };
 
 // LOGIC — validate the reusable adjustment sub-parent once for every feature adapter.
 export function validateAdjustmentConfig(config, report) {
@@ -42,12 +43,7 @@ export function validateAdjustmentConfig(config, report) {
   for (const name of adjustmentPartKeys) if (!['decrease', 'increase'].includes(name) && config.parts[name].aspectRatio !== undefined) {
     report(`parts.${name}.aspectRatio`, 'aspect ratio belongs to the adjustment button parts', config.parts[name].aspectRatio); valid = false;
   }
-  for (const name of ['surfaceWidth', 'surfacePadding']) if (config.parts.popup[name] !== undefined) {
-    report(`parts.popup.${name}`, 'popup size percentages of the viewport and configured geometry padding', config.parts.popup[name]); valid = false;
-  }
-  if (config.parts.popup.geometry.paddingX >= 50 || config.parts.popup.geometry.paddingY >= 50) {
-    report('parts.popup.geometry', 'padding below 50% per side so popup content has positive size', config.parts.popup.geometry); valid = false;
-  }
+  if (!validatePopoverConfig(config.parts.popup, (property, expected, actual) => report(`parts.popup.${property}`, expected, actual))) valid = false;
   if (config.content.direction !== 'row' || config.content.wrap !== 'nowrap') {
     report('content', 'one non-wrapping adjustment row', config.content); valid = false;
   }

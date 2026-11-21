@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import AdjustmentControls, { adjustmentPartKeys, validateAdjustmentConfig } from '@ui/AdjustmentControls.jsx';
+import AdjustmentControls, { adjustmentPartKeys, adjustmentPartConfigKeys, validateAdjustmentConfig } from '@ui/AdjustmentControls.jsx';
 import { parseRotationDraft } from '@frame/logic/PhotoOperations.mjs';
 
 export const componentId = 'photo.rotationControls';
 export const requires = ['rotation', 'output'];
 export const configKeys = ['unit', 'labels', 'icons'];
 export const partKeys = adjustmentPartKeys;
+export const partConfigKeys = adjustmentPartConfigKeys;
 
 // LOGIC — Rotation adds only its unit rule; the shared sub-parent owns the UI contract.
 export function validateConfig(config, report) {
