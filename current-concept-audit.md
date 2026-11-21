@@ -1,24 +1,451 @@
 # Current frame concept and delivery plan
 
+## Current source audit — November 21, 2026
+
+**Verdict: PARTIAL — the ownership structure is useful, but the implementation
+does not yet satisfy all of the appearance, reuse and gesture-lifetime rules.**
+This audit covers source at `0f54aa8ad8a2edc51b7d78c29d75b3618b29bcb0`.
+During the audit only this Markdown file was changed. No application edits, builds,
+tests, app restarts, commits or pushes were performed for that audit. Previous PASS claims
+and screenshots later in this file are historical evidence, not validation of
+the audited revision. Source line references below refer to application files at
+that revision; Markdown line numbers will move as this report is maintained.
+
+### Governing decisions and documentation conflicts
+
+The decisions below are reflected in `AGENTS.md` and the current target sections
+after repair A01. They remain authoritative over historical implementation notes
+and test assumptions. The source audit is a snapshot, not a claim that subsequent
+repairs have already resolved the remaining findings.
+
+- Both Windows Bar and Action Bar are **4% high**. Active controls in Action Bar
+  use equal parent-relative height. Square buttons are no longer a requirement
+  for these rows; the latest request explicitly allowed different widths.
+- Rotation and Size use one reusable adjustment sub-parent. The entire visible
+  value control opens the popup; Rotation remains editable. Preserve these
+  decisions rather than restoring the old degree-symbol-only trigger.
+- File buttons are **Load / Reset / Save**. Startup and vertical maximize use the
+  approved narrow, full-work-height, right-aligned shape; restore returns to prior
+  bounds. Taskbar artwork is not an app-layout control.
+- Only **Ctrl+S Save and Ctrl+Z Undo** were approved as application shortcuts.
+  Existing configured wheel modifiers/Space-panning are separate preview inputs.
+- Info is deferred; its eventual **button belongs before Bottom Bar text**, not
+  in Windows Bar. The current text-only Bottom Bar is not a missing-feature bug.
+- Future overlay workflow belongs to Input/engine and a **background
+  orchestrator**. Composition/revision coordination belongs to that orchestrator;
+  it creates no extra display. Frame remains the single photo surface and may
+  display a finished combined preview without interpreting stamp settings.
+  This integration is deferred. Empty Frame layer skeletons are not permission
+  to implement the superseded Frame-owned composition design.
+
+### Read coverage and section/component ownership
+
+Read all nonempty files under `components/`, `frame/view/`, `frame/logic/`,
+`frame/desktop/` and `frame/image-worker/src/`, plus `frame/config.json`,
+`frame/vite.config.mjs`, the governing instructions and existing plan. Checked
+zero-byte skeletons by file inventory. There are four configured sections,
+15 instances, and 14 enabled instances. Tests were inspected selectively for
+claims affected by the current schemas; no test suite was executed. Installed
+MUI source was consulted for disabled-state and Slider event behavior.
+
+| Area / file | Actual owner and audit result |
+| --- | --- |
+| Windows Bar | JSON row layout owns sibling order/gap; native window operations are outside JSX. Four-percent height and right-lane Placement/maximize/X are configured. Findings A02, A08. |
+| Action Bar | JSON row layout owns external gaps. Rotation/Size use the same sub-parent and all three groups currently use y=8%, h=84%, with visible parts at 100% height. Internal contracts still have findings A03–A07. |
+| Frame/body | Remaining-height section contains preview plus non-intercepting DropTarget. Painter/input/operations are separate owners. Findings A05, A10–A13 concern remaining boundaries and failure paths. |
+| Bottom Bar | `FrameInfo.jsx` is the only live status outlet, with intrinsic wrapping height and percentage-padding calculation. No toast stack exists. Finding A13 concerns diagnostic attribution/summary, not the presence of this owner. |
+| Overlays | All Information/notices JSX files are empty; no active overlay implementation or hand-built child registry exists. Info placement and deferred orchestration must follow the latest decisions above. |
+| `ActionButton.jsx` | A02 repaired: common icon/text/editable-host renderer for file buttons, window actions, adjustment buttons/values and Undo/Redo. History icons are configured through JSON. |
+| `AdjustmentControls.jsx` | Owns shared row and popup/slider wiring, delegates all button hosts to ActionButton, and contains no size/rotation math. A03–A08 remain open. |
+| `ConfiguredPopover.jsx` | Owns portal, anchor and outside/Escape dismissal. Has hardcoded portal placement/offset and a separate dismissal lifecycle: A04, A05. |
+| `appearance.mjs` | Active `configuredAppearance/configuredSx/configuredBounds` translate resolved config. Legacy helpers coexist for the reference app; Frame does not import the legacy renderer path. A08 identifies missing MUI-slot state application, not a second active theme in this file. |
+| `config.cjs`, `controls.jsx`, `NodeContext.jsx` | Legacy/reference configuration and controls; read in full and checked for Frame consumers. No active Frame imports were found. Keep reference callers intact; their existence alone is not a Frame defect. |
+| `FileControls.jsx` | Correctly owns baked Load/Reset/Save composition and provenance; calls shared buttons and session actions. It validates row width, unlike adjustments. Hardcoded part order is noted in A07. |
+| `SizeControls.jsx` | Thin value/operation adapter; no longer contains its own slider handlers. Percent formatting is local presentation. Its un-tokened operation interface participates in A05. |
+| `RotationControls.jsx` | Thin shared-row adapter with legitimate local degree draft parsing/Enter/Escape behavior. Still carries old DOM-name mapping and un-tokened edit completion: A05, A06. |
+| `ActionSeparator.jsx` | Renders configured separator only. Sibling placement is no longer calculated in this component; this boundary fits. |
+| `UndoButton.jsx`, `RedoButton.jsx` | A02 repaired: thin session adapters using shared ActionButton with validated JSON icons. Their disabled state still ignores busy: A12. |
+| `FileName.jsx` | Read-only filename/path presentation. JSON slot has pointer pass-through and inherited drag region. No file-operation or window-drag rules are copied into the leaf; this fits. |
+| `PlacementDropdown.jsx` | Owns dropdown options and invokes `placePhoto`; calculations remain in PhotoOperations. Surface/item/disabled styling still has A08. |
+| `WindowActionButton.jsx` | Uses shared icon button and native operation adapter; respects separate vertical-maximized state. No photo logic in window controls; this fits. |
+| `PhotoPreview.jsx` | Composes painter and input helpers through stable `@frame` aliases. No section registry or photo math; event-policy gaps are described in A11. Invalid input config currently isolates the whole preview instance, consistent with the current component-level validator boundary; finer isolation would be a separate decision. |
+| `PhotoPointerInput.mjs` | Owns pointer capture/cancellation and calls photo/view operations. Uses painter geometry and edit tokens. Editing/modal gate is incomplete: A11. |
+| `PhotoWheelInput.mjs` | Owns configured modifiers, delta conversion and idle grouping; calls operations. Boundary checks are canvas/frame scoped. Editing/modal gate and late response coordination still need review per A11. |
+| `DropTarget.jsx` | Explicit file-drop-only handlers; no click loader. Feedback is pointer-transparent. Native replacement is shared correctly, with failure consistency caveat A10. |
+| `FrameInfo.jsx` | Owns text measurement/padding, not file operations or record persistence. It imports the diagnostic formatter and shows both message and summary. Readability/ownership limitations: A13. |
+| `ComponentDiscovery.mjs` | Collects full catalog and stable exports before mounting; skips empty skeletons, checks export contracts and does not discover helpers as components. This fits. |
+| `ConfigValidation.mjs` | Owns schema, presets, duplicate isolation, folder matching and sibling-row resolution. A03/A04/A07/A09 show incomplete accepted contracts. |
+| `WindowLayout.jsx` | One generic mount owner, error boundaries and inspector composition; no named feature imports. Row coordinates are resolved beforehand. Its vertical-flow specialization is not validated: A09. |
+| `LayoutDiagnostics.mjs`, `DiagnosticLog.cjs` | One renderer record/dedup owner plus native persistence adapter is correct. Some callers bypass the complete provenance and human-readable summary contract: A13. |
+| `LayoutInspector.jsx` | Development-only non-intercepting badges plus global identity summary. No separate inspector framework. No new defect established in source. |
+| `view/main.jsx` | Composition/bootstrap and shortcut attachment. Development reconfigure changes the layout plan but leaves session policies from initial startup; treat it as visual reconfiguration, not proof that all runtime policy edits apply. |
+| `styles.css`, `index.html`, `vite.config.mjs` | Resets, drag/pointer mechanics, CSP and build-time aliases/catalog support. No section-specific assembly registry or engine/input import found. |
+| `FrameSession.mjs` | Connects independent state/action owners; derived percentage projection is not duplicated size math. No monolithic UI controller. |
+| `PhotoOperations.mjs`, `PhotoHistory.mjs` | Correct shared math/history placement, but inconsistent token APIs and sizing guards remain: A05, A06, A12. |
+| `ViewState.mjs`, `ViewOperations.mjs` | Inspection state is separate from photo document/history and is not sent to exporter. No copied photo math; preserve this separation. |
+| `PhotoState.mjs`, `ImageFileActions.mjs` | Loaded identity/URL/dirty ownership and common Load/drop acceptance are sensible. Multi-stage native-load commit consistency remains A10. |
+| `KeyboardShortcuts.mjs` | Only Ctrl+S/Ctrl+Z; delegates existing actions and excludes inputs/menus/popovers. This gate is more complete than preview inputs: A11. |
+| `WindowActions.mjs` | Narrow transport and window-state owner, errors use origin metadata. No duplicated geometry; fits. |
+| `FrameWindow.cjs`, `desktop/main.cjs` | Native startup, shared tall-bounds rule, taskbar identity and lifecycle belong here. The approved 934 width is native DIP, not a prohibited fixed-pixel control layout. Native double-click/full maximize remains available; no new defect is asserted merely for that retained OS operation. |
+| `preload.cjs`, `ImageFileDialogs.cjs` | Narrow sender-checked native file/drop bridge; original path identities stay protected. Load consistency caveat A10. |
+| `ImageWorker.cjs`, `build-worker.cjs` | Frame-owned process/build boundary; supported load/export commands only. No producer-module launch/import. |
+| Rust `main.rs`, `protocol.rs`, `session.rs`, `photo.rs`, `export.rs` | Photo decode/orientation/identity/render/export owners are independent of UI. No engine or stamp generation. Actual worker replacement point is relevant to A10. `layer.rs` is empty. |
+
+### Findings, why they happened, and minimal fixes
+
+All findings below are **Required** unless explicitly called deferred or
+informational. "Confirmed source mismatch" means the conflicting code/config
+was read; it does not claim a fresh GUI reproduction. Failure sequences not
+exercised during this audit are labeled **code-derived risk**.
+
+#### A01 — High at audit; documentation repair complete
+
+- **Evidence at audit revision:** `AGENTS.md:134–145` and this file's former
+  `Standalone output`/layer checklist assigned received-layer composition and
+  revision handling to Frame. The former file map put Info in Windows Bar.
+  Other paragraphs described a
+  degree-only popup trigger, square controls, two Load/Save parts, and hidden
+  Maximize. These conflict with the latest decisions summarized above and with
+  `frame/config.json:57–116`.
+- **Why:** feature/status notes were added while earlier target paragraphs and
+  acceptance claims were not reconciled in place. The mixed document is being
+  used both as a current specification and a historical implementation log.
+- **Impact / fix:** future agents can implement the wrong owner or undo approved
+  UI. Reconcile the existing agreement, target map and checklist to the latest
+  user decisions; mark prior verification as historical. Do not implement Frame
+  layer processing or move Info into Windows Bar. Keep orchestration deferred.
+- **Status:** resolved as the first authorized repair. `AGENTS.md`, current target,
+  file map, boundaries, delivery queue and checklist now reflect the latest user
+  decisions. Old validation is explicitly historical. Application code, empty
+  skeletons and test files were not changed for A01. A02 was subsequently repaired
+  as recorded below; A03–A14 remain open.
+
+#### A02 — Medium at audit; shared button rendering repair complete
+
+- **Evidence at audit revision:** `components/ActionButton.jsx:28–34` owned the advertised common
+  button renderer, but `components/AdjustmentControls.jsx:93–113` creates another
+  MUI Button path for values. `UndoButton.jsx:2–4,14–16` and
+  `RedoButton.jsx:2–4,14–16` each repeat MUI setup and directly import their icon;
+  their JSON instances have no icon setting (`frame/config.json:63–64`).
+- **Why:** the later value fix matched a preset/appearance, not the existing
+  primitive implementation. Undo/Redo were left on their original rendering path.
+- **Impact / fix:** common focus/disabled/rendering fixes need several edits, and
+  Undo/Redo icons cannot follow JSON. Extend the existing shared button primitive
+  with text/content and an editable-value host slot, preserving valid HTML and
+  Rotation editing. Route the adapters through it; register Undo/Redo icons in
+  the shared library and configure them. Do not move their behavior into it or
+  put an input inside a native `<button>`.
+- **Status:** repaired in the second piece. The existing `ActionButton.jsx` now
+  renders icon/text content and an editable `div` host through one MUI Button
+  path. AdjustmentControls delegates both value hosts to it; it no longer imports
+  MUI Button. Undo/Redo delegate rendering and validate the `icon` from JSON
+  against the shared registry. Their actions, the Rotation editor handlers,
+  popup lifecycle and all bounds remain unchanged. No input is nested inside a
+  native `<button>`.
+- **Validation for A02:** UI build passed; source inspection found no direct MUI
+  Button imports in active Frame JSX and no Undo/Redo icon imports in adapters.
+  Native startup/minimum-size screenshots were inspected under
+  `frame/.runtime/checks/shared-buttons/`. The normal app was returned to its
+  original bounds and left running. No test suite or loaded-photo interaction
+  check was run; A03/A05/A06/A08 are not closed by this rendering-only repair.
+
+#### A03 — High: percentage slider parts are rendered as fixed pixels; bounds are ignored
+
+- **Evidence:** `ConfigValidation.mjs:386–390` defines `parts.*.size` as immediate-
+  parent percentages. `AdjustmentControls.jsx:84,161,171` instead appends `px` to
+  slider height and rail/track/thumb dimensions. `parts.control.bounds` is required
+  by the shared validator (`:32–34`) but rendering only calls
+  `configuredSx(control)` (`:167`), which does not apply bounds. Slider size.width
+  is accepted but replaced with `width: '100%'`. Current examples are in
+  `frame/config.json:94–100,107–114`.
+- **Why:** inline slider numbers were reinterpreted as popup pixel dimensions
+  during extraction without changing the schema or implementing a portal base.
+- **Impact / fix:** accepted JSON does not mean what it says; moving/resizing the
+  parent does not scale those parts, and the configured 3% inset/94% width is dead.
+  Establish an explicit popup/slider container with a defined proportional height
+  base. Translate each size axis consistently and apply supported control bounds.
+  Reject fields not actually consumed; do not hide this with new pixel assertions.
+- **Status:** confirmed source/config mismatch.
+
+#### A04 — High: popup placement and geometry have multiple competing owners
+
+- **Evidence:** `ConfiguredPopover.jsx:10,31–34` supplies a default placement,
+  hardcoded z-index 1300 and 8px offset, while width/padding are free CSS strings.
+  `frame/config.json:100,114` contains `220px` and `12px 14px`. The validator
+  (`ConfigValidation.mjs:392–396`) checks only nonempty strings, not valid units,
+  a sizing base or required fields. Popup `size` is required by adjustments but
+  not used by ConfiguredPopover.
+- **Why:** the popup API was added as an escape hatch around parent-relative
+  configuration instead of completing the existing configured-part contract.
+- **Impact / fix:** popup sizing is fixed, unknown/missing CSS can fall through to
+  host defaults, and JSON padding changes can be overridden by inline styles.
+  Give the shared popup one validated geometry/placement representation with an
+  explicit reference base. Keep stacking as a named shared policy or validated
+  config value; remove dead/conflicting fields and raw CSS escape hatches.
+- **Status:** confirmed source mismatch. Native DIP, text and border units are
+  distinct and are not all prohibited just because they are numeric.
+
+#### A05 — High: slider lifecycle still bypasses history gesture ownership
+
+- **Evidence:** pointer/wheel use tokenized `beginPhotoEdit` / update / finish /
+  cancel (`PhotoOperations.mjs:119–163`, `PhotoHistory.mjs:36–77`). Slider adapters
+  use un-tokened `beginSize/beginRotation` and `finishSize/finishRotation`
+  (`PhotoOperations.mjs:165–189`). `AdjustmentControls.jsx:69–83,114–147` keeps its
+  own acceptance flags, resets them on blur, and adds a window pointerup listener
+  without removing it in effect cleanup. Generic popover dismissal (`:64` and
+  `ConfiguredPopover.jsx:18–25`) closes independently of that edit lifecycle.
+- **Why:** token protection was added for the new canvas inputs but existing
+  controls were not migrated. Several UI listeners still settle one global edit
+  without identifying which gesture owns it.
+- **Impact / fix:** an external Undo/commit followed by a late slider callback can
+  call an un-tokened update and begin a new edit; a stale completion/cancel can
+  affect another active edit. Use the existing history token owner for sliders
+  too. The shared adjustment component should retain one gesture handle and pass
+  it to update/finish/cancel; disable/dismiss/blur/unmount must explicitly settle
+  that handle and remove listeners. Keep rollback in PhotoHistory, not JSX.
+- **Status:** confirmed API split; late-event failures are code-derived risks,
+  not freshly reproduced runtime failures.
+
+#### A06 — Medium: keyboard edit completion is not consistently key-release based
+
+- **Evidence:** adjustments begin a keyboard gesture inside `onChange`
+  (`AdjustmentControls.jsx:114–119`) and ignore commit only for an event named
+  `keydown` (`:121–124`). Installed MUI's `Slider/useSlider.js:301–324` invokes
+  update and committed callbacks for hidden-input value changes as well. The
+  Rotation text adapter handles ArrowUp/ArrowDown on keydown but no keyup handler
+  (`RotationControls.jsx:50–59,69–70`).
+- **Why:** completion relies on event-type heuristics and separate editor logic
+  rather than one explicit keyboard-gesture transition.
+- **Impact / fix:** some input-change paths may close/commit early, while repeated
+  Rotation field arrows can remain pending until blur/Enter. Distinguish typing,
+  keyboard stepping and pointer input in the shared lifecycle; preserve the
+  contract's key-release completion for stepping without forcing normal typing
+  to commit every character. Treat MUI committed notifications according to the
+  active gesture, not just a single event.type comparison.
+- **Status:** confirmed missing field keyup path; premature slider completion is
+  a code-derived risk requiring a focused interaction check when repaired.
+
+#### A07 — Medium: baked row layout is duplicated and its validation is uneven
+
+- **Evidence:** `FileControls.jsx:48–58` and `AdjustmentControls.jsx:86–89,154–158`
+  duplicate slot/flex/gap application. FileControls validates total widths plus
+  gaps (`:30–32`); `validateAdjustmentConfig` does not. Each part may be a valid
+  percentage yet the sum can exceed 100 with flexShrink=0. File order is still
+  the source array `['load','reset','save']` (`FileControls.jsx:8`) rather than a
+  validated JSON order. Action Bar control y/height is repeated in three instance
+  records; current equality is configured correctly but is not one shared rule.
+- **Why:** the file group and adjustment group were implemented at different
+  times, and common row mechanics/order were copied rather than reconciled.
+- **Impact / fix:** oversized adjustments can overlap siblings despite valid
+  config; changing a simple file order requires JSX. Reuse a small existing/shared
+  row-slot mechanism where appropriate, with consistent width/gap containment.
+  Keep feature composition in its owner and configure order in JSON. If equal
+  Action Bar height is to remain a maintained rule, represent its allocation once
+  rather than copying another hardcoded height into renderers. No new registry.
+- **Status:** confirmed validation/config-ownership gap; current three groups
+  fit, so this is not a claim of present default-window overflow.
+
+#### A08 — High: Placement and value parts do not fully apply configured states
+
+- **Evidence:** `PlacementDropdown.jsx:39–50` applies the same `menu` state/visual
+  object to popup paper and items, overrides display/padding, and leaves list
+  typography/arrow/text state routing partly to MUI. Installed
+  `InputBase/InputBase.js:190–194` sets disabled WebkitTextFillColor from its theme;
+  `NativeSelect/NativeSelectInput.js:153–155` sets disabled arrow color. The local
+  Select rules do not reset the disabled text fill to the configured color.
+  `AdjustmentControls.jsx:99–106` likewise gives the input/unit implicit inherited
+  layout/state paths rather than a fully declared common text/editor contract.
+- **Why:** fixes targeted visible wrappers while nested MUI parts and portal
+  surfaces were not assigned separate consumed configuration responsibilities.
+- **Impact / fix:** a JSON disabled foreground need not reach displayed text;
+  hovering an item also styles the enclosing paper. Configure surface, item and
+  indicator responsibilities separately in the existing dropdown owner. Apply
+  common configured states to MUI's actual visual slots, including text fill;
+  define the value editor's shared content/disabled behavior once. Keep a simple
+  dropdown; do not add a second theme or local palette.
+- **Status:** confirmed state-routing mismatch by source; no fresh GUI color
+  measurements were taken. The prior oversized-hover fix is not being called
+  unfixed: current percentage menu padding is zero.
+
+#### A09 — Medium: generic section flow accepts geometry it cannot represent
+
+- **Evidence:** `WindowLayout.jsx:24–42` switches every section into a sequential
+  grid row if any section has `sizing`. It sorts by y, uses y only to add gaps,
+  then clears top/height. `ConfigValidation.mjs:300–336` permits nonoverlapping
+  side-by-side sections at the same y and does not constrain this flow topology.
+  The content-sized branch also makes each child normal-flow without a sibling
+  layout (`WindowLayout.jsx:45–54`).
+- **Why:** intrinsic Bottom Bar support specialized the generic renderer into a
+  vertical stack while validation kept the broader section-bounds contract.
+- **Impact / fix:** a legal config with two sections sharing y but occupying
+  different x ranges will be stacked instead of honoring its bounds. Either
+  validate an explicit vertical-flow contract or implement tracks that preserve
+  supported geometry. Before implementing deferred Bottom Bar Info, define its
+  parent-owned row composition; do not simply add an absolutely positioned button
+  to the current content-height stack.
+- **Status:** confirmed accepted-model/rendering mismatch. The current four-section
+  vertical arrangement itself matches the renderer.
+
+#### A10 — High: failed replacement can leave native and renderer photo identities split
+
+- **Evidence:** worker `image-worker/src/session.rs:15–20` replaces its current
+  image immediately after preview creation. `ImageFileDialogs.cjs:46–50` then reads
+  preview bytes and publishes native identity. Renderer replacement happens later
+  in `ImageFileActions.mjs:28–36`. An error in preview read/delivery after worker
+  success leaves the renderer on its previous photo; its generic error handling
+  claims that photo is preserved (`:13,22`). The worker holds only the new photo.
+- **Why:** Load/drop share the same path correctly, but replacement is committed
+  independently at worker, desktop adapter and renderer boundaries without one
+  acceptance/rollback contract.
+- **Impact / fix:** after that failure, the old visible photo may no longer export
+  because its photoId is stale. Make loading prepare an image/preview candidate
+  and commit identity after successful transfer, or retain the previous worker
+  image until acceptance. Keep this in file/worker owners; never work around it
+  by resetting UI or adding another DropTarget-specific loader.
+- **Status:** code-derived failure risk; no filesystem failure was injected in
+  this read-only audit. Ordinary decoder failure is handled before worker replace.
+
+#### A11 — Medium: editing/menu/modal input isolation is scattered across handlers
+
+- **Evidence:** `KeyboardShortcuts.mjs:8–10` excludes contenteditable, sliders,
+  open popovers and modal surfaces. `PhotoPointerInput.mjs:21,78–83` uses a smaller
+  selector and checks hover/focus, not the same blocked state; it omits buttons,
+  contenteditable and dialog/popover presence. `PhotoWheelInput.mjs:36–48` checks
+  canvas hit/busy/pointer gesture only. Pointer view start also differs from photo
+  start (`PhotoPointerInput.mjs:47–48`): view pan is canvas-wide; photo edits are
+  frame-only. That distinction needs to remain explicit rather than accidental.
+- **Why:** canvas input and app shortcuts each added their own focus policy.
+- **Impact / fix:** Space handling can consume a focused control's key while the
+  cursor remains over the canvas; future overlays cannot rely on a common edit
+  block. Share a small interaction-blocking predicate/state through existing
+  interfaces, keeping pointer capture and wheel grouping in their current files.
+  Modal/native busy state and genuine text editing must suppress photo input.
+  Do not move all events into FrameSession or build a new global event framework.
+- **Status:** confirmed divergent policy; specific overlay interactions are
+  code-derived risks, especially while Information is still deferred.
+
+#### A12 — Medium: busy protection depends too much on the caller
+
+- **Evidence:** `PhotoOperations.mjs:179–186` stepSize checks photo-derived percent
+  and direction but never uses `canEdit()`, unlike updateSize/rotateBy/reset.
+  `UndoButton.jsx:10`/`RedoButton.jsx:10` ignore busy even though FrameSession
+  (`:48–49`) refuses those operations while busy.
+- **Why:** UI disabled behavior and operation guardrails were added independently
+  instead of checked at their corresponding boundaries.
+- **Impact / fix:** stepSize is unsafe for a future non-button caller, history
+  controls can appear usable while doing nothing. Enforce canEdit in the operation
+  and reflect busy in history adapters. Do not invent another state owner or copy
+  the busy calculation into the shared visual primitive.
+- **Status:** confirmed missing guards; current disabled size buttons mask the
+  direct stepSize path. No busy operation was triggered during this audit.
+
+#### A13 — Medium: diagnostics have one storage owner but incomplete origin/readability
+
+- **Evidence:** `FrameSession.mjs:56` reports preview failure without component,
+  instance, source or config identity. `DropTarget` supplies full origin but
+  placement/photo input failures have no equivalent origin wrapper. Render error
+  boundaries (`WindowLayout.jsx:6–14`) do not catch asynchronous event-handler
+  failures. `LayoutDiagnostics.mjs:2–6` reduces the visible summary to code/path,
+  despite the complete expected/actual/action message already stored at `:41`.
+  `FrameInfo.jsx:4` also uses a folder-relative import to shared diagnostic logic
+  instead of the stable alias used by other movable controls.
+- **Why:** record persistence was centralized, but new callers were wired directly
+  without carrying origin context or finishing the user-facing formatting path.
+- **Impact / fix:** Bottom Bar can say where a code occurred without explaining
+  what was skipped or what value was wrong; a moved nested status control may
+  need import edits. Carry the initiating context through the existing action
+  boundary, format a concise readable reason/action in the shared formatter, and
+  use the stable alias for FrameInfo's dependency. Keep detailed records in the
+  existing log; do not add banners or separate log services.
+- **Status:** confirmed provenance/summary omissions. No new event failure was
+  triggered. Existing record deduplication and persistence separation should stay.
+
+#### A14 — Medium: retained checks and PASS claims target superseded UI contracts
+
+- **Evidence:** `tests/popover-proof.mjs:63–68` still demands square buttons and
+  frozen sizes 38.94/37.92/71.84. `tests/rotation-proof.mjs:32,124–126,209` modifies
+  removed parts `degree/field/input`. `tests/rotation.test.mjs:81–96` creates a
+  synthetic catalog without current input/options declarations and dereferences
+  `parts.input`, which is absent from current Rotation config. Several proof
+  scripts force `config.window.height` as "default" even though startup height is
+  now monitor-dependent. Later Markdown sections still report these old runs as
+  current proof of the implementation.
+- **Why:** extraction/new user decisions changed the contract while checks and
+  historical success paragraphs were left behind. Compatibility mappings such as
+  `RotationControls.jsx:67` preserve old DOM naming without preserving old schemas.
+- **Impact / fix:** these checks are not current evidence, and chasing them can
+  restore behavior the user explicitly replaced. Retire/update obsolete assertions
+  only when that maintenance is authorized; use proportional invariants and real
+  exports of validators where checks are needed. Do not weaken tests just to make
+  them green, add a broad suite, or reintroduce deleted parts. Mark old reports as
+  historical rather than claiming those scripts pass now.
+- **Status:** confirmed obsolete references by inspection; no tests were run or
+  modified. This finding is not an instruction to prioritize tests over the app.
+
+### Empty skeleton inventory — not implemented and not active duplicates
+
+These files were checked as zero bytes. They do not export component IDs and are
+not mounted. Preserve unrelated skeletons; do not fill them just because they exist.
+
+- **Action Bar superseded standalone parts:** `DecreaseSizeButton.jsx`,
+  `IncreaseSizeButton.jsx`, `PhotoSizeSlider.jsx`, `PhotoSizeValue.jsx`,
+  `ResetButton.jsx`, `RotationLabel.jsx`, `SizeLabel.jsx`. Their active UI is baked
+  into FileControls/AdjustmentControls; the file map must not promise a second
+  implementation. Removing obsolete skeletons is later scoped cleanup, not this audit.
+- **Windows Bar:** `AppIcon.jsx`, `ExportStatus.jsx`, `InfoButton.jsx`. AppIcon is
+  intentionally unnecessary for taskbar-only artwork; Info is deferred and its
+  eventual button belongs in Bottom Bar. ExportStatus is not an active control.
+- **Bottom Bar:** `ExportSizeSelector.jsx`, `FitViewButton.jsx`, `ViewZoomValue.jsx`,
+  `ZoomInButton.jsx`, `ZoomOutButton.jsx`. No additional Bottom Bar controls were
+  approved by this audit. Export sizes exist in operations/worker configuration,
+  but there is no implemented selector.
+- **Information:** `overlays/information/InformationDialog.jsx`, `CloseButton.jsx`.
+  Deferred; lack of a dialog is not a regression in the approved current UI.
+- **Notices:** `overlays/notices/Notice.jsx`, `NoticeStack.jsx`, `DismissButton.jsx`.
+  Superseded by Bottom Bar text; do not implement a second notification system.
+- **Layers:** `desktop/LayerReceiver.cjs`, `logic/LayerMessages.mjs`,
+  `logic/LayerState.mjs`, `image-worker/src/layer.rs`. Deferred/superseded ownership
+  from A01; no layer logic is currently mixed into active photo output.
+
+### Repair order and scope limits
+
+1. **Done — A01:** reconciled the current agreement/target map to the latest user
+   decisions, without app changes. Old validation is labeled historical; obsolete
+   test files remain open under A14.
+   **Done — A02:** consolidated icon/text/editable button hosts and JSON history
+   icons without changing feature actions or layout.
+   **Next piece: A03, percentage slider geometry and ignored bounds.**
+2. Repair the existing popup/slider geometry and slot-state application at their
+   shared owners (A03, A04, A08).
+3. Make edit ownership/lifetime consistent across controls and canvas inputs
+   (A05, A06), then close busy/input-isolation gaps (A11, A12).
+4. Strengthen the existing parent/baked-row contracts rather than introducing a
+   new layout/registration system (A07, A09).
+5. Repair multi-stage load acceptance and diagnostic origin/formatting in their
+   existing owners (A10, A13).
+
+Preserve the parts that already fit: complete discovery before mount, stable
+component IDs and aliases, generic parent-owned sibling gaps, shared photo math,
+separate view state, common Load/drop path, source-overwrite protection, exact
+configured export sizes, right-aligned native startup/maximize, taskbar identity
+and Bottom Bar-only operational messages. This report is a scoped repair list,
+not permission to redesign the application or start deferred orchestration.
+
 ## Target and status
 
-The first standalone `@APPS/frame/` slice is implemented and verified: native
-window, four configured sections, discovery/validation before mounting, diagnostics,
-inspection and real Undo/Redo history, plus the shared Load/Save file slice with
-native dialogs, preview and standalone Rust PNG/JPEG export. Reviewed validation,
-capability isolation, relocation and error-origin boundaries are regression-checked.
-The approved Rotation slice is now implemented and reviewed: left/right square
-shared action buttons, degree input, synchronized MUI slider and configured separator.
-The photo pointer/wheel slice, file dropping and independent inspection pan/zoom
-operations and the approved Ctrl+S/Ctrl+Z shortcuts are implemented. Full overlays and layer
-receiving/composition are pending. Preserve `output-frame/` as a behavior reference;
-do not blindly copy it.
-The map below remains the comparison target; do not recreate/reconfirm the skeleton.
-`AGENTS.md` defines the working rules.
+The standalone `@APPS/frame/` currently implements its native window, four
+configured sections, discovery/validation before mounting, diagnostics, inspection,
+Undo/Redo, Load/drop/Save, Rust photo/black export, Rotation/Size, Placement,
+photo pointer/wheel input, separate inspection state and Ctrl+S/Ctrl+Z.
+These are implemented features, not a blanket compliance verdict: A03–A14 in the
+source audit remain open. The current task is to repair that list piece by piece.
+Info and background orchestration are deferred, not the next automatic features.
+Preserve `output-frame/` as reference only; do not recreate/reconfirm the skeleton.
+`AGENTS.md` defines the working rules and current boundaries.
 
 Run from `frame/`: `npm.cmd start` for normal mode or `npm.cmd run inspect` for
 development inspection. Normal startup shows the black frame, filename/status and
-shared icon-only Load/Save buttons. Undo/Redo start disabled until an edit exists.
+shared icon-only Load/Reset/Save buttons. Undo/Redo start disabled until an edit exists.
 `window.startup: "workAreaHeight"` opens the native window at the current monitor's
 usable height (taskbar excluded), using the approved 934-DIP content width and
 aligning it to the right edge of the work area. This default applies on each launch; window-position persistence is
@@ -28,7 +455,7 @@ supplies the multi-resolution `frame/assets/app-icon.ico` and explicit pin/relau
 metadata, including the frame directory for development launches. The process and
 window share that App ID. The icon is not rendered in the app layout. Existing
 Electron pins must be removed and recreated from the updated Frame window.
-The live Windows property store was checked for App ID, ICO resource, display
+Earlier implementation evidence: the live Windows property store was checked for App ID, ICO resource, display
 name and the complete relaunch command; all matched. The Maxx taskbar icon was
 observed after relaunch. No renderer/layout changes or broad test suite were needed.
 Rotation and Size controls start disabled until a photo is loaded. The Action Bar
@@ -36,8 +463,9 @@ uses one shared adjustment sub-parent for `[decrease] [value] [increase]`; each
 value opens its configured slider popup.
 JSON defines ±180° bounds, 0.1° precision/step and 90° button increments.
 Rotation keeps its editable degree value while Size shows its percentage value.
-Rotation changes photo preview/export only; future prepared layers remain independent.
-The active arrangement is Load/Save in Action Bar, Undo/Redo in Windows Bar,
+Rotation changes photo preview/export only. Future overlay composition belongs to
+the deferred background orchestrator, not Frame's photo operations.
+The active arrangement is Load/Reset/Save in Action Bar, Undo/Redo in Windows Bar,
 with vertical maximize/restore and Close/X visible among the window-action buttons.
 Minimize remains configured with `enabled: false`. `FrameWindow.cjs` owns the
 height-only toggle and its saved restore bounds. Startup displays the restore icon;
@@ -46,14 +474,14 @@ restore the actual previous bounds. Maximize returns to the same configured widt
 full usable height and right alignment as startup. One shared native bounds function
 owns both paths. Windows Bar uses the same generic sibling layout as Action Bar to keep
 Placement, maximize/restore and Close/X spaced without overlap.
-The updated native button was clicked through two maximize/restore cycles: width
+Earlier implementation evidence: the native button was clicked through two maximize/restore cycles: width
 stayed unchanged, prior bounds were restored, and full-width Windows maximize
 remained off. Startup/restore captures are in
 `frame/.runtime/checks/vertical-maximize/`. Native config/syntax checks and the UI
 build passed; no broad test suite was run.
 Undo/Redo are at the far left, followed immediately by the left-aligned filename.
 The filename is a transparent pass-through label over the draggable Windows Bar.
-Load/Save are one baked `FileControls.jsx` group with equal wider boxes and centered
+Load/Reset/Save are one baked `FileControls.jsx` group with equal wider boxes and centered
 icons, 1% from Action Bar's right edge. Close/X is 1% from Windows Bar's right edge;
 its box retains the Undo/Redo dimensions. Filename/history/Rotation remain unchanged.
 Windows Bar and Action Bar each use 4% of window height. Buttons use 8%
@@ -71,14 +499,16 @@ build after finishing changes and focused verification, leaving it open for the 
 Both sliders now open in a popup instead of occupying Action Bar width.
 `components/ConfiguredPopover.jsx` is the one shared popup mechanism: a trigger
 opens a portaled surface that closes on commit, Escape or an outside press.
-Rotation opens it from the degree symbol; Size opens it from the percentage
-value. JSON owns the popup part's surface width/padding and appearance.
+Both open from their entire visible value control, not a small unit symbol.
+Rotation remains editable. JSON must own popup geometry and appearance;
+A03/A04 record where the current implementation still violates that requirement.
 
 `components/AdjustmentControls.jsx` now owns the one reusable proportional row,
 value/editor trigger, popup slider and common configuration validation. Rotation
 and Size use the same `decrease/value/increase/slider/control/rail/track/thumb/popup`
-part contract. Their group bounds and every part allocation remain percentages;
-the feature adapters supply only state, labels, icons and commands.
+part contract. Their group/row allocations are percentages, but the popup slider
+still misinterprets some size fields as pixels (A03). Feature adapters supply
+state, labels, icons and commands; remaining geometry/state/lifetime gaps are A03–A08.
 
 ## Baked size controls and Reset
 
@@ -87,7 +517,7 @@ It supplies Size state/actions to `components/AdjustmentControls.jsx`, placed
 between Rotation and the file group. `PhotoOperations.mjs` owns the size policy
 (`size` in JSON: 10–400%, 5% step) plus `fitScale`, `sizePercentOf` and
 `scaleFromPercent`; the centered-fill scale is the 100% reference. The shared
-`frame.controls` group gained a third part, `reset`, which restores the fitted
+`file.controls` group includes a third part, `reset`, which restores the fitted
 document through the same shared operation owner.
 
 A slider drag is one grouped history step; the +/- buttons are discrete commits,
@@ -95,32 +525,24 @@ like the rotation buttons. Undo/Redo settle pending edits through the same owner
 
 ## Baked file controls and right margins
 
-`action-bar/FileControls.jsx` replaces the individual `FileActionButton.jsx`
-registration. One `file.controls` instance (`fileControls`) owns Load/Save
-composition, labels/icons, row sizing and configuration checks. Its two shared
-ActionButton IDs are `fileControls-load` and `fileControls-save`; they are named
-parts, not separate layout registrations. File operations/history stay centralized.
+One `file.controls` instance (`fileControls`) owns Load/Reset/Save composition,
+labels/icons, row sizing and configuration checks. Its shared ActionButton IDs are
+`fileControls-load`, `fileControls-reset` and `fileControls-save`: named parts,
+not separate layout registrations. File operations/history stay centralized.
 
-In JSON, `fileControls.bounds` is x=82%, width=17%, ending at 99% of Action Bar.
-Its row has two 47%-wide parts and a 6% gap, retaining approximately 8%-of-bar
-button widths. Close/X has x=94.5%, width=4.5%, also ending at 99% of its bar.
-Minimize/Maximize are hidden through their existing `enabled: false` settings.
-No shared-renderer, generic-parent, native-window or file-operation code changed.
+The group occupies 25% of Action Bar width and uses its end lane with 1% parent
+end padding. Each part uses 30% of group width, 100% height, with 5% internal gaps.
+Parent layout computes x; no child stores a competing horizontal position.
+Close/X is also in its parent's end lane, ending at 99%. Minimize remains hidden;
+vertical maximize/restore and X are visible. A07 covers internal-order/row reuse
+gaps; old two-button widths are not the current target.
 
-UI build, 30 contract/rotation logic tests, grouped window proof and file-action
-proof passed. Default/minimum native captures under
-`frame/.runtime/checks/window-swap/` were inspected. Both group/Save and X right
-margins measured within 0.02 percentage points of 1%. Load/Save, normal X/worker
-cleanup, cancellation, replacement, original protection, per-part/shared-preset
-appearance, group disabling/mismatch isolation and grouped error provenance were
-checked. Existing other proofs were adapted and syntax-checked, not rerun.
-Previous normal frame PID **4956** closed normally. Updated normal frame PID
-**13680**, with owned worker PID **17944**, was verified and left running.
-
-## Text-only Bottom Bar
+## Bottom Bar and deferred Info
 
 Bottom Bar is the single outlet for operation/progress/success/error text and
-readable diagnostic summaries. It contains no buttons, selectors or toast stack.
+readable diagnostic summaries. Currently it contains text only, with no selectors
+or toast stack. The user approved an optional Info button before this text, but
+deferred implementation. Do not put Info in Windows Bar or start it during repair.
 It defaults to one text line, wraps and expands upward for longer messages, and
 shrinks again for shorter text. Frame/body reflows rather than being covered.
 Existing diagnostic records, deduplication and local logging remain intact.
@@ -134,7 +556,7 @@ percentage without preferred-height callbacks. Generic section `sizing` supports
 bounds still establish section ordering, horizontal placement and validation
 footprints, not the runtime heights of content/remaining sections.
 
-Focused verification: 27 Bottom Bar/contract tests passed, UI build passed, and
+Earlier implementation evidence, not rerun for this repair: 27 Bottom Bar/contract tests passed, UI build passed, and
 native Bottom Bar plus guardrail proofs passed at default/minimum sizes. The bar
 measured **17.91px** for one line and **33.81px** for two lines at both sizes.
 The proof creates its own photo fixture, checks actual Load success/cancellation,
@@ -166,23 +588,24 @@ Action Bar
 └── ActionSeparator
 ```
 
-`RotationControls.jsx` now owns only degree draft/gesture behavior and maps its
+`RotationControls.jsx` now owns degree-text behavior and maps its
 commands into the shared sub-parent. `SizeControls.jsx` does the same for percent
 state and size commands. The previous Rotation-specific MUI row, field measuring,
 buttons, popup and slider composition were deleted. JSON uses the same named part
-contract for both instances and still owns proportional placement, appearance and
-states. `PhotoOperations.mjs` and `PhotoHistory.mjs` remain the calculation and
-history owners.
+contract for both instances. JSON is the required authority for proportional
+placement, appearance and states; the audit lists unconsumed fields/duplicate
+rendering rather than claiming full compliance. `PhotoOperations.mjs` and
+`PhotoHistory.mjs` remain the calculation and history owners.
 
-The UI build passed. The updated normal window was inspected directly (without a
+Earlier implementation evidence: the UI build passed and the normal window was inspected directly (without a
 second Electron instance) at `frame/.runtime/checks/shared-adjustment/live.png`;
 both adapters mounted through the shared row with no Bottom Bar diagnostic. No new
 UI test or fixed-pixel assertion was added.
 
 ## Placement control
 
-`windows-bar/PlacementDropdown.jsx` is a configured action selector immediately
-before Close/X. Fit and Fill preserve rotation, recalculate scale from rotated
+`windows-bar/PlacementDropdown.jsx` is a configured action selector before the
+vertical maximize/restore button and Close/X. Fit and Fill preserve rotation, recalculate scale from rotated
 photo/frame geometry and center the photo; Center changes x/y only. The dropdown
 owns labels/menu interaction, while `PhotoOperations.mjs` owns all placement math
 and commits each effective action through `PhotoHistory`.
@@ -252,8 +675,10 @@ detaches it on page teardown before disposing the session.
 
 ## Exact target files and ownership
 
-Paths below are relative to `frame/`. This maps every skeleton file to its job;
-it is not permission to fill every file before proving the first slice.
+Paths below are relative to `frame/` and list active application owners.
+The audit's empty-skeleton inventory is separate: empty files do not define active
+features or an implementation queue. In particular, Info is deferred to Bottom
+Bar and layer/composition ownership is deferred to the background orchestrator.
 
 ```text
 frame/
@@ -265,7 +690,6 @@ frame/
 │   ├── main.cjs                        Compose native app lifetime and services
 │   ├── FrameWindow.cjs                 Create output window and bind narrow native window actions
 │   ├── preload.cjs                     Narrow renderer-to-desktop bridge
-│   ├── LayerReceiver.cjs               Accept/validate finished-layer and clear messages
 │   ├── ImageWorker.cjs                 Worker requests, replies, errors and lifetime
 │   ├── ImageFileDialogs.cjs            Native image dialogs and original-file protection
 │   └── DiagnosticLog.cjs               Persist diagnostic records; tolerate logging failures
@@ -283,36 +707,23 @@ frame/
 │   │   └── LayoutInspector.jsx         Development boundaries and ID/parent/source labels
 │   └── window/
 │       ├── windows-bar/
-│       │   ├── AppIcon.jsx             Configured local app artwork
 │       │   ├── FileName.jsx            Current filename and accessible full-path information
-│       │   ├── ExportStatus.jsx        Saved/dirty/empty status presentation
 │       │   ├── UndoButton.jsx          Invoke photo-history Undo
 │       │   ├── RedoButton.jsx          Invoke photo-history Redo
 │       │   ├── WindowActionButton.jsx  Configured minimize/maximize/restore/close behavior
-│       │   ├── PlacementDropdown.jsx   Fit/Fill/Center action selection before Close/X
-│       │   └── InfoButton.jsx          Open information overlay
+│       │   └── PlacementDropdown.jsx   Fit/Fill/Center action selection before maximize/X
 │       ├── action-bar/
-│       │   ├── FileControls.jsx        Baked Load/Save/Reset group; invokes file actions and shared buttons
+│       │   ├── FileControls.jsx        Baked Load/Reset/Save group; invokes file actions and shared buttons
 │       │   ├── SizeControls.jsx        Thin Size behavior adapter for shared AdjustmentControls
-│       │   ├── SizeLabel.jsx           Accessible photo-size label
-│       │   ├── DecreaseSizeButton.jsx  Invoke shared photo-size decrease
-│       │   ├── PhotoSizeSlider.jsx     Size interaction and grouped edit completion
-│       │   ├── IncreaseSizeButton.jsx  Invoke shared photo-size increase
-│       │   ├── PhotoSizeValue.jsx      Show current photo-size percentage
 │       │   ├── RotationControls.jsx    Thin Rotation behavior adapter for shared AdjustmentControls
-│       │   ├── ActionSeparator.jsx     Independent Action Bar separator outside feature outlines
-│       │   └── ResetButton.jsx         Invoke shared photo reset
+│       │   └── ActionSeparator.jsx     Configured Action Bar sibling separator
 │       ├── frame-body/
 │       │   ├── PhotoPreview.jsx        Canvas lifetime and interaction subscriptions
 │       │   ├── PhotoPointerInput.mjs   Photo drag and inspection-pan gestures
 │       │   ├── PhotoWheelInput.mjs     Frame-scoped wheel/modified-wheel interaction
 │       │   └── DropTarget.jsx          Drop feedback and image-drop handoff
-│       ├── bottom-bar/
-│       │   └── FrameInfo.jsx           One expanding text outlet for operation messages and diagnostics
-│       └── overlays/
-│           └── information/
-│               ├── InformationDialog.jsx Information/shortcut surface with configured parts
-│               └── CloseButton.jsx    Close information overlay
+│       └── bottom-bar/
+│           └── FrameInfo.jsx           One expanding text outlet for operation messages and diagnostics
 ├── logic/
 │   ├── FrameSession.mjs                Coordinate session lifetime/subscriptions and UI state
 │   ├── WindowActions.mjs               Renderer window actions, native state and subscriptions
@@ -320,20 +731,17 @@ frame/
 │   ├── PhotoOperations.mjs             Shared sizing, rotation, placement and reset rules
 │   ├── PhotoHistory.mjs                Current document and optional Undo/Redo tracking
 │   ├── ViewState.mjs                   Inspection zoom/pan state
-│   ├── ViewOperations.mjs              View-only zoom/pan/fit operations
-│   ├── LayerState.mjs                  Accepted layer identity/revision and bitmap lifetime
-│   ├── LayerMessages.mjs               Renderer layer-event handling; stale decode rejection
+│   ├── ViewOperations.mjs              View-only zoom/pan operations
 │   ├── ImageFileActions.mjs            Load/save coordination and accepted export snapshot
 │   └── KeyboardShortcuts.mjs           Shortcuts with input/menu/modal isolation
 └── image-worker/
     ├── Cargo.toml                      Independent image worker crate; no stamp-engine dependency
     └── src/
         ├── main.rs                     Worker entry and request/reply loop
-        ├── protocol.rs                 Image/layer/export request and response contracts
-        ├── session.rs                  Worker photo/layer lifetime and revision checks
-        ├── photo.rs                    Decode/orient photo and apply photo transformations
-        ├── layer.rs                    Validate/store received pixels; composite fixed layer
-        └── export.rs                   Compose requested snapshot and encode output image
+        ├── protocol.rs                 Photo load/export request and response contracts
+        ├── session.rs                  Worker photo identity/lifetime
+        ├── photo.rs                    Decode/orient photo and prepare preview pixels
+        └── export.rs                   Render photo/black snapshot and encode output image
 ```
 
 ### Contract edges to preserve during implementation
@@ -346,9 +754,10 @@ frame/
 - Controls obtain the resolved instance config and shared session/actions through
   a consistent injected interface/context. Do not make a movable control depend
   on its parent ID, filename, or folder-specific relative import to shared logic.
-- InformationDialog is a pending information surface, not a section-specific
-  assembly registry. Its children follow the unified mechanism and configured
-  relationships. Notifications use the text-only Bottom Bar, not an overlay.
+- InformationDialog is deferred, not a section-specific assembly registry. Its
+  eventual Info trigger belongs before Bottom Bar text, not in Windows Bar.
+  Its children must follow the unified mechanism and configured relationships.
+  Operational notifications remain Bottom Bar text, not an overlay.
   Former bottom-control/notice skeleton files remain untouched and unimplemented;
   they are no longer the Bottom Bar target. Future view/output controls need an
   approved location elsewhere before implementation.
@@ -357,9 +766,9 @@ frame/
   competing palette/resolver. ComponentDiscovery gathers facts; WindowLayout
   mounts validated results; neither takes over validation or diagnostics policy.
 - LayoutDiagnostics owns issue identity, deduplication, formatting and summaries.
-  DiagnosticLog only persists its records. LayerReceiver validates external
-  messages; LayerMessages handles renderer delivery/decode; LayerState owns the
-  accepted revision. These are separate boundaries, not duplicated rule engines.
+  DiagnosticLog only persists its records. Future overlay receipt, decoding,
+  clearing and accepted-revision rules belong to orchestrator owners outside
+  Frame. Do not activate the obsolete empty Frame layer skeletons.
 - FrameSession composes the state/operation owners; it must not grow into another
   monolithic controller containing their calculations or UI geometry.
 
@@ -372,11 +781,12 @@ Frame uses the explicit `configuredAppearance` / `configuredSx` contract in shar
 appearance exports remain only for the reference app, with their behavior unchanged;
 frame does not call them. No output-frame source was modified or migrated.
 
-`@APPS/components/ActionButton.jsx` is the single shared MUI action-button
-renderer/icon library, not a section registration. FileControls and
-WindowActionButton retain separate domain behavior/config validation in their
-assigned section folders. Both delegate rendering to this one library component;
-there is no duplicated button styling and no folder-parent validation exemption.
+`@APPS/components/ActionButton.jsx` is the intended shared MUI button/icon owner,
+not a section registration. FileControls and WindowActionButton delegate rendering
+to it and retain separate domain behavior/config validation in their assigned
+folders. A02 is now repaired: value controls and Undo/Redo also use this shared
+renderer. Editable values use its non-button host; history icons come from JSON.
+Do not weaken folder guards or move feature behavior into the visual primitive.
 The consumer's Vite config resolves shared React/MUI/Emotion imports to frame's
 declared dependencies, not an undeclared ancestor installation.
 
@@ -427,16 +837,18 @@ declared dependencies, not an undeclared ancestor installation.
   no component-name selectors, hidden z-index tricks or blocking hit-test box.
   The leaf filename component does not own window-drag logic.
 - Optional `aspectRatio` fits a control inside its allocated bounds using its
-  immediate parent axes, left anchored and vertically centered. Rotation buttons
-  use ratio 1 and the exact shared ActionButton renderer/fileAction preset.
+  immediate parent axes, left anchored and vertically centered. Current Action
+  Bar controls intentionally omit it so all buttons/values have equal height
+  despite different widths. Do not restore square constraints from old proofs.
 - Components declare `partKeys` and required configuration capabilities. Discovery
   gathers these facts; ConfigValidation resolves every named part and checks all
   declared capabilities before mounting. Invalid rotation settings isolate only
   dependent controls, not Load/Save/history/preview. Diagnostics retain exact paths.
-- Positioned input/degree/slider-control parts require `bounds`. MUI-managed rail,
-  track and thumb instead require parent-relative `size`. Rail/track span a 100%
-  control range; MUI owns value-driven track fill and thumb position. Supplying an
-  unused placement kind is rejected by the component rather than silently ignored.
+- The shared adjustment uses decrease/value/increase/slider/control/rail/track/
+  thumb/popup parts; old independent input/degree/field parts are not the current
+  schema. Positioned control bounds and proportional part sizes must actually be
+  consumed and validated. A03/A04 remain open for ignored bounds, pixel conversion
+  and popup base definitions. MUI owns value-driven track fill and thumb position.
 - `active` and `error` join supported states. The input, degree label and slider
   managed parts receive their applicable focus/error/disabled/active state styles.
   The native input reset only inherits its configured owner's font/color/alignment;
@@ -520,13 +932,20 @@ the unified layout mechanism rather than another framework.
 ## Standalone output
 
 `frame/` runs without engine/input. It owns window/output settings, photo editing,
-preview and Rust image export. It listens for a finished transparent layer with
-dimensions/revision or a clear message. It never imports, builds, starts or calls
-engine/input, accepts stamp-generation settings, or decides stamp content.
+photo preview and Rust photo/black export. It never imports, builds, starts or
+calls engine/input, interprets stamp settings or generates stamp content.
 
-Photo transforms leave stamp placement unchanged. View transforms affect only
-inspection. Preview and export use the same accepted layer revision. Late decode
-cannot restore an older/cleared layer. Replacing the photo preserves the layer.
+Future Input/engine prepares the overlay; a background orchestrator owns receipt,
+clear/revision coordination, composition and combined export. It creates no new
+window or duplicate Frame preview. Frame remains the single photo surface and may
+display a finished combined preview through an explicit interface; Input remains
+the settings screen. Frame supplies photo output through an explicit contract,
+not access to its mutable internals. This integration is deferred, not current work.
+
+Photo transforms affect photo only. View transforms affect inspection only.
+The orchestrator must preserve its overlay independently of photo replacement,
+reject stale/cleared results and export the accepted combined revision. Those are
+future orchestration acceptance criteria, not missing Frame layer features.
 Preserve original-file protection, photo replacement, shortcuts, history, notices,
 black output and 1200×1600 / 2400×3200 / 3024×4032 export sizes.
 
@@ -552,30 +971,20 @@ uses its own declared owners; no old controller or stamp runtime was copied in.
 
 ## Delivery sequence
 
-1. **Complete:** create the empty `frame/` skeleton. Use the file/ownership map
-   above as the comparison baseline; leave other app code untouched.
-2. **Complete for the first slice:** configured native window/section containers,
-   discovery, validation, persistent diagnostics, inspector and real Undo/Redo.
-   Physical relocation/filename rename, config consumption, enabling, history and
-   mismatch isolation passed. Controls are restored to Action Bar after the proof.
-   The five demonstrated audit defects are repaired; targeted bad-config checks
-   confirm isolation/logging instead of crashes or silent fallback.
-3. **File slice complete:** one baked FileControls instance and shared part preset,   native Load/Save, real preview and independent Rust photo/black PNG/JPEG export.
-   Shared-preset changes, per-part appearance, group enabling/mismatch isolation,
-   cancellation, replacement and original protection are verified.
-   The relocation test arrangement is retained: Load/Save in Action Bar and
-   Undo/Redo in Windows Bar. Only X is visible among window-action controls and
-   completes the normal worker/session cleanup path; native window operations remain.
-4. **Rotation complete:** input/degree parts and states are proven against real
-     photo transforms. Photo pointer/wheel gestures and inspection operations are
-     complete; file dropping and Ctrl+S Save/Ctrl+Z Undo are implemented. Next: overlays and layer receiving.
-   Implement from the contract; remove superseded paths within the authorized
-   target instead of accumulating alternate implementations.
-5. Verify affected behavior/native sizes with focused checks, then restart and
-   leave the updated target app running. Report actual evidence.
-6. Reuse the proven UI mechanism in `ui-control`; apply ownership, not the UI
-   schema, to the headless engine pipeline. Joint launch/routing remains outside
-   frame. Do not implement the engine first merely to make output imports resolve.
+1. **Current task: repair A01–A14 piece by piece**, using the audit's repair order
+   and per-finding status. A01 documentation and A02 shared button rendering are
+   complete; A03 percentage slider geometry is next. Later findings remain open.
+2. Preserve implemented photo/file/history/input features and the latest UI.
+   Make each repair in its existing owning files; remove directly superseded code
+   after checking callers. Do not replace the app with another framework or host.
+3. For app repairs, use focused checks appropriate to the actual change, relaunch
+   and leave the updated normal app running, then perform the scoped checkpoint.
+   For documentation-only repairs, follow the notes-only exception: no automatic
+   app checks/relaunch/checkpoint.
+4. Info, export-size UI and background integration remain deferred. Reuse the
+   repaired UI mechanism in `ui-control` only when that work is requested. Apply
+   ownership, not the UI schema, to the headless engine. Do not add Frame layer
+   owners to make the old acceptance checklist appear complete.
 
 ### When a check fails
 
@@ -587,6 +996,11 @@ CSS overrides, silent defaults or special cases to conceal the gap. Do not
 re-audit unrelated files or repeatedly reconfirm an already-correct skeleton.
 
 ## Acceptance checklist
+
+Checked items describe implemented structure or earlier evidence, not a fresh
+runtime verification of the audited revision. Open A03–A14 findings qualify
+those claims. Deferred features are listed separately and are not this repair's
+definition of done.
 
 - [x] Stable component identity survives filename rename (Undo renamed during relocation proof).
 - [x] Shared component/preset reuse works; baked Load/Save parts use one fileAction preset and shared renderer.
@@ -601,20 +1015,25 @@ re-audit unrelated files or repeatedly reconfirm an already-correct skeleton.
       or behavior edits; current physical files/parent IDs place them in Windows Bar.
 - [x] Load/Save are physically registered in Action Bar; custom X is in Windows Bar
       and uses the same shared renderer/preset without weakening folder guards.
-- [x] Minimize/Maximize buttons are JSON-disabled; native window operations remain.
-      Close/X and normal-close cleanup work with the native control overlay absent.
+- [x] Minimize is JSON-disabled; vertical maximize/restore and Close/X are visible.
+      Startup/maximize share the narrow right-aligned work-area target, and restore
+      returns to previous bounds. The native control overlay remains off.
 - [x] FileControls/Save and Close/X end 1% from their respective bar edges.
 - [x] Intentional folder/parent mismatch logs a readable, deduplicated record and
       leaves valid controls usable; inspect repeat counts and persisted records.
 - [x] Inspection mode displays boundaries/IDs/source and is absent in normal mode; summary is readable at both sizes.
 - [ ] No independent theme, palette, tuned CSS, ignored config or visual fallback.
 - [x] Standalone photo/black PNG/JPEG exports work without either producer module present.
-- [ ] A test sender can set/clear a layer; photo movement and replacement preserve
-      independent layer placement, and export uses the accepted revision.
 - [ ] Native default/minimum screenshots include caption areas, overlays and long
-      text; action bar stays on one row, Bottom Bar remains text-only, no redundant title/VIEW.
+      text; Action Bar stays on one row, all its controls have equal proportional
+      height, and Bottom Bar remains the status outlet with no redundant title/VIEW.
 - [x] Bottom Bar defaults to one line with 1% top/bottom padding, expands/shrinks
       for multiline messages, preserves preview space, and replaces diagnostic banners.
+
+Deferred, outside the current repair: optional Info before Bottom Bar text;
+export-size selection UI at an approved location; background orchestration with
+its own set/clear/stale-revision and combined preview/export acceptance. No
+separate input or orchestrator Frame display and no Frame-owned layer composition.
 
 ## Retained engine/input requirements for later work
 
@@ -633,7 +1052,13 @@ original locale/template/provider mappings remain unverified. Keep recovered
 facts, rebuilt logic and calibration distinguishable. Preview/export share one
 prepared stamp definition, with an independently usable headless engine.
 
-## Verification status
+## Historical verification — not the current target or current PASS evidence
+
+The following records describe earlier revisions, layouts, schemas and proof
+scripts. References to square buttons, old independent Rotation parts, inline
+sliders, older sizes, old locations and old PIDs are historical only. They must
+not drive current repairs. A14 records the obsolete checks still present on disk;
+they were not rerun by the audit or by documentation repair A01.
 
 - `npm.cmd run test:contract`: **24/24 passed**. Covers valid resolution, empty/helper
   exclusion, relocation matching, duplicates, enabling, config isolation, missing
@@ -888,12 +1313,10 @@ prepared stamp definition, with an independently usable headless engine.
 - Previous normal frame PID **14824** closed normally. Updated frame PID **17072**
   and owned worker PID **5732** were verified and left running.
 
-The implemented layout/history, file, adjustment, placement and photo-input slices
-do not establish full application readiness. Additional shortcuts are not approved; full
-overlays, nested outlet mounting and finished-layer receiving/composition remain pending.
-The image worker does not generate stamps; the empty layer owner is not activated.
-Exports currently use the configured default resolution; the full export selector
-is not implemented yet. Rust image codecs support additional declared input formats,
-but this slice's end-to-end fixtures verify PNG and JPEG paths, not every codec or EXIF variant.
-Future controls must follow the same exported-ID and config interface; do not
-claim that unused config fields/parts or every future library state are already proven.
+These historical records do not establish readiness of the audited revision.
+Use the current audit/status and `AGENTS.md`, not these former implementation
+recipes, to determine the next repair. Additional application shortcuts are not
+approved. Info, export-size UI and background orchestration remain deferred;
+Frame's empty layer skeletons are not active feature requirements. Prior codec
+fixtures do not prove every format or EXIF variant. Future approved controls must
+follow the same exported-ID/config interface without claiming untested behavior.

@@ -11,7 +11,9 @@ import RotateRightRoundedIcon from '@mui/icons-material/RotateRightRounded';
 import PhotoSizeSelectSmallRoundedIcon from '@mui/icons-material/PhotoSizeSelectSmallRounded';
 import PhotoSizeSelectLargeRoundedIcon from '@mui/icons-material/PhotoSizeSelectLargeRounded';
 import RestartAltRoundedIcon from '@mui/icons-material/RestartAltRounded';
-import { configuredSx, fill, iconStyle } from './appearance.mjs';
+import UndoRoundedIcon from '@mui/icons-material/UndoRounded';
+import RedoRoundedIcon from '@mui/icons-material/RedoRounded';
+import { configuredAppearance, configuredSx, fill, iconStyle } from './appearance.mjs';
 
 const icons = {
   folderOpen: FolderOpenRoundedIcon, save: SaveRoundedIcon, close: CloseRoundedIcon,
@@ -19,17 +21,29 @@ const icons = {
   rotateLeft: RotateLeftRoundedIcon, rotateRight: RotateRightRoundedIcon,
   photoSizeSmall: PhotoSizeSelectSmallRoundedIcon, photoSizeLarge: PhotoSizeSelectLargeRoundedIcon,
   restartAlt: RestartAltRoundedIcon,
+  undo: UndoRoundedIcon, redo: RedoRoundedIcon,
 };
 
 // LOGIC — reusable rendering capability; file/window actions stay with their owners.
 export const hasActionIcon = (name) => typeof name === 'string' && Object.hasOwn(icons, name);
 
+export function validateActionIcon(config, report) {
+  if (hasActionIcon(config.icon)) return true;
+  report('icon', 'registered shared action icon', config.icon);
+  return false;
+}
+
 // UI — exactly one MUI button renderer for every configured action instance.
-export default function ActionButton({ config, disabled, onClick, icon = config.icon }) {
+export default function ActionButton({ config, disabled, onClick, icon = config.icon, children, editable = false, invalid = false }) {
   const Icon = icons[icon];
-  return <Button id={config.id} aria-label={config.label} title={config.label}
+  return <Button component={editable ? 'div' : 'button'} role={editable ? 'group' : undefined}
+    tabIndex={editable ? -1 : undefined} id={config.id} aria-label={config.label} title={config.label}
+    aria-invalid={invalid || undefined}
     disabled={disabled} onClick={onClick} variant="text" disableRipple disableElevation
-    data-button-renderer="shared-action" data-icon={icon} sx={{ ...fill, ...configuredSx(config) }}>
-    <Icon style={iconStyle(config)} />
+    data-button-renderer="shared-action" data-icon={icon} sx={{ ...fill, ...configuredSx(config),
+      ...(children !== undefined ? { cursor: disabled ? 'default' : 'pointer' } : {}),
+      ...(editable ? { '&:focus-within': configuredAppearance(config, 'focusVisible') } : {}),
+    }}>
+    {children !== undefined ? children : <Icon style={iconStyle(config)} />}
   </Button>;
 }

@@ -1,11 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import InputBase from '@mui/material/InputBase';
 import Slider from '@mui/material/Slider';
 import ActionButton, { hasActionIcon } from './ActionButton.jsx';
 import ConfiguredPopover from './ConfiguredPopover.jsx';
-import { configuredAppearance, configuredBounds, configuredSx, fill } from './appearance.mjs';
+import { configuredBounds, configuredSx, fill } from './appearance.mjs';
 
 export const adjustmentPartKeys = ['decrease', 'value', 'increase', 'slider', 'control', 'rail', 'track', 'thumb', 'popup'];
 
@@ -89,13 +88,9 @@ export default function AdjustmentControls({
   }}>{children}</Box>;
   const contentAttribute = contentName ? { [`data-${contentName}-content`]: 'true' } : {};
   const editor = valueControl.editor;
-  const valueTrigger = editor
-    ? <Button component="div" role="group" tabIndex={-1} id={id('value')} aria-label={config.labels.value}
-        disabled={disabled} aria-invalid={editor.invalid} onClick={openPopup}
-        variant="text" disableRipple disableElevation data-button-renderer="shared-value" sx={{
-        ...fill, ...configuredSx(value), '&:focus-within': configuredAppearance(value, 'focusVisible'),
-        cursor: disabled ? 'default' : 'pointer',
-      }}>
+  const valueTrigger = <ActionButton config={{ ...value, id: id('value'), label: config.labels.value }}
+    disabled={disabled} onClick={openPopup} editable={Boolean(editor)} invalid={editor?.invalid}>
+    {editor ? <>
         <InputBase value={editor.draft} disabled={disabled} readOnly={editor.readOnly} error={editor.invalid}
           onChange={editor.onChange} onBlur={editor.onBlur} onKeyDown={editor.onKeyDown}
           sx={{ height: '100%', minWidth: 0, flex: '1 1 auto', color: 'inherit', font: 'inherit' }}
@@ -105,12 +100,8 @@ export default function AdjustmentControls({
           sx={{ height: '100%', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
           {editor.unit}
         </Box>
-      </Button>
-    : <Button id={id('value')} aria-label={config.labels.value} disabled={disabled}
-        variant="text" disableRipple disableElevation data-button-renderer="shared-value"
-        onClick={openPopup} sx={{ ...fill, ...configuredSx(value), cursor: disabled ? 'default' : 'pointer' }}>
-        {valueControl.text}
-      </Button>;
+      </> : valueControl.text}
+    </ActionButton>;
   const changeSlider = (event, next) => {
     if (gesture.current.canceled) return;
     if (event.type === 'keydown' && !gesture.current.keyboard) {
