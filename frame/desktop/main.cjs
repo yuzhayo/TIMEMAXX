@@ -7,7 +7,7 @@ const { DiagnosticLog } = require('./DiagnosticLog.cjs');
 const { ImageWorker } = require('./ImageWorker.cjs');
 const { ImageFileDialogs } = require('./ImageFileDialogs.cjs');
 
-// LOGIC — photo lifetime stays in Frame; the only Input link is its approved screen opener.
+// LOGIC — photo lifetime stays in Frame; the only Input link is its approved window toggle.
 const root = path.resolve(__dirname, '..');
 if (process.platform === 'win32') app.setAppUserModelId(frameAppId);
 const runtime = path.join(root, '.runtime');
@@ -56,7 +56,7 @@ app.whenReady().then(async () => {
     if (!allowed(event) || !Array.isArray(records)) return { ok: false, error: 'Unknown diagnostic sender or invalid records' };
     return log.write(records);
   });
-  ipcMain.handle('frame:input-open', async (event) => {
+  ipcMain.handle('frame:input-toggle', async (event) => {
     if (!allowed(event)) return { ok: false, error: 'Unknown frame sender' };
     try {
       // Lazy public contract: missing/invalid Input never prevents Frame startup/export.
@@ -65,8 +65,8 @@ app.whenReady().then(async () => {
         const { createInputScreen } = require('../../ui-control/screen.cjs');
         inputScreen = createInputScreen({ BrowserWindow, screen, parent: window });
       }
-      await inputScreen.open();
-      return { ok: true };
+      const state = await inputScreen.toggle();
+      return { ok: true, ...state };
     } catch (error) { return { ok: false, error: error.message }; }
   });
   for (const [channel, action] of [

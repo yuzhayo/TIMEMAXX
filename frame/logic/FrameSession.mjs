@@ -5,7 +5,7 @@ import { createWindowActions } from './WindowActions.mjs';
 import { createPhotoOperations, sizePercentOf } from './PhotoOperations.mjs';
 import { ViewState } from './ViewState.mjs';
 import { createViewOperations } from './ViewOperations.mjs';
-import { createInputScreenAction } from './InputScreenActions.mjs';
+import { createInputScreenToggle } from './InputScreenActions.mjs';
 
 // LOGIC — compose independent document/history, file and window capabilities.
 export function createFrameSession(config, services = {}) {
@@ -59,8 +59,8 @@ export function createFrameSession(config, services = {}) {
     ...(files ? { load: files.load, save: files.save } : {}),
     ...(files?.drop ? { drop: files.drop } : {}),
     ...(windowActions ? { windowAction: windowActions.activate } : {}),
-    ...(typeof services.transport?.openInputScreen === 'function'
-      ? { openInputScreen: createInputScreenAction({ transport: services.transport, reportFailure: reportUiFailure }) } : {}),
+    ...(typeof services.transport?.toggleInputScreen === 'function'
+      ? { toggleInputScreen: createInputScreenToggle({ transport: services.transport, reportFailure: reportUiFailure }) } : {}),
     ...(photoOperations ?? {}),
     ...(viewOperations ?? {}),
     setOutputWidth: (width) => { if (photoState && !photoState.busy) { photoState.setOutputWidth(width); publish(true); } },

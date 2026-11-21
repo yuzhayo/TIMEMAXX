@@ -17,7 +17,7 @@ The active application currently provides:
 - exact PNG/JPEG exports at 1200×1600, 2400×3200, and 3024×4032;
 - Bottom Bar operation messages and structured local diagnostics;
 - development-only layout inspection;
-- opening/focusing one blank Input window from the pencil button.
+- toggling one blank frameless Input window from the pencil button.
 
 There are four configured sections, sixteen configured instances, and fifteen
 enabled instances.
@@ -103,7 +103,7 @@ Rotation, and Size rows use the shared configured-row mechanism.
 
 - Rotation: rotate left, editable degree value, rotate right, popup slider
 - Size: decrease, percentage value, increase, popup slider
-- standalone/orphan Edit button with pencil icon; opens/focuses the blank Input screen
+- standalone/orphan Edit button with pencil icon; toggles the blank Input screen
 - FileControls: Load, Reset, Save
 - configured separators
 
@@ -227,11 +227,18 @@ frame/
 - `ui-control/` owns the blank Input screen, its native window configuration and
   future input facts/settings/controls. `screen.cjs` is its public launch-only
   contract; Frame loads it only on a pencil click. No build step or new dependency.
-- Input opens as one non-modal window with native title bar. Repeated clicks focus
-  that window; closing it leaves Frame running; the next click reopens it. Closing
-  Frame closes Input. Opening Input does not change photo/history/inspection state.
-- `ui-control/config.json` owns Input's title, background and bounds in native DIP
-  (720×900 startup, 400×480 minimum), clamped to the current monitor work area.
+- Input is one non-modal frameless window: no native caption/buttons/title text or
+  reserved Windows-Bar area. Pencil clicks alternate open/close, including rapid
+  clicks. Closing Input leaves Frame running; closing Frame closes Input. Toggling
+  Input does not change photo/history/inspection state.
+- `ui-control/config.json` owns the width/height percentages, their bases, placement,
+  native-frame flags, title metadata and background. On each opening Input uses 25%
+  of current Frame width, 100% of the current monitor work-area height excluding
+  the taskbar, work-area top alignment, and its right edge touching Frame's left
+  boundary: `[ Input ][ Frame ]`. Computed bounds use native DIP; no stored manual
+  coordinates. Input cannot resize through a native thick-frame border.
+- If there is insufficient room left of Frame, Input reports that placement failure
+  without moving Frame, changing the approved ratio or inventing another position.
 - `ui-control/view/InputScreen.html` is deliberately empty: no fields, text,
   settings, persistence, photo preview or renderer bridge. Detailed input UI is deferred.
 - Missing/invalid Input is reported through Frame's existing Bottom Bar diagnostics;
@@ -246,7 +253,8 @@ frame/
 
 ## Input screen verification
 
-`npm.cmd run test:input-screen` checks the launch-only command and the real Electron
-pencil path: empty content, startup/minimum sizes, JSON-driven geometry/background,
-single-window reuse, close/reopen, unchanged Frame state, failure isolation and
+`npm.cmd run test:input-screen` checks the window-only command and the real Electron
+pencil path: empty frameless content, 25% width at Frame startup/minimum sizes,
+full work-area height and adjoining-left bounds, JSON-driven geometry/background,
+toggle parity during rapid clicks/loading, unchanged Frame state, failure isolation and
 parent-window cleanup. Artifacts stay in ignored `frame/.runtime/checks/input-screen/`.

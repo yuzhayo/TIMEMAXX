@@ -3,10 +3,11 @@
   "window": {
     "title": "TimeMaxx Input",
     "units": "DIP",
-    "width": 720,
-    "height": 900,
-    "minWidth": 400,
-    "minHeight": 480,
+    "frame": false,
+    "thickFrame": false,
+    "width": { "base": "frame", "percent": 25 },
+    "height": { "base": "workArea", "percent": 100 },
+    "placement": { "x": "beforeFrame", "y": "workAreaStart" },
     "background": "#111418"
   }
 }

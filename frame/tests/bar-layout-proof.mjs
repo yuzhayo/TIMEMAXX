@@ -48,10 +48,7 @@ try {
   await inputPage.waitForSelector('main[aria-label="Input"]');
   assert.deepEqual(await page.evaluate(() => window.frameDev.snapshot()), beforeOrphan, 'Opening Input does not edit Frame state');
   const inputClosed = inputPage.waitForEvent('close');
-  await app.evaluate(({ BrowserWindow }) => {
-    const win = BrowserWindow.getAllWindows().find((item) => item.webContents.getURL().includes('/InputScreen.html'));
-    return new Promise((resolve) => { win.once('closed', resolve); win.close(); });
-  });
+  await page.click('#orphanEdit');
   await inputClosed;
 
   for (const [name, width, height] of [['startup', ...startupSize], ['minimum', config.window.minWidth, config.window.minHeight]]) {
