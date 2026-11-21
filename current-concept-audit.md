@@ -52,7 +52,7 @@ MUI source was consulted for disabled-state and Slider event behavior.
 | --- | --- |
 | Windows Bar | JSON row layout owns sibling order/gap; native window operations are outside JSX. Placement's text/indicator/menu state routing is repaired in A08. Four-percent height and right-lane Placement/maximize/X are unchanged. |
 | Action Bar | Parent JSON owns shared vertical allocations and external gaps; baked row mechanics/order are shared. A08 value text/editor states now reach the visible content. Default geometry is unchanged. |
-| Frame/body | Remaining-height section contains preview plus non-intercepting DropTarget. A10 prepares/decodes previews before replacement; painter/input/operations remain separate owners. A11–A13 retain input/busy/diagnostic gaps. |
+| Frame/body | Remaining-height section contains preview plus non-intercepting DropTarget. A10 prepares previews transactionally; A11 shares input blocking while painter/pointer/wheel/operations keep separate ownership. A12/A13 remain. |
 | Bottom Bar | `FrameInfo.jsx` is the only live status outlet, with intrinsic wrapping height and percentage-padding calculation. No toast stack exists. Finding A13 concerns diagnostic attribution/summary, not the presence of this owner. |
 | Overlays | All Information/notices JSX files are empty; no active overlay implementation or hand-built child registry exists. Info placement and deferred orchestration must follow the latest decisions above. |
 | `ActionButton.jsx` | A02 repaired: common icon/text/editable-host renderer for file buttons, window actions, adjustment buttons/values and Undo/Redo. History icons are configured through JSON. |
@@ -70,9 +70,9 @@ MUI source was consulted for disabled-state and Slider event behavior.
 | `FileName.jsx` | Read-only filename/path presentation. JSON slot has pointer pass-through and inherited drag region. No file-operation or window-drag rules are copied into the leaf; this fits. |
 | `PlacementDropdown.jsx` | A08 repaired: separate menu/list/item/indicator parts, explicit shared arrow ID, parent-relative indicator bounds and configured label/slot states. Owns options/commands only; placement math is unchanged. |
 | `WindowActionButton.jsx` | Uses shared icon button and native operation adapter; respects separate vertical-maximized state. No photo logic in window controls; this fits. |
-| `PhotoPreview.jsx` | Composes painter and input helpers through stable `@frame` aliases. No section registry or photo math; event-policy gaps are described in A11. Invalid input config currently isolates the whole preview instance, consistent with the current component-level validator boundary; finer isolation would be a separate decision. |
-| `PhotoPointerInput.mjs` | Owns pointer capture/cancellation and calls photo/view operations. Uses painter geometry and edit tokens. Editing/modal gate is incomplete: A11. |
-| `PhotoWheelInput.mjs` | Owns configured modifiers, delta conversion and idle grouping; calls operations. Boundary checks are canvas/frame scoped. Editing/modal gate and late response coordination still need review per A11. |
+| `PhotoPreview.jsx` | Composes painter and input helpers through stable `@frame` aliases. No section registry, policy copy or photo math. Invalid input config still isolates the preview at its existing component validator boundary. |
+| `PhotoPointerInput.mjs` | Owns pointer capture/cancellation and photo-versus-view spatial rules; calls shared blocking policy before starts/updates/Space. Focus moving to a blocking owner cancels its incomplete edit. |
+| `PhotoWheelInput.mjs` | Owns configured modifiers, conversion and idle grouping; shared policy suppresses starts and settles an active group on blocked focus/input. Frame-only scope remains local. |
 | `DropTarget.jsx` | Explicit file-drop-only handlers; no click loader. Feedback is pointer-transparent. Load/drop share the repaired A10 transaction; this control has no separate decoder or acceptance policy. |
 | `FrameInfo.jsx` | Owns text measurement/padding, not file operations or record persistence. It imports the diagnostic formatter and shows both message and summary. Readability/ownership limitations: A13. |
 | `ComponentDiscovery.mjs` | Collects full catalog and stable exports before mounting; now validates component-declared per-part option keys without a named-control registry. Empty skeletons/helpers remain excluded. |
@@ -86,7 +86,7 @@ MUI source was consulted for disabled-state and Slider event behavior.
 | `PhotoOperations.mjs`, `PhotoHistory.mjs` | Continuous updates/completions use the existing history token owner and feature math stays centralized. A06 field completion is repaired in its adapter; A12 discrete-step busy guard remains open. |
 | `ViewState.mjs`, `ViewOperations.mjs` | Inspection state is separate from photo document/history and is not sent to exporter. No copied photo math; preserve this separation. |
 | `PhotoState.mjs`, `ImageFileActions.mjs` | A10 repaired: PhotoState owns preview decode/URL resources outside plain published metadata; ImageFileActions owns ticket acceptance, history reset, rejection and completion sequencing for Load/drop. |
-| `KeyboardShortcuts.mjs` | Only Ctrl+S/Ctrl+Z; delegates existing actions and excludes inputs/menus/popovers. This gate is more complete than preview inputs: A11. |
+| `InteractionPolicy.mjs`, `KeyboardShortcuts.mjs` | A11 shared busy/editor/control/surface classifications. Shortcuts remain only Ctrl+S/Ctrl+Z and stay available from ordinary buttons while text/menu/dialog owners retain their keys. |
 | `WindowActions.mjs` | Narrow transport and window-state owner, errors use origin metadata. No duplicated geometry; fits. |
 | `FrameWindow.cjs`, `desktop/main.cjs` | Native startup, shared tall-bounds rule, taskbar identity and lifecycle belong here. The approved 934 width is native DIP, not a prohibited fixed-pixel control layout. Native double-click/full maximize remains available; no new defect is asserted merely for that retained OS operation. |
 | `preload.cjs`, `ImageFileDialogs.cjs` | Narrow sender-checked Load/drop/ticket bridge. Native owner retains prior metadata/protected-source records until acceptance and reconciles uncertain completion by explicit renderer identity. |
@@ -537,9 +537,9 @@ exercised during this audit are labeled **code-derived risk**.
   Evidence is under `frame/.runtime/checks/photo-replacement/`. Broader/stale
   `frame/tests/` suites were not run or rewritten; A11–A14 remain open.
 
-#### A11 — Medium: editing/menu/modal input isolation is scattered across handlers
+#### A11 — Medium at audit; shared input-isolation policy repair complete
 
-- **Evidence:** `KeyboardShortcuts.mjs:8–10` excludes contenteditable, sliders,
+- **Evidence at audit revision:** `KeyboardShortcuts.mjs:8–10` excludes contenteditable, sliders,
   open popovers and modal surfaces. `PhotoPointerInput.mjs:21,78–83` uses a smaller
   selector and checks hover/focus, not the same blocked state; it omits buttons,
   contenteditable and dialog/popover presence. `PhotoWheelInput.mjs:36–48` checks
@@ -553,8 +553,41 @@ exercised during this audit are labeled **code-derived risk**.
   interfaces, keeping pointer capture and wheel grouping in their current files.
   Modal/native busy state and genuine text editing must suppress photo input.
   Do not move all events into FrameSession or build a new global event framework.
-- **Status:** confirmed divergent policy; specific overlay interactions are
-  code-derived risks, especially while Information is still deferred.
+- **Status:** repaired in the eleventh piece. `InteractionPolicy.mjs` is a pure
+  shared predicate, not an event controller or state service. It classifies busy
+  state, genuine text/editing owners, keyboard-owning controls and open menu/
+  listbox/popover/dialog/modal surfaces. KeyboardShortcuts, PhotoPointerInput and
+  PhotoWheelInput consume the same facts while retaining their own event lifetime.
+- **Keyboard ownership:** inputs, contenteditable, textboxes, comboboxes, sliders
+  and spinbuttons retain text/edit keys. Space also belongs to ordinary buttons,
+  links and option/menu controls. Ctrl+S/Ctrl+Z remain approved app shortcuts from
+  ordinary buttons, but not while an editor or open surface owns the command.
+  Busy state consumes those recognized app commands without running them, so the
+  browser does not open an unrelated Save action.
+- **Preview ownership:** focused editing suppresses wheel and the first pointer
+  start without wheel stealing focus. Menu, slider popover and modal surfaces
+  suppress pointer/wheel globally. A blocking focus transition cancels an active
+  pointer edit and settles an active wheel group through their existing owners.
+  Native-dialog entry still uses the established A05 rule: it finishes the active
+  history edit once, then busy state blocks all new preview/shortcut input and
+  shows the configured disabled cursor. No modal state was added to FrameSession.
+- **Preserved distinctions:** left photo drag and configured photo wheel actions
+  remain frame-only. Middle-button and Space+left inspection pan remain canvas-wide.
+  Pointer capture/cancellation, wheel modifiers/conversion/idle grouping, photo
+  versus view tokens, Ctrl+S/Ctrl+Z definitions and configured cursors are unchanged.
+  Deferred Information UI was not implemented; its future accessible surface can
+  use the same generic role/modal classification without registration.
+- **Validation for A11:** the old behavior was reproduced live: Space was consumed
+  over a focused button/contenteditable, and wheel stole editor focus/changed size.
+  Pure policy and shortcut checks passed. Final Frame proof passed fourteen checks
+  at startup 934×1359 and minimum 760×700: Space/editor ownership, blocked editor
+  wheel/first pointer, deliberate post-blur drag, Ctrl+Z/Ctrl+S, menu/popover/modal
+  pointer+wheel suppression, frame versus canvas bounds, modal rollback, native
+  busy settlement/blocking/cursor and stable focus-listener counts across repeated
+  remounts. No renderer errors or diagnostics occurred; captures and records are
+  under `frame/.runtime/checks/input-isolation/`. A proof-only pending-dialog
+  cleanup was corrected to always resolve in `finally`; it did not change app code.
+  UI build passed. No broad suite or committed test file was added. A12–A14 remain open.
 
 #### A12 — Medium: busy protection depends too much on the caller
 
@@ -662,11 +695,13 @@ not mounted. Preserve unrelated skeletons; do not fill them just because they ex
    single-child intrinsic composition; current layout/Bottom Bar behavior kept.
    **Done — A10:** bounded ticketed replacement and decoded preview acceptance;
    failed handoff preserves the current photo/export, with scoped reconciliation.
-   **Next piece: A11, shared editing/menu/modal input-isolation policy.**
+   **Done — A11:** one shared input-blocking policy with owner-specific gesture/
+   shortcut mechanics and preserved photo-frame/inspection-canvas distinctions.
+   **Next piece: A12, operation/UI busy guard consistency.**
 2. Repair the existing popup/slider geometry and slot-state application at their
    shared owners (A03/A04/A08 done).
 3. Make edit ownership/lifetime consistent across controls and canvas inputs
-   (A05/A06 done), then close busy/input-isolation gaps (A11, A12).
+   (A05/A06/A11 done), then close the remaining busy guard gap (A12).
 4. Strengthen the existing parent/baked-row contracts rather than introducing a
    new layout/registration system (A07/A09 done).
 5. Repair multi-stage load acceptance and diagnostic origin/formatting in their
@@ -685,7 +720,7 @@ The standalone `@APPS/frame/` currently implements its native window, four
 configured sections, discovery/validation before mounting, diagnostics, inspection,
 Undo/Redo, Load/drop/Save, Rust photo/black export, Rotation/Size, Placement,
 photo pointer/wheel input, separate inspection state and Ctrl+S/Ctrl+Z.
-These are implemented features, not a blanket compliance verdict: A11–A14 in the
+These are implemented features, not a blanket compliance verdict: A12–A14 in the
 source audit remain open. The current task is to repair that list piece by piece.
 Info and background orchestration are deferred, not the next automatic features.
 Preserve `output-frame/` as reference only; do not recreate/reconfirm the skeleton.
@@ -878,6 +913,12 @@ rendering, frame hit testing and screen-to-frame coordinates in one representati
 `PhotoOperations.mjs` owns translation and cursor-anchored sizing as well as
 rotation; buttons, sliders and wheel commands retain the same size/rotation rules.
 
+`InteractionPolicy.mjs` provides the shared busy/editor/control/surface facts.
+Pointer input still owns capture, Space state and cancellation; wheel input still
+owns modifiers and idle grouping; KeyboardShortcuts still owns only Ctrl+S/Ctrl+Z.
+Focused controls retain their own keys, open surfaces suppress preview input, and
+native busy prevents new gestures without moving input behavior into FrameSession.
+
 `photoPreview.input` explicitly configures left photo drag, middle/Space view pan,
 normal wheel sizing, Ctrl wheel rotation, Alt horizontal movement and Shift
 vertical movement. Wheel unit conversion, sensitivity, idle grouping and cursor
@@ -999,6 +1040,7 @@ frame/
 │   ├── ViewState.mjs                   Inspection zoom/pan state
 │   ├── ViewOperations.mjs              View-only zoom/pan operations
 │   ├── ImageFileActions.mjs            Load/save coordination and accepted export snapshot
+│   ├── InteractionPolicy.mjs           Shared busy/editor/control/surface input-blocking facts
 │   └── KeyboardShortcuts.mjs           Shortcuts with input/menu/modal isolation
 └── image-worker/
     ├── Cargo.toml                      Independent image worker crate; no stamp-engine dependency
@@ -1246,6 +1288,7 @@ black output and 1200×1600 / 2400×3200 / 3024×4032 export sizes.
 | `FileControls.jsx` | One baked file-behavior instance, three named parts (load/reset/save), feature-owned labels/icons/actions and delegation to shared ConfiguredRow/ActionButton. |
 | `components/ConfiguredRow.jsx` | Shared JSON-order row/slot rendering and containment validation for FileControls and AdjustmentControls. No feature behavior. |
 | `components/ConfiguredContent.mjs` | Shared nested-text resets, ordered host/slot state adapters and intrinsic font-relative spacing validation. Uses the existing appearance resolver. |
+| `InteractionPolicy.mjs` | Shared pure classification for busy state, editing/control owners and open surfaces; no event listeners or feature commands. |
 | `components/AdjustmentControls.jsx` / `SizeControls.jsx` / `RotationControls.jsx` | One reusable proportional adjustment sub-parent; thin Size and Rotation behavior adapters use the same named-part contract. |
 | `PhotoOperations.mjs` | Shared size and rotation policies, fit/percent/scale rules and history-grouped commands. |
 | `components/ActionButton.jsx` (under `@APPS`) | One rendering/icon mechanism shared by file and window action registrations; no native/file behavior or app-specific appearance. |
@@ -1268,8 +1311,8 @@ uses its own declared owners; no old controller or stamp runtime was copied in.
    complete; A03 geometry, A04 popup contracts and A05 edit ownership are complete.
    A06 field release and A07 row mechanics/order/validation are complete.
    A08 value/dropdown states and A09 section geometry/flow validation are complete.
-   A10 transactional replacement is complete. A11 input-isolation policy is next.
-   Later findings remain open.
+   A10 transactional replacement and A11 input isolation are complete. A12 busy
+   operation/UI guard consistency is next. Later findings remain open.
 2. Preserve implemented photo/file/history/input features and the latest UI.
    Make each repair in its existing owning files; remove directly superseded code
    after checking callers. Do not replace the app with another framework or host.
@@ -1294,7 +1337,7 @@ re-audit unrelated files or repeatedly reconfirm an already-correct skeleton.
 ## Acceptance checklist
 
 Checked items describe implemented structure or earlier evidence, not a fresh
-runtime verification of the audited revision. Open A11–A14 findings qualify
+runtime verification of the audited revision. Open A12–A14 findings qualify
 those claims. Deferred features are listed separately and are not this repair's
 definition of done.
 

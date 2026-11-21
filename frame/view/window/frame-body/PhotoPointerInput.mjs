@@ -1,3 +1,5 @@
+import { interactionBlocked } from '@frame/logic/InteractionPolicy.mjs';
+
 // LOGIC — pointer input translates gestures; operations/history own edits and calculations.
 export function pointerSettingsProblem(settings) {
   if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return { property: '', expected: 'pointer settings object', actual: settings };
@@ -18,13 +20,14 @@ export function attachPhotoPointerInput({ canvas, painter, settings, cursors, ac
   const getState = actions.getSnapshot;
   const geometry = () => painter.geometry(getState().view);
   const inFrame = (event) => painter.inFrame(event, geometry());
-  const editingTarget = (target) => Boolean(target?.closest?.('input,textarea,select,[role="combobox"],[role="listbox"],[role="menu"]'));
+  const blocked = (event, controls = 'editing') => interactionBlocked({ document, target: event?.target, state: getState(), controls });
 
   // UI — cursor appearance is configured; capture/focus are input mechanics only.
   const refreshCursor = () => {
     const state = getState();
     let cursor = cursors.idle;
     if (state.busy) cursor = cursors.disabled;
+    else if (interactionBlocked({ document, target: document.activeElement, state })) cursor = cursors.idle;
     else if (gesture) cursor = gesture.kind === 'view' ? cursors.viewDrag : cursors.photoDrag;
     else if (hovering && panHeld && state.view) cursor = cursors.view;
     else if (hovering && state.photo && lastEvent && inFrame(lastEvent)) cursor = cursors.photo;
@@ -43,7 +46,7 @@ export function attachPhotoPointerInput({ canvas, painter, settings, cursors, ac
     refreshCursor();
   };
   const down = (event) => {
-    if (!settings.enabled || gesture || getState().busy || ![settings.photoButton, settings.viewButton].includes(event.button)) return;
+    if (!settings.enabled || gesture || blocked(event) || ![settings.photoButton, settings.viewButton].includes(event.button)) return;
     const kind = event.button === settings.viewButton || panHeld ? 'view' : 'photo';
     if (kind === 'view' ? !getState().view : !getState().photo || !inFrame(event)) return;
     beforeStart();
@@ -62,7 +65,7 @@ export function attachPhotoPointerInput({ canvas, painter, settings, cursors, ac
     lastEvent = event;
     if (!gesture) { refreshCursor(); return; }
     if (event.pointerId !== gesture.id) return;
-    if (getState().busy || canvas.clientWidth !== gesture.width || canvas.clientHeight !== gesture.height) { end(true); return; }
+    if (blocked(event) || canvas.clientWidth !== gesture.width || canvas.clientHeight !== gesture.height) { end(true); return; }
     if (gesture.kind === 'photo') {
       const point = painter.point(event, gesture.frame);
       actions.updateMove({ x: point.x - gesture.point.x, y: point.y - gesture.point.y }, gesture.edit, true);
@@ -76,18 +79,19 @@ export function attachPhotoPointerInput({ canvas, painter, settings, cursors, ac
   const enter = (event) => { hovering = true; lastEvent = event; refreshCursor(); };
   const leave = () => { hovering = false; refreshCursor(); };
   const keyDown = (event) => {
-    if (editingTarget(event.target)) return;
+    if (blocked(event, 'keyboard')) return;
     if (event.key === 'Escape' && gesture) { event.preventDefault(); end(true); }
     if (settings.enabled && event.code === settings.panKey && (hovering || document.activeElement === canvas)) {
       event.preventDefault(); panHeld = true; refreshCursor();
     }
   };
   const keyUp = (event) => { if (event.code === settings.panKey) { panHeld = false; refreshCursor(); } };
+  const focusIn = (event) => { if (gesture && blocked(event, 'keyboard')) end(true); };
   const blur = () => { panHeld = false; end(true); refreshCursor(); };
   const handlers = { pointerdown: down, pointermove: move, pointerup: up, pointercancel: cancel,
     lostpointercapture: cancel, pointerenter: enter, pointerleave: leave };
   for (const [name, handler] of Object.entries(handlers)) canvas.addEventListener(name, handler);
-  window.addEventListener('keydown', keyDown); window.addEventListener('keyup', keyUp); window.addEventListener('blur', blur);
+  window.addEventListener('keydown', keyDown); window.addEventListener('keyup', keyUp); window.addEventListener('focusin', focusIn); window.addEventListener('blur', blur);
   const unsubscribe = actions.subscribe(() => {
     if (gesture && (getState().busy || (gesture.kind === 'photo'
       ? !actions.isPhotoEditActive(gesture.edit) : !actions.isViewEditActive(gesture.edit)))) end(true);
@@ -99,7 +103,7 @@ export function attachPhotoPointerInput({ canvas, painter, settings, cursors, ac
     dispose: () => {
       unsubscribe();
       for (const [name, handler] of Object.entries(handlers)) canvas.removeEventListener(name, handler);
-      window.removeEventListener('keydown', keyDown); window.removeEventListener('keyup', keyUp); window.removeEventListener('blur', blur);
+      window.removeEventListener('keydown', keyDown); window.removeEventListener('keyup', keyUp); window.removeEventListener('focusin', focusIn); window.removeEventListener('blur', blur);
       end(true);
     },
   };

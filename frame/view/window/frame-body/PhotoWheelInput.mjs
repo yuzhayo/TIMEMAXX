@@ -1,3 +1,5 @@
+import { interactionBlocked } from '@frame/logic/InteractionPolicy.mjs';
+
 // LOGIC — wheel bindings, unit conversion and idle grouping live with wheel input.
 export function wheelSettingsProblem(settings) {
   if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return { property: '', expected: 'wheel settings object', actual: settings };
@@ -35,7 +37,7 @@ export function attachPhotoWheelInput({ canvas, painter, settings, actions, isBl
     ? actions.isViewEditActive(gesture.edit) : actions.isPhotoEditActive(gesture.edit));
   const wheel = (event) => {
     const state = actions.getSnapshot();
-    if (!settings.enabled || state.busy || isBlocked()) return;
+    if (!settings.enabled || interactionBlocked({ document, target: event.target, state }) || isBlocked()) { if (gesture) end(); return; }
     const geometry = painter.geometry(state.view);
     if (!painter.inFrame(event, geometry)) return;
     const modifier = event.ctrlKey || event.metaKey ? 'control' : event.altKey ? 'alt' : event.shiftKey ? 'shift' : 'none';
@@ -61,16 +63,17 @@ export function attachPhotoWheelInput({ canvas, painter, settings, actions, isBl
   const keyDown = (event) => {
     if (event.key === 'Escape' && gesture && event.target === canvas) { event.preventDefault(); end(true); }
   };
+  const focusIn = (event) => { if (gesture && interactionBlocked({ document, target: event.target, state: actions.getSnapshot(), controls: 'keyboard' })) end(); };
   const blur = () => end();
   canvas.addEventListener('wheel', wheel, { passive: false });
-  canvas.addEventListener('blur', blur); window.addEventListener('keydown', keyDown); window.addEventListener('blur', blur);
+  canvas.addEventListener('blur', blur); window.addEventListener('keydown', keyDown); window.addEventListener('focusin', focusIn); window.addEventListener('blur', blur);
   const unsubscribe = actions.subscribe(() => { if (gesture && (!active() || actions.getSnapshot().busy)) end(); });
   return {
     finish: () => end(),
     dispose: () => {
       unsubscribe();
       canvas.removeEventListener('wheel', wheel); canvas.removeEventListener('blur', blur);
-      window.removeEventListener('keydown', keyDown); window.removeEventListener('blur', blur);
+      window.removeEventListener('keydown', keyDown); window.removeEventListener('focusin', focusIn); window.removeEventListener('blur', blur);
       end();
     },
   };
