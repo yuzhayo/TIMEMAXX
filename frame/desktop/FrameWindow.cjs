@@ -3,6 +3,12 @@ const path = require('node:path');
 
 const frameAppId = 'com.yuzha.timemaxx.frame';
 
+// UI — startup and the maximize button use the same right-aligned work-area target.
+function tallWindowBounds(area, config) {
+  const width = Math.min(config.width, area.width);
+  return { x: area.x + area.width - width, y: area.y, width, height: area.height };
+}
+
 // UI — native presentation is supplied by the validated window config.
 function createFrameWindow(root, config) {
   const iconPath = path.join(root, 'assets', process.platform === 'win32' ? 'app-icon.ico' : 'app-icon.png');
@@ -10,12 +16,8 @@ function createFrameWindow(root, config) {
   let startupBounds = {};
   if (config.startup === 'workAreaHeight') {
     const area = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
-    const width = Math.min(config.width, area.width);
     startupBounds = {
-      x: area.x + Math.round((area.width - width) / 2),
-      y: area.y,
-      width,
-      height: area.height,
+      ...tallWindowBounds(area, config),
       minWidth: Math.min(config.minWidth, area.width),
       minHeight: Math.min(config.minHeight, area.height),
     };
@@ -66,7 +68,7 @@ function bindWindowActions(window, config) {
   const restoreWidth = Math.min(config.width, startupArea.width);
   const restoreHeight = Math.min(config.height, startupArea.height);
   let restoreBounds = {
-    x: startupArea.x + Math.round((startupArea.width - restoreWidth) / 2),
+    x: startupArea.x + startupArea.width - restoreWidth,
     y: startupArea.y + Math.round((startupArea.height - restoreHeight) / 2),
     width: restoreWidth,
     height: restoreHeight,
@@ -77,7 +79,7 @@ function bindWindowActions(window, config) {
       maximized: window.isMaximized(),
       minimized: window.isMinimized(),
       verticalMaximized: Boolean(verticalBounds) && !window.isMaximized() && !window.isFullScreen()
-        && bounds.y === verticalBounds.y && bounds.height === verticalBounds.height,
+        && ['x', 'y', 'width', 'height'].every((key) => bounds[key] === verticalBounds[key]),
     };
   };
   const notify = () => { if (!window.isDestroyed() && !window.webContents.isDestroyed()) window.webContents.send('frame:window-state', snapshot()); };
@@ -96,8 +98,8 @@ function bindWindowActions(window, config) {
         if (window.isMaximized()) window.unmaximize();
         restoreBounds = window.getBounds();
         const area = screen.getDisplayMatching(restoreBounds).workArea;
-        // LOGIC — height-only maximize preserves the current width and horizontal position.
-        window.setBounds({ y: area.y, height: area.height });
+        // LOGIC — return to the approved launch shape; restore retains the previous bounds.
+        window.setBounds(tallWindowBounds(area, config));
         verticalBounds = window.getBounds();
       }
       notify();

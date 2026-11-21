@@ -20,8 +20,8 @@ Run from `frame/`: `npm.cmd start` for normal mode or `npm.cmd run inspect` for
 development inspection. Normal startup shows the black frame, filename/status and
 shared icon-only Load/Save buttons. Undo/Redo start disabled until an edit exists.
 `window.startup: "workAreaHeight"` opens the native window at the current monitor's
-usable height (taskbar excluded), using its configured width and centering it
-horizontally. This default applies on each launch; window-position persistence is
+usable height (taskbar excluded), using the approved 934-DIP content width and
+aligning it to the right edge of the work area. This default applies on each launch; window-position persistence is
 not implemented. On smaller displays, native width/minimum bounds fit the work area.
 Windows taskbar identity is `com.yuzha.timemaxx.frame`. Native window creation
 supplies the multi-resolution `frame/assets/app-icon.ico` and explicit pin/relaunch
@@ -42,8 +42,9 @@ with vertical maximize/restore and Close/X visible among the window-action butto
 Minimize remains configured with `enabled: false`. `FrameWindow.cjs` owns the
 height-only toggle and its saved restore bounds. Startup displays the restore icon;
 the first restore uses the ordinary configured window size, and later toggles
-restore the actual previous bounds. Window width is preserved when maximizing
-vertically. Windows Bar uses the same generic sibling layout as Action Bar to keep
+restore the actual previous bounds. Maximize returns to the same configured width,
+full usable height and right alignment as startup. One shared native bounds function
+owns both paths. Windows Bar uses the same generic sibling layout as Action Bar to keep
 Placement, maximize/restore and Close/X spaced without overlap.
 The updated native button was clicked through two maximize/restore cycles: width
 stayed unchanged, prior bounds were restored, and full-width Windows maximize
@@ -55,7 +56,7 @@ The filename is a transparent pass-through label over the draggable Windows Bar.
 Load/Save are one baked `FileControls.jsx` group with equal wider boxes and centered
 icons, 1% from Action Bar's right edge. Close/X is 1% from Windows Bar's right edge;
 its box retains the Undo/Redo dimensions. Filename/history/Rotation remain unchanged.
-Windows Bar uses 3% and Action Bar uses 5% of window height. Buttons use 8%
+Windows Bar and Action Bar each use 4% of window height. Buttons use 8%
 top/bottom parent-relative insets and 84% height. Frame/body starts at 8% and
 takes the remaining height above the content-sized Bottom Bar; its declared
 85% footprint is not the runtime height.
