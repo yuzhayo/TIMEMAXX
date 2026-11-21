@@ -52,7 +52,7 @@ MUI source was consulted for disabled-state and Slider event behavior.
 | --- | --- |
 | Windows Bar | JSON row layout owns sibling order/gap; native window operations are outside JSX. Placement's text/indicator/menu state routing is repaired in A08. Four-percent height and right-lane Placement/maximize/X are unchanged. |
 | Action Bar | Parent JSON owns shared vertical allocations and external gaps; baked row mechanics/order are shared. A08 value text/editor states now reach the visible content. Default geometry is unchanged. |
-| Frame/body | Remaining-height section contains preview plus non-intercepting DropTarget. Painter/input/operations are separate owners. Findings A05, A10–A13 concern remaining boundaries and failure paths. |
+| Frame/body | Remaining-height section contains preview plus non-intercepting DropTarget. A10 prepares/decodes previews before replacement; painter/input/operations remain separate owners. A11–A13 retain input/busy/diagnostic gaps. |
 | Bottom Bar | `FrameInfo.jsx` is the only live status outlet, with intrinsic wrapping height and percentage-padding calculation. No toast stack exists. Finding A13 concerns diagnostic attribution/summary, not the presence of this owner. |
 | Overlays | All Information/notices JSX files are empty; no active overlay implementation or hand-built child registry exists. Info placement and deferred orchestration must follow the latest decisions above. |
 | `ActionButton.jsx` | A02 repaired: common icon/text/editable-host renderer for file buttons, window actions, adjustment buttons/values and Undo/Redo. History icons are configured through JSON. |
@@ -73,7 +73,7 @@ MUI source was consulted for disabled-state and Slider event behavior.
 | `PhotoPreview.jsx` | Composes painter and input helpers through stable `@frame` aliases. No section registry or photo math; event-policy gaps are described in A11. Invalid input config currently isolates the whole preview instance, consistent with the current component-level validator boundary; finer isolation would be a separate decision. |
 | `PhotoPointerInput.mjs` | Owns pointer capture/cancellation and calls photo/view operations. Uses painter geometry and edit tokens. Editing/modal gate is incomplete: A11. |
 | `PhotoWheelInput.mjs` | Owns configured modifiers, delta conversion and idle grouping; calls operations. Boundary checks are canvas/frame scoped. Editing/modal gate and late response coordination still need review per A11. |
-| `DropTarget.jsx` | Explicit file-drop-only handlers; no click loader. Feedback is pointer-transparent. Native replacement is shared correctly, with failure consistency caveat A10. |
+| `DropTarget.jsx` | Explicit file-drop-only handlers; no click loader. Feedback is pointer-transparent. Load/drop share the repaired A10 transaction; this control has no separate decoder or acceptance policy. |
 | `FrameInfo.jsx` | Owns text measurement/padding, not file operations or record persistence. It imports the diagnostic formatter and shows both message and summary. Readability/ownership limitations: A13. |
 | `ComponentDiscovery.mjs` | Collects full catalog and stable exports before mounting; now validates component-declared per-part option keys without a named-control registry. Empty skeletons/helpers remain excluded. |
 | `ConfigValidation.mjs` | A09 repaired: validates explicit section mode, vertical footprints and intrinsic composition, then plans tracks after isolation. Named child allocations, presets, duplicate/folder isolation and sibling x placement remain here. |
@@ -85,13 +85,13 @@ MUI source was consulted for disabled-state and Slider event behavior.
 | `FrameSession.mjs` | Connects independent state/action owners; derived percentage projection is not duplicated size math. No monolithic UI controller. |
 | `PhotoOperations.mjs`, `PhotoHistory.mjs` | Continuous updates/completions use the existing history token owner and feature math stays centralized. A06 field completion is repaired in its adapter; A12 discrete-step busy guard remains open. |
 | `ViewState.mjs`, `ViewOperations.mjs` | Inspection state is separate from photo document/history and is not sent to exporter. No copied photo math; preserve this separation. |
-| `PhotoState.mjs`, `ImageFileActions.mjs` | Loaded identity/URL/dirty ownership and common Load/drop acceptance are sensible. Multi-stage native-load commit consistency remains A10. |
+| `PhotoState.mjs`, `ImageFileActions.mjs` | A10 repaired: PhotoState owns preview decode/URL resources outside plain published metadata; ImageFileActions owns ticket acceptance, history reset, rejection and completion sequencing for Load/drop. |
 | `KeyboardShortcuts.mjs` | Only Ctrl+S/Ctrl+Z; delegates existing actions and excludes inputs/menus/popovers. This gate is more complete than preview inputs: A11. |
 | `WindowActions.mjs` | Narrow transport and window-state owner, errors use origin metadata. No duplicated geometry; fits. |
 | `FrameWindow.cjs`, `desktop/main.cjs` | Native startup, shared tall-bounds rule, taskbar identity and lifecycle belong here. The approved 934 width is native DIP, not a prohibited fixed-pixel control layout. Native double-click/full maximize remains available; no new defect is asserted merely for that retained OS operation. |
-| `preload.cjs`, `ImageFileDialogs.cjs` | Narrow sender-checked native file/drop bridge; original path identities stay protected. Load consistency caveat A10. |
-| `ImageWorker.cjs`, `build-worker.cjs` | Frame-owned process/build boundary; supported load/export commands only. No producer-module launch/import. |
-| Rust `main.rs`, `protocol.rs`, `session.rs`, `photo.rs`, `export.rs` | Photo decode/orientation/identity/render/export owners are independent of UI. No engine or stamp generation. Actual worker replacement point is relevant to A10. `layer.rs` is empty. |
+| `preload.cjs`, `ImageFileDialogs.cjs` | Narrow sender-checked Load/drop/ticket bridge. Native owner retains prior metadata/protected-source records until acceptance and reconciles uncertain completion by explicit renderer identity. |
+| `ImageWorker.cjs`, `build-worker.cjs` | Frame-owned process/build boundary; photo load/accept/finalize/discard/export commands only. No producer-module launch/import. |
+| Rust `main.rs`, `protocol.rs`, `session.rs`, `photo.rs`, `export.rs` | A10 bounded transaction retains old full-resolution pixels through acceptance/finalization. Decode/orientation and export math/encoding remain independent of UI; no engine/stamp/layer owner was added. |
 
 ### Findings, why they happened, and minimal fixes
 
@@ -416,7 +416,7 @@ exercised during this audit are labeled **code-derived risk**.
   No renderer errors occurred in passing checks. Native captures at both sizes
   were inspected. Evidence is in `frame/.runtime/checks/value-states/`; the final
   UI/glyph checks cover the latest renderer. No broad suite or committed test
-  file was added. A09 was left for the following piece; A10–A14 remain open.
+  file was added. A09/A10 were left for subsequent pieces below; A11–A14 remain open.
 
 #### A09 — Medium at audit; section geometry/flow repair complete
 
@@ -469,12 +469,13 @@ exercised during this audit are labeled **code-derived risk**.
   disabling flexible sections passed. No renderer errors occurred. Native
   expanded-message captures at both sizes were inspected. Evidence is under
   `frame/.runtime/checks/section-flow/`. No broad suite or committed test file was
-  added; the inspection instance was closed before normal relaunch. A10–A14 remain
-  open, and deferred Info/orchestration were not started.
+  added; the inspection instance was closed before normal relaunch. A10 was left
+  for the following piece; A11–A14 remain open. Deferred Info/orchestration were
+  not started.
 
-#### A10 — High: failed replacement can leave native and renderer photo identities split
+#### A10 — High at audit; transactional photo replacement repair complete
 
-- **Evidence:** worker `image-worker/src/session.rs:15–20` replaces its current
+- **Evidence at audit revision:** worker `image-worker/src/session.rs:15–20` replaces its current
   image immediately after preview creation. `ImageFileDialogs.cjs:46–50` then reads
   preview bytes and publishes native identity. Renderer replacement happens later
   in `ImageFileActions.mjs:28–36`. An error in preview read/delivery after worker
@@ -488,8 +489,53 @@ exercised during this audit are labeled **code-derived risk**.
   and commit identity after successful transfer, or retain the previous worker
   image until acceptance. Keep this in file/worker owners; never work around it
   by resetting UI or adding another DropTarget-specific loader.
-- **Status:** code-derived failure risk; no filesystem failure was injected in
-  this read-only audit. Ordinary decoder failure is handled before worker replace.
+- **Status:** repaired in the tenth piece. The original failure was reproduced
+  against the real old worker: an injected preview read failure preserved native
+  photo metadata but made its old ID unexportable. Load now prepares one candidate
+  without replacing current pixels. Explicit `accept_load` retains the prior
+  pixels for rollback/old-ID export; `finalize_load` releases them only after
+  renderer state acceptance; `discard_load` rejects or rolls back that exact ID.
+  IDs are monotonic and safe for the JavaScript transport; storage is bounded to
+  current plus one candidate/retained predecessor, not all historical images.
+- **Native owner:** Load/drop share source validation, preview transfer and ticket
+  handling in ImageFileDialogs. Preview read/unlink failure discards the candidate
+  before returning failure. Metadata/source-protection changes occur on accepted
+  identity and rollback restores their previous state. The next image operation
+  carries the renderer's explicit current ID to reconcile lost acceptance or
+  finalization replies. Null remains an explicit empty/black renderer state,
+  including after reload; it does not select retained photo pixels. Stale ticket
+  operations cannot settle a newer candidate. Disposal settles pending work before
+  the owned worker closes; fatal renderer loss routes through normal app cleanup.
+- **Renderer owner:** PhotoState prepares the blob URL and decoded preview before
+  acceptance. Its private weak resource map keeps DOM images out of published
+  metadata/history/IPC. ImageFileActions validates metadata and computes the
+  document through existing PhotoOperations, then accepts the ticket and resets
+  history/installs photo state together. Failed acceptance preserves old document,
+  URL, history and saved key. PreviewPainter reads the already-decoded resource;
+  it no longer starts a separate asynchronous post-replacement image load.
+  Late completion after disposal discards only its owned candidate.
+- **Completion semantics:** a finalization failure after local acceptance retains
+  the accepted new photo and reports pending cleanup, not a failed replacement.
+  Native reconciliation must settle that ticket before the next operation. URL
+  cleanup errors are reported separately from that native reconciliation. No new
+  service, layout/appearance rule, photo math, shortcut, overlay or orchestrator
+  was added. Worker-crash/restart recovery and cross-session photo persistence
+  were not added; export still requires its live owned worker.
+- **Validation for A10:** full UI/worker build and six Rust tests passed (four new
+  ticket/pixel tests plus two existing export tests). Twelve focused renderer-owner
+  checks passed, including failure/disposal timing and URL release; six native-owner
+  scenarios used the real worker to prove old byte-identical export, rollback,
+  reconciliation, source protection and idempotent cleanup. Live Frame checks
+  covered eight injected read/unlink/bytes/URL/accept/delivery/cleanup failures,
+  actual disk-backed File drops, both finalization failure timings, stale tickets,
+  unchanged old PNG bytes, retained inspection state and successful replacement
+  history reset. PNG exports passed at 1200×1600, 2400×3200 and 3024×4032; accepted
+  JPEG decoded at 1200×1600. Final reviewed-source checks proved reload/black-save
+  recovery, visible decoded pixels and native captures at startup/minimum sizes,
+  and clean owned worker exit while a delivered candidate remained. Passing checks
+  had no renderer errors; diagnostic screenshots contain deliberate injected issues.
+  Evidence is under `frame/.runtime/checks/photo-replacement/`. Broader/stale
+  `frame/tests/` suites were not run or rewritten; A11–A14 remain open.
 
 #### A11 — Medium: editing/menu/modal input isolation is scattered across handlers
 
@@ -614,7 +660,9 @@ not mounted. Preserve unrelated skeletons; do not fill them just because they ex
    separate Placement portal/indicator parts and stable first-mount sizing.
    **Done — A09:** explicit validated section modes/track plan and supported
    single-child intrinsic composition; current layout/Bottom Bar behavior kept.
-   **Next piece: A10, transactional photo replacement across worker/native/UI.**
+   **Done — A10:** bounded ticketed replacement and decoded preview acceptance;
+   failed handoff preserves the current photo/export, with scoped reconciliation.
+   **Next piece: A11, shared editing/menu/modal input-isolation policy.**
 2. Repair the existing popup/slider geometry and slot-state application at their
    shared owners (A03/A04/A08 done).
 3. Make edit ownership/lifetime consistent across controls and canvas inputs
@@ -622,7 +670,7 @@ not mounted. Preserve unrelated skeletons; do not fill them just because they ex
 4. Strengthen the existing parent/baked-row contracts rather than introducing a
    new layout/registration system (A07/A09 done).
 5. Repair multi-stage load acceptance and diagnostic origin/formatting in their
-   existing owners (A10, A13).
+   existing owners (A10 done; A13 remains open).
 
 Preserve the parts that already fit: complete discovery before mount, stable
 component IDs and aliases, generic parent-owned sibling gaps, shared photo math,
@@ -637,7 +685,7 @@ The standalone `@APPS/frame/` currently implements its native window, four
 configured sections, discovery/validation before mounting, diagnostics, inspection,
 Undo/Redo, Load/drop/Save, Rust photo/black export, Rotation/Size, Placement,
 photo pointer/wheel input, separate inspection state and Ctrl+S/Ctrl+Z.
-These are implemented features, not a blanket compliance verdict: A10–A14 in the
+These are implemented features, not a blanket compliance verdict: A11–A14 in the
 source audit remain open. The current task is to repair that list piece by piece.
 Info and background orchestration are deferred, not the next automatic features.
 Preserve `output-frame/` as reference only; do not recreate/reconfirm the skeleton.
@@ -868,6 +916,13 @@ Exactly one supported image is accepted. Multiple files, folders, unsupported
 types and decoding errors leave the current photo unchanged and use Bottom Bar
 messages/structured diagnostics. Successful replacement resets photo history
 through the same existing owner.
+
+A10 extends this same path with prepare/accept/finalize/discard IDs. Native preview
+transfer and renderer decode complete before photo/history replacement; the old
+full-resolution image remains exportable until acceptance is finalized. Plain
+photo metadata carries a URL while PhotoState privately owns its decoded resource.
+Lost completion reconciles using the next operation's explicit current photo ID,
+not a guessed global edit or another drop-specific loader.
 
 The focused drop check passed with disk-backed Files through the real preload and
 worker path: no picker on drop, no load/replacement on normal clicks, unobstructed
@@ -1195,9 +1250,9 @@ black output and 1200×1600 / 2400×3200 / 3024×4032 export sizes.
 | `PhotoOperations.mjs` | Shared size and rotation policies, fit/percent/scale rules and history-grouped commands. |
 | `components/ActionButton.jsx` (under `@APPS`) | One rendering/icon mechanism shared by file and window action registrations; no native/file behavior or app-specific appearance. |
 | `WindowActionButton.jsx` / `WindowActions.mjs` / `FrameWindow.cjs` | Config-driven window-button behavior, renderer event subscription and whitelisted native window operations; normal close/worker cleanup. |
-| `ImageFileActions.mjs` | Busy/cancel/error/save sequencing; coordinates state/history through their methods. |
-| `PhotoState.mjs` / `PhotoHistory.mjs` / `PhotoOperations.mjs` | Photo/preview identity and saved state; document with optional history/reset; centered-fill and export-transform rules. |
-| `ImageFileDialogs.cjs` | Native dialogs, supported export selection, identity checks and protection of every successfully loaded original. |
+| `ImageFileActions.mjs` | Common Load/drop ticket sequencing, busy/cancel/error/save, decoded acceptance and scoped cleanup; calls existing state/history/math owners. |
+| `PhotoState.mjs` / `PhotoHistory.mjs` / `PhotoOperations.mjs` | Photo/preview resource identity and saved state; plain published metadata; document/history plus unchanged centered-fill/export-transform rules. |
+| `ImageFileDialogs.cjs` | Native file selection/source protection and ticket transfer/acceptance/rollback/reconciliation. |
 | `ImageWorker.cjs` | Persistent local process, attributed NDJSON replies, operation failures and shutdown. |
 | `image-worker/src/` | Standalone protocol/session, oriented decode, full-resolution photo rendering, matte and PNG/JPEG encoding. No engine/input dependency. |
 | `PhotoPreview.jsx` / `view/preview/PreviewPainter.mjs` | Relocatable configured canvas, stable feature helper, preview lifetime and drawing of the published transform. |
@@ -1213,7 +1268,8 @@ uses its own declared owners; no old controller or stamp runtime was copied in.
    complete; A03 geometry, A04 popup contracts and A05 edit ownership are complete.
    A06 field release and A07 row mechanics/order/validation are complete.
    A08 value/dropdown states and A09 section geometry/flow validation are complete.
-   A10 transactional replacement is next. Later findings remain open.
+   A10 transactional replacement is complete. A11 input-isolation policy is next.
+   Later findings remain open.
 2. Preserve implemented photo/file/history/input features and the latest UI.
    Make each repair in its existing owning files; remove directly superseded code
    after checking callers. Do not replace the app with another framework or host.
@@ -1238,7 +1294,7 @@ re-audit unrelated files or repeatedly reconfirm an already-correct skeleton.
 ## Acceptance checklist
 
 Checked items describe implemented structure or earlier evidence, not a fresh
-runtime verification of the audited revision. Open A10–A14 findings qualify
+runtime verification of the audited revision. Open A11–A14 findings qualify
 those claims. Deferred features are listed separately and are not this repair's
 definition of done.
 

@@ -21,6 +21,7 @@ app.setPath('crashDumps', path.join(directory, 'crash-dumps'));
 const log = new DiagnosticLog(path.join(runtime, 'logs'));
 let window;
 let worker;
+let files;
 let sessionDirectory;
 let quitting = false;
 
@@ -36,7 +37,8 @@ app.whenReady().then(async () => {
     sessionDirectory = fs.mkdtempSync(path.join(runtime, 'image-session-'));
     worker = new ImageWorker(path.join(root, 'image-worker/target/release/frame-image-worker.exe'), configPath, root);
   }
-  const files = worker ? new ImageFileDialogs(window, worker, sessionDirectory, config.output) : null;
+  files = worker ? new ImageFileDialogs(window, worker, sessionDirectory, config.output) : null;
+  window.webContents.on('render-process-gone', () => app.quit());
   const allowed = (event) => event.sender === window?.webContents;
   ipcMain.handle('frame:bootstrap', (event) => {
     if (!allowed(event)) return null;
@@ -53,9 +55,12 @@ app.whenReady().then(async () => {
     return log.write(records);
   });
   for (const [channel, action] of [
-    ['frame:image-open', () => files?.open()],
-    ['frame:image-drop', (filePath) => files?.openDropped(filePath)],
+    ['frame:image-open', (currentPhotoId) => files?.open(currentPhotoId)],
+    ['frame:image-drop', (request) => files?.openDropped(request?.filePath, request?.currentPhotoId)],
     ['frame:image-save', (snapshot) => files?.save(snapshot)],
+    ['frame:image-accept', (photoId) => files?.accept(photoId)],
+    ['frame:image-finalize', (photoId) => files?.finalize(photoId)],
+    ['frame:image-discard', (photoId) => files?.discard(photoId)],
   ]) {
     ipcMain.handle(channel, async (event, argument) => {
       if (!allowed(event)) return { ok: false, error: 'Unknown frame sender' };
@@ -77,7 +82,10 @@ app.on('before-quit', (event) => {
   event.preventDefault();
   quitting = true;
   (async () => {
-    await worker?.close();
-    if (sessionDirectory) await fs.promises.rm(sessionDirectory, { recursive: true, force: true });
+    try { await files?.dispose(); }
+    finally {
+      await worker?.close();
+      if (sessionDirectory) await fs.promises.rm(sessionDirectory, { recursive: true, force: true });
+    }
   })().catch(console.error).finally(() => app.quit());
 });

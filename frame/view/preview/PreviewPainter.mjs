@@ -1,11 +1,11 @@
 // UI — stable preview-feature owner, independent of any section's assigned folder.
+import { preparedPreviewOf } from '@frame/logic/PhotoState.mjs';
 export class PreviewPainter {
   constructor(canvas, output, presentation, onError) {
     this.canvas = canvas;
     this.output = output;
     this.presentation = presentation;
     this.onError = onError;
-    this.generation = 0;
     this.image = null;
     this.photo = null;
     this.document = null;
@@ -20,14 +20,8 @@ export class PreviewPainter {
     this.view = view;
     if ((photo?.previewUrl ?? null) !== this.source) {
       this.source = photo?.previewUrl ?? null;
-      this.image = null;
-      const generation = ++this.generation;
-      if (this.source) {
-        const image = new Image();
-        image.onload = () => { if (generation === this.generation) { this.image = image; this.draw(); } };
-        image.onerror = () => { if (generation === this.generation) this.onError('Cannot decode the photo preview'); };
-        image.src = this.source;
-      }
+      this.image = preparedPreviewOf(photo);
+      if (photo && !this.image) this.onError('Missing prepared photo preview');
     }
     this.draw();
   }
@@ -82,5 +76,5 @@ export class PreviewPainter {
     context.restore();
   }
 
-  dispose() { this.generation++; this.observer.disconnect(); this.image = null; this.photo = null; }
+  dispose() { this.observer.disconnect(); this.image = null; this.photo = null; }
 }
