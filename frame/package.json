@@ -1,0 +1,41 @@
+{
+  "name": "timemaxx-frame",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Standalone configuration-driven frame and image-file workspace",
+  "main": "desktop/main.cjs",
+  "scripts": {
+    "build": "npm run build:ui && npm run build:image",
+    "build:ui": "vite build",
+    "build:image": "node desktop/build-worker.cjs",
+    "test:image": "node desktop/build-worker.cjs --test",
+    "start": "npm run build && electron .",
+    "inspect": "npm run build && electron . --inspect-layout",
+    "test:contract": "node --test tests/contract.test.mjs",
+    "test:layout": "node tests/layout-proof.mjs",
+    "test:inspection": "node tests/layout-proof.mjs --inspection-only",
+    "test:guardrails": "node tests/guardrail-proof.mjs",
+    "test:files": "node tests/file-actions-proof.mjs",
+    "test:review-fixes": "node tests/review-fixes-proof.mjs",
+    "test:window-swap": "node tests/window-swap-proof.mjs",
+    "test:bar-layout": "node tests/bar-layout-proof.mjs",
+    "test:bottom-bar": "node tests/bottom-bar-proof.mjs",
+    "test:popover": "node tests/popover-proof.mjs",
+    "test:size-controls": "node tests/size-controls-proof.mjs",
+    "test:rotation": "node --test tests/rotation.test.mjs && node tests/rotation-proof.mjs"
+  },
+  "dependencies": {
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.1",
+    "@mui/material": "9.5.0",
+    "@mui/icons-material": "9.5.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "6.3.0",
+    "electron": "43.2.0",
+    "playwright-core": "1.58.2",
+    "vite": "8.3.8"
+  }
+}

@@ -4,6 +4,9 @@
 
 **Verdict after scoped repair: PASS — findings A01–A14 are repaired and their
 current focused checks match the approved ownership/UI contracts.**
+Post-audit clean-clone review also tracked every required Frame runtime/build/test
+dependency and verified the package outside the working tree; details are recorded
+after A14 below.
 This audit covers source at `0f54aa8ad8a2edc51b7d78c29d75b3618b29bcb0`.
 During the audit only this Markdown file was changed. No application edits, builds,
 tests, app restarts, commits or pushes were performed for that audit. Previous PASS claims
@@ -730,6 +733,33 @@ exercised during this audit are labeled **code-derived risk**.
   traceability under an explicit non-current heading. Old square/size/PID/artifact
   statements are not current PASS evidence. Current A14 results are the counts and
   commands above; no compatibility path or old schema remains authorized.
+
+### Post-audit clean-clone reproducibility repair — complete
+
+- **Review finding:** the local app passed from a dirty working tree, but required
+  runtime/build files were absent from Git. Tracked consumers imported untracked
+  appearance, diagnostic, inspector, filename, package/Vite/HTML and Rust worker
+  owners; the bar proof also called an untracked native pointer helper. A clean
+  clone therefore could not install, build, run or reproduce the audit PASS.
+- **Repository repair:** Git now includes the exact active dependency chain:
+  Frame package/lock/npm settings, Vite/HTML entry, shared appearance translator,
+  diagnostic persistence, inspector and filename controls, worker build/crate/
+  decode/export entry files, Frame ignore/start scripts and the native proof helper.
+  Deferred layer files, empty UI skeletons, legacy reference components,
+  `output-frame/`, caches and generated output remain excluded. `start.cmd` runs
+  `npm ci` automatically when Electron dependencies are absent.
+- **Small review fix:** an explicit black renderer scene after reload now proposes
+  `black-frame-export.png`; a loaded-photo scene still uses its photo stem. The
+  output identity check and source-overwrite protection are unchanged.
+- **Clean validation:** the staged Git index was exported to a new approved temp
+  directory, with no copied untracked workspace files. Fresh `npm ci` installed
+  145 packages. Full UI/Rust build passed; current contract/Rotation tests passed
+  30/30 and worker tests passed 6/6. A real Electron launch mounted all 14 enabled
+  instances with no diagnostics, loaded `app-icon.png`, exported a real 1200×1600
+  PNG, reported no renderer errors and shut down its temp-path worker normally.
+  This proves the committed package from a clean checkout, assuming Node/npm and
+  Rust/Cargo are installed; it does not rely on the original workspace's modules,
+  build artifacts or worker executable.
 
 ### Empty skeleton inventory — not implemented and not active duplicates
 

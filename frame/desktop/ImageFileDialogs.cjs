@@ -123,7 +123,7 @@ class ImageFileDialogs {
     return this.perform(snapshot?.photoId, async () => {
       if (!snapshot || !this.output.exports.some((size) => size.width === snapshot.width)) throw new Error('Unsupported output resolution');
       if (snapshot.photoId !== null && snapshot.photoId !== this.photo?.photoId) throw new Error('The photo changed; save again');
-      const stem = this.photo ? path.parse(this.photo.name).name : 'black-frame';
+      const stem = snapshot.photoId === null ? 'black-frame' : path.parse(this.photo.name).name;
       const selection = await dialog.showSaveDialog(this.window, { title: 'Save image', defaultPath: `${stem}-export.png`, filters: [{ name: 'PNG image', extensions: ['png'] }, { name: 'JPEG image', extensions: ['jpg', 'jpeg'] }] });
       if (selection.canceled || !selection.filePath) return null;
       const destination = path.extname(selection.filePath) ? selection.filePath : `${selection.filePath}.png`;
