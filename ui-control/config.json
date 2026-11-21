@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "window": {
+    "title": "TimeMaxx Input",
+    "units": "DIP",
+    "width": 720,
+    "height": 900,
+    "minWidth": 400,
+    "minHeight": 480,
+    "background": "#111418"
+  }
+}

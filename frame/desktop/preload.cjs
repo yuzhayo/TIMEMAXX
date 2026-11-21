@@ -4,6 +4,7 @@ const { contextBridge, ipcRenderer, webUtils } = require('electron');
 contextBridge.exposeInMainWorld('frameHost', {
   bootstrap: () => ipcRenderer.invoke('frame:bootstrap'),
   diagnostics: (records) => ipcRenderer.invoke('frame:diagnostics', records),
+  openInputScreen: () => ipcRenderer.invoke('frame:input-open'),
   openImage: (currentPhotoId) => ipcRenderer.invoke('frame:image-open', currentPhotoId),
   dropImage: async (file, currentPhotoId) => {
     try {

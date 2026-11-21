@@ -44,8 +44,15 @@ try {
   await page.waitForFunction(() => window.frameDev.snapshot().message.startsWith('Loaded ') && !window.frameDev.snapshot().busy);
   assert.equal(await page.locator('#fileName').textContent(), 'loaded-image-name.png');
   const beforeOrphan = await page.evaluate(() => window.frameDev.snapshot());
-  await page.click('#orphanEdit');
-  assert.deepEqual(await page.evaluate(() => window.frameDev.snapshot()), beforeOrphan, 'Orphan button intentionally has no command behavior');
+  const [inputPage] = await Promise.all([app.waitForEvent('window'), page.click('#orphanEdit')]);
+  await inputPage.waitForSelector('main[aria-label="Input"]');
+  assert.deepEqual(await page.evaluate(() => window.frameDev.snapshot()), beforeOrphan, 'Opening Input does not edit Frame state');
+  const inputClosed = inputPage.waitForEvent('close');
+  await app.evaluate(({ BrowserWindow }) => {
+    const win = BrowserWindow.getAllWindows().find((item) => item.webContents.getURL().includes('/InputScreen.html'));
+    return new Promise((resolve) => { win.once('closed', resolve); win.close(); });
+  });
+  await inputClosed;
 
   for (const [name, width, height] of [['startup', ...startupSize], ['minimum', config.window.minWidth, config.window.minHeight]]) {
     await app.evaluate(({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0].setSize(...size), [width, height]);

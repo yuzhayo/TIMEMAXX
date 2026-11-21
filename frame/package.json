@@ -12,6 +12,7 @@
     "start": "npm run build && electron .",
     "inspect": "npm run build && electron . --inspect-layout",
     "test:contract": "node --test tests/contract.test.mjs",
+    "test:input-screen": "node --test tests/input-screen.test.mjs && node tests/input-screen-proof.mjs",
     "test:layout": "node tests/layout-proof.mjs",
     "test:inspection": "node tests/layout-proof.mjs --inspection-only",
     "test:guardrails": "node tests/guardrail-proof.mjs",

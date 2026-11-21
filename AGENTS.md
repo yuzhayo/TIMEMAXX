@@ -96,7 +96,8 @@ latest explicit decisions take precedence over older examples and historical tes
   control opens the popup. Rotation's value remains editable. Shared UI owns the
   common rendering/input mechanics; adapters supply feature values and commands.
 - Action Bar contains one standalone/orphan Edit button with a pencil icon after
-  Size. It intentionally has no command behavior until the user assigns one.
+  Size. Its approved command opens/focuses the blank Input screen in `ui-control/`.
+  Do not add input fields or assign editing/data behavior until the user requests it.
 - Startup and vertical maximize use the approved narrow configured width, full
   monitor work-area height excluding the taskbar, and right alignment. Restore
   returns to previous bounds. Native geometry is not photo or section-layout logic.
@@ -162,12 +163,19 @@ No separate inspection framework/service is needed.
 ## Standalone boundaries
 
 - `frame/` owns its window, output settings, photo editing, photo preview and
-  standalone photo/black export. No imports, build dependencies, calls or launches
-  of engine/input. It does not interpret overlay settings or own overlay
+  standalone photo/black export. Its only approved Input link is the lazy public
+  launch-only contract `ui-control/screen.cjs`: open/focus one blank native screen
+  and close it with Frame. Missing/invalid Input must not break Frame startup/export.
+  No Input internals, data integration, build dependencies or engine calls/launches.
+  It does not interpret overlay settings or own overlay
   composition, clear/revision arbitration or combined export.
 - `ui-control/` owns facts/settings, input controls and its config. `engine/` owns
   normalized content, verified stamp/layout rules and headless prepared output.
   Rust uses the ownership principle, not the UI schema or artificial UI sections.
+  Currently Input has only a blank HTML client area with native window chrome.
+  It uses `ui-control/config.json` for native DIP bounds/title/background. It has
+  no fields, persistence, preview, renderer bridge, engine or overlay behavior.
+  Repeated opens reuse the same non-modal window; closing Input leaves Frame alive.
 - Future joint routing and composition belong to a background orchestrator with
   explicit photo-output/overlay contracts. Input has its settings screen; Frame
   remains the one visible photo surface. The orchestrator creates no window or

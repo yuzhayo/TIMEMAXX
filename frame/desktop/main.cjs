@@ -7,7 +7,7 @@ const { DiagnosticLog } = require('./DiagnosticLog.cjs');
 const { ImageWorker } = require('./ImageWorker.cjs');
 const { ImageFileDialogs } = require('./ImageFileDialogs.cjs');
 
-// LOGIC — standalone native lifetime; photo worker is owned by frame, never engine/input.
+// LOGIC — photo lifetime stays in Frame; the only Input link is its approved screen opener.
 const root = path.resolve(__dirname, '..');
 if (process.platform === 'win32') app.setAppUserModelId(frameAppId);
 const runtime = path.join(root, '.runtime');
@@ -22,6 +22,7 @@ const log = new DiagnosticLog(path.join(runtime, 'logs'));
 let window;
 let worker;
 let files;
+let inputScreen;
 let sessionDirectory;
 let quitting = false;
 
@@ -32,6 +33,7 @@ app.whenReady().then(async () => {
   const { nativeWindowValid, outputSettingsValid } = await import(pathToFileURL(path.join(root, 'view/layout/ConfigValidation.mjs')).href);
   if (!nativeWindowValid(config.window)) throw new Error('window: invalid native settings; no alternate geometry was invented');
   window = createFrameWindow(root, config.window);
+  window.on('close', () => inputScreen?.close());
   const windowActions = bindWindowActions(window, config.window);
   if (outputSettingsValid(config.output)) {
     sessionDirectory = fs.mkdtempSync(path.join(runtime, 'image-session-'));
@@ -53,6 +55,19 @@ app.whenReady().then(async () => {
   ipcMain.handle('frame:diagnostics', (event, records) => {
     if (!allowed(event) || !Array.isArray(records)) return { ok: false, error: 'Unknown diagnostic sender or invalid records' };
     return log.write(records);
+  });
+  ipcMain.handle('frame:input-open', async (event) => {
+    if (!allowed(event)) return { ok: false, error: 'Unknown frame sender' };
+    try {
+      // Lazy public contract: missing/invalid Input never prevents Frame startup/export.
+      if (!inputScreen) {
+        const { BrowserWindow, screen } = require('electron');
+        const { createInputScreen } = require('../../ui-control/screen.cjs');
+        inputScreen = createInputScreen({ BrowserWindow, screen, parent: window });
+      }
+      await inputScreen.open();
+      return { ok: true };
+    } catch (error) { return { ok: false, error: error.message }; }
   });
   for (const [channel, action] of [
     ['frame:image-open', (currentPhotoId) => files?.open(currentPhotoId)],

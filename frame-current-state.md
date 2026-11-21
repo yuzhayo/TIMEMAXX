@@ -2,9 +2,9 @@
 
 ## Status
 
-`frame/` is a standalone Windows/Electron photo-frame application. It builds and
-runs from a clean repository checkout and does not import, build, or launch
-`ui-control` or `engine`.
+`frame/` is a Windows/Electron photo-frame application. Its photo build, editing,
+preview and export remain standalone. The pencil button has one launch-only link
+to the blank Input screen owned by `ui-control/`; no engine or data integration.
 
 The active application currently provides:
 
@@ -16,7 +16,8 @@ The active application currently provides:
 - separate inspection pan/zoom state;
 - exact PNG/JPEG exports at 1200×1600, 2400×3200, and 3024×4032;
 - Bottom Bar operation messages and structured local diagnostics;
-- development-only layout inspection.
+- development-only layout inspection;
+- opening/focusing one blank Input window from the pencil button.
 
 There are four configured sections, sixteen configured instances, and fifteen
 enabled instances.
@@ -51,6 +52,7 @@ Useful focused commands:
 npm.cmd run build
 npm.cmd run inspect
 npm.cmd run test:contract
+npm.cmd run test:input-screen
 npm.cmd run test:image
 npm.cmd run test:rotation
 npm.cmd run test:popover
@@ -101,7 +103,7 @@ Rotation, and Size rows use the shared configured-row mechanism.
 
 - Rotation: rotate left, editable degree value, rotate right, popup slider
 - Size: decrease, percentage value, increase, popup slider
-- standalone/orphan Edit button with pencil icon; no command attached
+- standalone/orphan Edit button with pencil icon; opens/focuses the blank Input screen
 - FileControls: Load, Reset, Save
 - configured separators
 
@@ -222,7 +224,18 @@ frame/
 ## Current boundaries
 
 - Frame owns only standalone photo/window/file/export behavior.
-- `ui-control/` owns input facts, settings, and its controls.
+- `ui-control/` owns the blank Input screen, its native window configuration and
+  future input facts/settings/controls. `screen.cjs` is its public launch-only
+  contract; Frame loads it only on a pencil click. No build step or new dependency.
+- Input opens as one non-modal window with native title bar. Repeated clicks focus
+  that window; closing it leaves Frame running; the next click reopens it. Closing
+  Frame closes Input. Opening Input does not change photo/history/inspection state.
+- `ui-control/config.json` owns Input's title, background and bounds in native DIP
+  (720×900 startup, 400×480 minimum), clamped to the current monitor work area.
+- `ui-control/view/InputScreen.html` is deliberately empty: no fields, text,
+  settings, persistence, photo preview or renderer bridge. Detailed input UI is deferred.
+- Missing/invalid Input is reported through Frame's existing Bottom Bar diagnostics;
+  it does not prevent Frame startup or standalone export.
 - `engine/` owns normalized overlay content and headless prepared output.
 - Combined photo/overlay routing, accepted revisions, stale-overlay rejection, and
   combined Save belong to a future background orchestrator.
@@ -231,16 +244,9 @@ frame/
 - Future work starts only from a new explicit user request; empty skeleton files do
   not define a work queue.
 
-## Current clean-checkout evidence
+## Input screen verification
 
-The committed package has been exported without local untracked files and verified
-with:
-
-- fresh `npm ci`;
-- full renderer and Rust worker build;
-- 30/30 current JavaScript contract/Rotation tests;
-- 6/6 Rust worker tests;
-- real Electron launch with all fourteen enabled instances;
-- real image Load and 1200×1600 PNG export;
-- zero startup diagnostics or renderer errors;
-- normal owned-worker shutdown.
+`npm.cmd run test:input-screen` checks the launch-only command and the real Electron
+pencil path: empty content, startup/minimum sizes, JSON-driven geometry/background,
+single-window reuse, close/reopen, unchanged Frame state, failure isolation and
+parent-window cleanup. Artifacts stay in ignored `frame/.runtime/checks/input-screen/`.
