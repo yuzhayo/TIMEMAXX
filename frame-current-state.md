@@ -4,8 +4,10 @@
 
 `frame/` is a Windows/Electron photo-frame application. Its photo build, editing,
 preview and export remain standalone. The pencil button has one launch-only link
-to an empty frameless Input window shell owned by `ui-control/`; no sections,
-engine or data integration.
+to a frameless Input window owned by `ui-control/`; Input renders one baked
+placeholder component — a header with expand/collapse and an auto-compact body
+that is the attachment point for individual components added later — with no
+task content, engine or data integration.
 
 The active application currently provides:
 
@@ -18,7 +20,8 @@ The active application currently provides:
 - exact PNG/JPEG exports at 1200×1600, 2400×3200, and 3024×4032;
 - Bottom Bar operation messages and structured local diagnostics;
 - development-only layout inspection;
-- toggling an empty frameless Input window from the pencil button.
+- toggling a frameless Input window from the pencil button; Input renders the
+  baked placeholder card (header expand/collapse, auto-compact body).
 
 Frame has four configured sections, sixteen configured instances, and fifteen
 enabled instances.
@@ -114,7 +117,7 @@ Rotation, and Size rows use the shared configured-row mechanism.
 
 - Rotation: rotate left, editable degree value, rotate right, popup slider
 - Size: decrease, percentage value, increase, popup slider
-- standalone/orphan Edit button with pencil icon; toggles the empty Input window
+- standalone/orphan Edit button with pencil icon; toggles the Input window
 - FileControls: Load, Reset, Save
 - configured separators
 
@@ -273,11 +276,13 @@ frame/
 ## Input screen verification
 
 `npm.cmd run test:input-screen` checks the window-only command and the real Electron
-pencil path: an empty frameless Input, 40% width at Frame startup/minimum sizes,
-full work-area height and adjoining-left bounds, JSON-driven geometry/background,
-toggle parity during rapid clicks, unchanged Frame state, failure isolation and
-parent-window cleanup. Artifacts stay in ignored `frame/.runtime/checks/input-screen/`.
+pencil path: a frameless Input with the baked placeholder card (header toggle,
+body mount, auto-compact below the configured slot), 40% width at Frame
+startup/minimum sizes, full work-area height and adjoining-left bounds,
+JSON-driven geometry/background, toggle parity during rapid clicks, unchanged
+Frame state, failure isolation and parent-window cleanup. Artifacts stay in
+ignored `frame/.runtime/checks/input-screen/`.
 
-From `ui-control/`, `npm.cmd run test:contract` checks the empty shell config,
-window geometry and discovery contract. Dependencies, built renderer and local logs
-stay ignored there.
+From `ui-control/`, `npm.cmd run test:contract` checks the placeholder baseline
+config, window geometry and discovery contract. Dependencies, built renderer and
+local logs stay ignored there.

@@ -71,8 +71,8 @@ const checkInput = async (page, settings, name) => {
   await page.waitForSelector('main[aria-label="Input"]');
   await page.evaluate(() => window.inputDev?.inspect(false));
   await page.waitForFunction(() => document.querySelector('[data-input-stack]') !== null);
-  assert.equal(await page.locator('[data-section-card]').count(), 0, 'Input has no sections or task content');
-  assert.equal(await page.locator('[data-input-stack] > *').count(), 0, 'Input content area is empty');
+  assert.equal(await page.locator('[data-section-card]').count(), 1, 'Input renders exactly the baked placeholder card');
+  assert.equal(await page.locator('[data-input-stack] > *').count(), 1, 'Input content area holds only the placeholder slot');
   assert.equal(await page.getByRole('combobox').count(), 0);
   assert.equal(await page.locator('canvas, img, iframe').count(), 0);
   assert.deepEqual(await page.evaluate(() => ({ host: typeof window.frameHost, node: typeof require })),
@@ -124,6 +124,28 @@ try {
   const frameBounds = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getBounds());
   let [input] = await Promise.all([app.waitForEvent('window'), frame.click('#orphanEdit')]);
   await checkInput(input, config.window, 'startup');
+  assert.equal(await inputCount(), 1);
+
+  // The baked placeholder: header toggles expand/collapse, body mounts inside, card stays compact.
+  const cardGeometry = () => input.evaluate(() => {
+    const card = document.querySelector('[data-section-card]');
+    const body = document.querySelector('[data-section-body]');
+    return { slot: card.parentElement.getBoundingClientRect().height, card: card.getBoundingClientRect().height,
+      body: body ? body.getBoundingClientRect().height : 0,
+      expanded: document.querySelector('[data-section-header]').getAttribute('aria-expanded') };
+  });
+  const open = await cardGeometry();
+  assert.equal(open.expanded, 'true');
+  assert.ok(open.body > 0, 'expanded body mounts inside the card');
+  assert.ok(open.card < open.slot, 'card auto-compacts below its configured slot');
+  await input.locator('[data-section-header]').click();
+  const shut = await cardGeometry();
+  assert.equal(shut.expanded, 'false', 'header click collapses the card');
+  assert.equal(shut.body, 0, 'collapsed card removes the body');
+  assert.ok(shut.card < open.card, 'collapsed card is shorter than expanded');
+  await input.locator('[data-section-header]').click();
+  assert.equal((await cardGeometry()).expanded, 'true', 'second click expands the card again');
+
   const firstId = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()
     .find((win) => win.webContents.getURL().includes('/ui-control/view-built/index.html')).id);
   assert.deepEqual(await frame.evaluate(() => window.frameDev.snapshot()), before);
@@ -230,7 +252,8 @@ try {
   await Promise.all([inputClosed, frameClosed, processExited]);
   assert.equal(child.exitCode, 0);
   finished = true;
-  console.log(JSON.stringify({ pass: true, checked: ['real pencil toggles empty frameless Input', 'no sections or task content',
+  console.log(JSON.stringify({ pass: true, checked: ['real pencil toggles frameless Input with the baked placeholder card',
+    'header expands/collapses the card and mounts the body inside', 'card auto-compacts below its configured slot',
     'scoped Input bootstrap and no Frame/file/data/preview bridge', 'rapid-click parity with one live window',
     '40% Frame width at startup/minimum', 'full work-area height', 'Input right edge touches Frame left edge',
     'no native caption or Windows-Bar space', 'JSON geometry/background without sibling changes', 'isolated Input configuration failure',
