@@ -4,7 +4,8 @@
 
 `frame/` is a Windows/Electron photo-frame application. Its photo build, editing,
 preview and export remain standalone. The pencil button has one launch-only link
-to the Input section foundation owned by `ui-control/`; no engine or data integration.
+to an empty frameless Input window shell owned by `ui-control/`; no sections,
+engine or data integration.
 
 The active application currently provides:
 
@@ -17,7 +18,7 @@ The active application currently provides:
 - exact PNG/JPEG exports at 1200×1600, 2400×3200, and 3024×4032;
 - Bottom Bar operation messages and structured local diagnostics;
 - development-only layout inspection;
-- toggling the frameless four-section Input foundation from the pencil button.
+- toggling an empty frameless Input window from the pencil button.
 
 Frame has four configured sections, sixteen configured instances, and fifteen
 enabled instances.
@@ -113,7 +114,7 @@ Rotation, and Size rows use the shared configured-row mechanism.
 
 - Rotation: rotate left, editable degree value, rotate right, popup slider
 - Size: decrease, percentage value, increase, popup slider
-- standalone/orphan Edit button with pencil icon; toggles the Input section foundation
+- standalone/orphan Edit button with pencil icon; toggles the empty Input window
 - FileControls: Load, Reset, Save
 - configured separators
 
@@ -179,7 +180,6 @@ The shared UI mechanisms under `components/` include:
 - `ConfiguredPopover.jsx` — popup placement, size, offsets, and dismissal;
 - `ConfiguredContent.mjs` — nested text/slot state routing;
 - `appearance.mjs` — resolved config-to-style translation.
-- `SectionCard.jsx` — configured MUI header/content host with controlled collapse.
 - `ComponentDiscovery.mjs` — shared build-time module catalog normalization.
 - `LayoutDiagnostics.mjs` / `DiagnosticLog.cjs` — shared diagnostic identity and persistence.
 
@@ -238,10 +238,10 @@ frame/
 ## Current boundaries
 
 - Frame owns only standalone photo/window/file/export behavior.
-- `ui-control/` owns its native window, React/MUI renderer, config, global language
-  and section expansion state. `screen.cjs` is its public window-only contract;
-  Frame loads it only on a pencil click. Input owns its own locked dependencies
-  and Vite build, with no Frame build dependency.
+- `ui-control/` owns its native window, React/MUI renderer and config. `screen.cjs`
+  is its public window-only contract; Frame loads it only on a pencil click.
+  Input owns its own locked dependencies and Vite build, with no Frame build
+  dependency. It has no sections, fields, language selector or task content.
 - Input is one non-modal frameless window: no native caption/buttons/title text or
   reserved Windows-Bar area. Pencil clicks alternate open/close, including rapid
   clicks. Closing Input leaves Frame running; closing Frame closes Input. Toggling
@@ -254,34 +254,17 @@ frame/
   coordinates. Input cannot resize through a native thick-frame border.
 - If there is insufficient room left of Frame, Input reports that placement failure
   without moving Frame, changing the approved ratio or inventing another position.
-- `ui-control/view/index.html` hosts the renderer. `view/sections/` contains
-  Language, Code, Date and Time adapters discovered through one shared catalog.
-  JSON supplies stable instance/component IDs, assigned folders, parent, bounds,
-  labels, presets and enabled/expanded state. No manual section import registry.
-- All four use the shared MUI SectionCard. Headers support click/keyboard collapse;
-  content and local task state stay mounted. Language is one global
-  English/Indonesia selector and drives date naming; both locales have independent
-  order/appearance/label configuration. Current defaults use the approved
-  Language → Code → Date → Time order.
-- Code, Date and Time now run live tasks ported from the WinForms reference. Each
-  task has one pure owner in `ui-control/logic/` — `CodeLogic.mjs` (24-symbol,
-  14-character padded base-24 encode/decode and rejection sampling below
-  `21 × 24¹³`), `DateLogic.mjs` (en/id weekday/month names and three fixed formats)
-  and `TimeLogic.mjs` (fixed HH:MM mask, inclusive range pick, 24h/12h render).
-  Those modules import no React, DOM, renderer, Frame, file or overlay API; the
-  section adapters own only local values and configured MUI rendering. Code
-  starts with a generated identifier, Date starts with today, Time starts with a
-  picked minute; Generate/Copy/format/clock controls update the same card.
-  LongLat and other data sections remain deferred. There is no persistence,
-  photo preview, engine or overlay integration.
+- `ui-control/view/index.html` hosts the renderer. The content area is empty:
+  `config.json` declares no sections, languages or layouts. Adding sections or
+  generator behavior is a future explicit request.
 - Input's scoped preload exposes only config bootstrap and diagnostic delivery,
   never Frame commands or filesystem/Node access. Its local diagnostic outlet is
   visible only for issues; development inspection is off in normal use.
 - Missing/invalid Input is reported through Frame's existing Bottom Bar diagnostics;
   it does not prevent Frame startup or standalone export.
-- `engine/` owns normalized overlay content and headless prepared output.
-- Combined photo/overlay routing, accepted revisions, stale-overlay rejection, and
-  combined Save belong to a future background orchestrator.
+- No `engine/` or overlay implementation exists. Combined photo/overlay routing,
+  accepted revisions, stale-overlay rejection and combined Save belong to a future
+  background orchestrator.
 - The orchestrator, optional Bottom Bar Info control, export-size UI, overlays,
   notices, and layer integration are not implemented.
 - Future work starts only from a new explicit user request; empty skeleton files do
@@ -290,14 +273,11 @@ frame/
 ## Input screen verification
 
 `npm.cmd run test:input-screen` checks the window-only command and the real Electron
-pencil path: four frameless section cards, 40% width at Frame startup/minimum sizes,
+pencil path: an empty frameless Input, 40% width at Frame startup/minimum sizes,
 full work-area height and adjoining-left bounds, JSON-driven geometry/background,
-global language, collapse state/content preservation, per-locale layouts, live
-code/date/time tasks, shared preset consumption, section isolation/logging,
 toggle parity during rapid clicks, unchanged Frame state, failure isolation and
 parent-window cleanup. Artifacts stay in ignored `frame/.runtime/checks/input-screen/`.
 
-From `ui-control/`, `npm.cmd test` runs both the config/state/catalog contract
-checks and the pure code/date/time logic checks. `npm.cmd run test:logic` runs only
-the ported generator rules. Dependencies, built renderer and local logs stay
-ignored there.
+From `ui-control/`, `npm.cmd run test:contract` checks the empty shell config,
+window geometry and discovery contract. Dependencies, built renderer and local logs
+stay ignored there.

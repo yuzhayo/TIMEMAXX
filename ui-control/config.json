@@ -10,143 +10,22 @@
     "placement": { "x": "beforeFrame", "y": "workAreaStart" },
     "background": "#111418"
   },
-  "initialLanguage": "en",
-  "languages": [{ "id": "en", "label": "English" }, { "id": "id", "label": "Indonesia" }],
   "presets": {
     "base": {
       "colors": { "background": "transparent", "foreground": "#e4e9ef", "border": "transparent", "outline": "transparent" },
-      "geometry": { "paddingX": 0, "paddingY": 0, "gap": 0, "radius": 0, "borderWidth": 0, "borderStyle": "solid", "outlineWidth": 0, "outlineStyle": "solid", "outlineOffset": 0, "fontSize": 11, "lineHeight": 1.3, "letterSpacing": 0, "opacity": 1, "shadow": "none", "transition": "none" },
+      "geometry": { "paddingX": 0, "paddingY": 0, "gap": 0, "radius": 0, "borderWidth": 0, "borderStyle": "solid", "outlineWidth": 0, "outlineStyle": "solid", "outlineOffset": 0, "fontSize": 14, "lineHeight": 1.3, "letterSpacing": 0, "opacity": 1, "shadow": "none", "transition": "none" },
       "typography": { "family": "\"Segoe UI\", system-ui, sans-serif", "weight": 400 },
       "content": { "direction": "row", "verticalAlign": "center", "horizontalAlign": "flex-start", "textAlign": "left", "whiteSpace": "normal", "overflow": "hidden", "wrap": "nowrap", "overflowWrap": "normal" },
       "states": {}
     },
     "root": { "preset": "base", "colors": { "background": "#111418" }, "geometry": { "paddingX": 4, "paddingY": 0.5 }, "content": { "direction": "column", "verticalAlign": "flex-start", "horizontalAlign": "stretch" } },
-    "sectionHeader": {
-      "preset": "base", "colors": { "background": "#1d252f" }, "geometry": { "paddingX": 5 },
-      "content": { "direction": "row", "horizontalAlign": "space-between" },
-      "states": {
-        "hover": { "colors": { "background": "#303d4c" } },
-        "focusVisible": { "colors": { "outline": "#ffc44d" }, "geometry": { "outlineWidth": 1 } }
-      },
-      "bounds": { "width": 100, "height": 10 },
-      "parts": {
-        "title": { "preset": "base", "bounds": { "width": 82, "height": 100 }, "typography": { "weight": 600 } },
-        "icon": { "preset": "base", "bounds": { "width": 12, "height": 60 }, "name": "expandMore", "rotation": { "closed": 0, "open": 180 } }
-      }
-    },
-    "sectionDetails": { "preset": "base", "geometry": { "paddingX": 2, "paddingY": 2 }, "content": { "direction": "column", "verticalAlign": "flex-start", "horizontalAlign": "stretch" } },
-    "sectionCard": {
-      "preset": "base", "colors": { "background": "#171c22", "border": "#43505f" },
-      "geometry": { "borderWidth": 1, "radius": 6 }, "content": { "direction": "column", "verticalAlign": "flex-start", "horizontalAlign": "stretch" },
-      "animation": { "durationMs": 0 },
-      "parts": { "header": { "preset": "sectionHeader" }, "details": { "preset": "sectionDetails" } }
-    },
-    "secondaryAction": {
-      "preset": "base", "colors": { "background": "#1d252f", "foreground": "#e4e9ef", "border": "#43505f" },
-      "geometry": { "borderWidth": 1, "radius": 4, "fontSize": 12 }, "typography": { "weight": 600 },
-      "content": { "horizontalAlign": "center", "textAlign": "center" },
-      "states": {
-        "hover": { "colors": { "background": "#303d4c" } },
-        "focusVisible": { "colors": { "outline": "#ffc44d" }, "geometry": { "outlineWidth": 1 } },
-        "disabled": { "colors": { "background": "#171c22", "foreground": "#687381" } }
-      }
-    },
-    "primaryAction": {
-      "preset": "base", "colors": { "background": "#ffc44d", "foreground": "#0a0a0a" },
-      "geometry": { "radius": 4, "fontSize": 12 }, "typography": { "weight": 700 },
-      "content": { "horizontalAlign": "center", "textAlign": "center" },
-      "states": {
-        "hover": { "colors": { "background": "#ffd166" } },
-        "focusVisible": { "colors": { "outline": "#ffc44d" }, "geometry": { "outlineWidth": 1 } },
-        "disabled": { "colors": { "background": "#303842", "foreground": "#687381" } }
-      }
-    },
-    "choice": {
-      "preset": "secondaryAction",
-      "states": {
-        "hover": { "colors": { "background": "#303d4c" } },
-        "focusVisible": { "colors": { "outline": "#ffc44d" }, "geometry": { "outlineWidth": 1 } },
-        "selected": { "colors": { "background": "#ffc44d", "foreground": "#0a0a0a" } }
-      }
-    },
-    "codeField": {
-      "preset": "base", "colors": { "background": "#1d252f", "foreground": "#ffc44d", "border": "#43505f" },
-      "geometry": { "borderWidth": 1, "radius": 4, "fontSize": 16 },
-      "typography": { "family": "Consolas, monospace", "weight": 700 },
-      "content": { "horizontalAlign": "center", "textAlign": "center" }
-    },
-    "timeField": {
-      "preset": "base", "colors": { "background": "#1d252f", "foreground": "#e4e9ef", "border": "#43505f" },
-      "geometry": { "borderWidth": 1, "radius": 4, "fontSize": 13 },
-      "typography": { "family": "Consolas, monospace", "weight": 600 },
-      "content": { "horizontalAlign": "center", "textAlign": "center" }
-    },
-    "resultText": {
-      "preset": "base", "colors": { "foreground": "#ffc44d" },
-      "geometry": { "fontSize": 16 }, "typography": { "family": "Consolas, monospace", "weight": 700 },
-      "content": { "horizontalAlign": "flex-start", "textAlign": "left", "whiteSpace": "normal", "overflowWrap": "anywhere" }
-    },
-    "captionText": {
-      "preset": "base", "colors": { "foreground": "#9aa5b2" },
-      "geometry": { "fontSize": 11 },
-      "content": { "horizontalAlign": "flex-start", "textAlign": "left" }
-    },
-    "languageField": {
-      "preset": "base", "colors": { "background": "#1d252f", "border": "#43505f" },
-      "geometry": { "borderWidth": 1, "radius": 4, "fontSize": 13 }, "bounds": { "width": 100, "height": 28 },
-      "states": { "focusVisible": { "colors": { "outline": "#ffc44d" }, "geometry": { "outlineWidth": 1 } } },
-      "parts": {
-        "value": { "preset": "base", "geometry": { "paddingX": 6, "paddingY": 0, "fontSize": 13 } },
-        "icon": { "preset": "base", "bounds": { "width": 14, "height": 60 }, "name": "arrowDropDown" },
-        "menu": {
-          "preset": "base", "colors": { "background": "#171c22", "border": "#43505f" }, "geometry": { "borderWidth": 1, "radius": 4, "fontSize": 13 },
-          "content": { "direction": "column", "verticalAlign": "flex-start", "horizontalAlign": "stretch", "overflow": "auto" },
-          "portal": { "base": "inputViewport", "widthBase": "anchor", "maxHeight": 30, "anchorOrigin": { "vertical": "bottom", "horizontal": "left" }, "transformOrigin": { "vertical": "top", "horizontal": "left" } }
-        },
-        "option": {
-          "preset": "base", "geometry": { "fontSize": 13, "paddingX": 4, "paddingY": 0.4 },
-          "states": { "hover": { "colors": { "background": "#303d4c" } }, "selected": { "colors": { "background": "#303d4c" } }, "focusVisible": { "colors": { "background": "#1d252f" } } }
-        }
-      }
-    },
     "diagnostic": { "preset": "base", "colors": { "foreground": "#ffe2a0" }, "geometry": { "fontSize": 10, "paddingY": 0.5 }, "content": { "overflow": "auto", "overflowWrap": "anywhere" } },
     "inspection": { "preset": "base", "colors": { "border": "#ffc44d", "foreground": "#ffc44d" }, "geometry": { "borderWidth": 1, "fontSize": 8 }, "content": { "verticalAlign": "flex-start", "whiteSpace": "normal" } }
   },
   "root": { "id": "inputRoot", "preset": "root" },
   "diagnostics": { "preset": "diagnostic", "height": 8 },
   "development": { "inspectionEnabled": false, "inspector": { "preset": "inspection", "zIndex": 10 } },
-  "sections": [
-    { "id": "language", "componentId": "input.language", "parentId": "inputRoot", "folder": "language", "enabled": true, "expanded": true, "bounds": { "width": 100, "height": 35 }, "sizing": "fixed", "preset": "sectionCard", "parts": { "field": { "preset": "languageField" } } },
-    { "id": "code", "componentId": "input.code", "parentId": "inputRoot", "folder": "code", "enabled": true, "expanded": true, "bounds": { "width": 100, "height": 24 }, "preset": "sectionCard", "parts": {
-      "field": { "preset": "codeField", "bounds": { "x": 0, "y": 0, "width": 100, "height": 34 } },
-      "generate": { "preset": "primaryAction", "label": "Generate code", "bounds": { "x": 0, "y": 42, "width": 47, "height": 34 } },
-      "copy": { "preset": "secondaryAction", "label": "Copy code", "bounds": { "x": 53, "y": 42, "width": 47, "height": 34 } },
-      "status": { "preset": "captionText", "bounds": { "x": 0, "y": 82, "width": 100, "height": 18 } }
-    } },
-    { "id": "date", "componentId": "input.date", "parentId": "inputRoot", "folder": "date", "enabled": true, "expanded": true, "bounds": { "width": 100, "height": 24 }, "preset": "sectionCard", "parts": {
-      "field": { "preset": "timeField", "label": "Choose date", "bounds": { "x": 0, "y": 4, "width": 100, "height": 18 } },
-      "numeric": { "preset": "choice", "label": "DD/MM/YYYY", "bounds": { "x": 0, "y": 26, "width": 100, "height": 14 } },
-      "dayName": { "preset": "choice", "label": "DAY, DD MONTH YYYY", "bounds": { "x": 0, "y": 42, "width": 100, "height": 14 } },
-      "monthName": { "preset": "choice", "label": "DD MONTH YYYY", "bounds": { "x": 0, "y": 58, "width": 100, "height": 14 } },
-      "result": { "preset": "resultText", "bounds": { "x": 0, "y": 74, "width": 100, "height": 18 } },
-      "copy": { "preset": "secondaryAction", "label": "Copy date", "bounds": { "x": 0, "y": 93, "width": 40, "height": 7 } },
-      "status": { "preset": "captionText", "bounds": { "x": 42, "y": 93, "width": 58, "height": 7 } }
-    } },
-    { "id": "time", "componentId": "input.time", "parentId": "inputRoot", "folder": "time", "enabled": true, "expanded": true, "bounds": { "width": 100, "height": 24 }, "preset": "sectionCard", "parts": {
-      "fromLabel": { "preset": "captionText", "label": "From", "bounds": { "x": 0, "y": 0, "width": 45, "height": 10 } },
-      "toLabel": { "preset": "captionText", "label": "To", "bounds": { "x": 55, "y": 0, "width": 45, "height": 10 } },
-      "from": { "preset": "timeField", "label": "From time", "bounds": { "x": 0, "y": 12, "width": 45, "height": 18 } },
-      "to": { "preset": "timeField", "label": "To time", "bounds": { "x": 55, "y": 12, "width": 45, "height": 18 } },
-      "generate": { "preset": "primaryAction", "label": "Generate time", "bounds": { "x": 0, "y": 36, "width": 47, "height": 16 } },
-      "copy": { "preset": "secondaryAction", "label": "Copy time", "bounds": { "x": 53, "y": 36, "width": 47, "height": 16 } },
-      "h24": { "preset": "choice", "label": "24h", "bounds": { "x": 0, "y": 56, "width": 47, "height": 14 } },
-      "h12": { "preset": "choice", "label": "12h", "bounds": { "x": 53, "y": 56, "width": 47, "height": 14 } },
-      "result": { "preset": "resultText", "bounds": { "x": 0, "y": 74, "width": 100, "height": 18 } },
-      "status": { "preset": "captionText", "bounds": { "x": 0, "y": 93, "width": 100, "height": 7 } }
-    } }
-  ],
-  "layouts": {
-    "en": { "gapY": 1, "order": ["language", "code", "date", "time"], "sections": { "language": { "label": "Language" }, "code": { "label": "Code" }, "date": { "label": "Date" }, "time": { "label": "Time" } } },
-    "id": { "gapY": 1, "order": ["language", "code", "date", "time"], "sections": { "language": { "label": "Bahasa" }, "code": { "label": "Kode" }, "date": { "label": "Tanggal" }, "time": { "label": "Waktu" } } }
-  }
+  "sections": [],
+  "languages": [],
+  "layouts": {}
 }

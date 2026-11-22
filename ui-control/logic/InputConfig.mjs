@@ -140,7 +140,7 @@ export function validateInputConfig(raw, catalog, diagnostics) {
     layouts[language.id] = { gapY: source.gapY, sections };
   }
   const initialLanguage = layouts[raw?.initialLanguage] ? raw.initialLanguage : null;
-  if (!initialLanguage) report('INPUT_INITIAL_LANGUAGE_INVALID', 'initialLanguage', 'configured valid locale; no replacement locale invented', raw?.initialLanguage);
+  if (languages.length && !initialLanguage) report('INPUT_INITIAL_LANGUAGE_INVALID', 'initialLanguage', 'configured valid locale; no replacement locale invented', raw?.initialLanguage);
   return { root, layouts, initialLanguage, languages: languages.filter((language) => layouts[language.id]), sections: base,
     diagnostics: outlet && percent(outlet.height) ? outlet : null,
     development: inspector && Number.isFinite(inspector.zIndex) && typeof raw?.development?.inspectionEnabled === 'boolean'

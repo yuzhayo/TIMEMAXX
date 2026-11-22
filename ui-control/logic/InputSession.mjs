@@ -1,4 +1,4 @@
-// LOGIC — one global language and independent expansion state; no generator data yet.
+// LOGIC — generic session state for a shell with no configured sections yet.
 export function createInputSession(plan, inspection = false) {
   const listeners = new Set();
   let state = { language: plan.initialLanguage, expanded: Object.fromEntries(plan.sections.map((node) => [node.id, node.expanded])), inspection };

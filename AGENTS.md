@@ -48,9 +48,8 @@ additional Yuzskill groups or a reason to run the whole list.
 ## Goal and stage
 
 The standalone `frame/` parent-child contract is complete. Folders identify
-ownership; files identify jobs; source sections identify where to fix them. Reuse
-the proven mechanism in `ui-control` or apply its ownership
-principle to `engine` only when the user explicitly requests that work.
+ownership; files identify jobs; source sections identify where to fix them. Any
+future Input sections or engine work starts only from a new explicit request.
 
 Keep unrelated empty skeleton files empty. Do not infer a new work queue from them.
 Notes must distinguish implemented features from deferred requirements. The user's
@@ -101,15 +100,9 @@ latest explicit decisions take precedence over older examples and historical tes
   title text or reserved Windows-Bar area. On each opening its width is 40% of
   current Frame width, height is the full current monitor work area excluding the
   taskbar, and its right edge touches Frame's left edge: `[ Input ][ Frame ]`.
-  Input contains Language plus live Code, Date and Time tasks. They share
-  `components/SectionCard.jsx`; headers expand/collapse independently without
-  resetting selection or local task state. Language is the one global
-  English/Indonesia choice and drives date naming. Code generates a 14-character
-  base-24 identifier, Date formats the chosen day in three patterns, and Time
-  picks a minute in an editable HH:MM range with a 24h/12h result. Each task has
-  one pure, UI-agnostic owner in `ui-control/logic/`; its section adapter only
-  renders configured parts. Layouts/labels/visuals are configured separately per
-  locale. LongLat and other data sections remain deferred.
+  Input is an empty frameless shell. It has no sections, fields, language choice,
+  task content or data. Adding sections or generator behavior is a future explicit
+  request, not an implied work queue.
 - Startup and vertical maximize use the approved narrow configured width, full
   monitor work-area height excluding the taskbar, and right alignment. Restore
   returns to previous bounds. Native geometry is not photo or section-layout logic.
@@ -181,27 +174,19 @@ No separate inspection framework/service is needed.
   No Input internals, data integration, build dependencies or engine calls/launches.
   It does not interpret overlay settings or own overlay
   composition, clear/revision arbitration or combined export.
-- `ui-control/` owns facts/settings, input controls and its config. `engine/` owns
-  normalized content, verified stamp/layout rules and headless prepared output.
-  Rust uses the ownership principle, not the UI schema or artificial UI sections.
-  Input has its own React/MUI renderer and build under `ui-control/`, with no
-  Windows Bar. Run `ui-control/build.cmd` to prepare it; Frame does not build Input.
-  `ui-control/config.json` owns frame-relative width, work-area-relative height,
-  adjoining-left placement, native-frame flags and background; computed native
-  bounds use DIP. Its title is metadata only, never rendered. It has
-  only a scoped config/diagnostic preload, a global language selector and four
-  discovered section adapters. Code/Date/Time own their values and local task
-  state; pure rules live in `ui-control/logic/` and never import React, Frame,
-  file or overlay APIs. No data persistence, preview, Frame/file bridge, engine
-  or overlay.
-  Each section exports a filename-independent ID and is assigned by JSON folder/
-  parent. Shared catalog/diagnostic owners live in `components/`; Frame's old paths
-  are compatibility reexports, not duplicated implementations.
+- `ui-control/` owns an empty frameless window shell, its React/MUI renderer,
+  native geometry config and scoped config/diagnostic preload. It has no sections,
+  fields, language selector, task logic or data. `ui-control/config.json` owns
+  frame-relative width, work-area-relative height, adjoining-left placement,
+  native-frame flags and background; computed native bounds use DIP. Its title is
+  metadata only, never rendered. Input has its own build under `ui-control/`;
+  Frame does not build Input. No data persistence, preview, Frame/file bridge,
+  engine or overlay. `engine/` and overlay behavior are not implemented.
   Rapid toggles are serialized; closing Input leaves Frame alive. Bounds are
   recalculated when opening, not saved from manual coordinates or tied to photo state.
 - Future joint routing and composition belong to a background orchestrator with
-  explicit photo-output/overlay contracts. Input has its settings screen; Frame
-  remains the one visible photo surface. The orchestrator creates no window or
+  explicit photo-output/overlay contracts. Input is an empty shell; Frame remains
+  the one visible photo surface. The orchestrator creates no window or
   duplicate preview, and Input creates no duplicate Frame display. Frame may
   display a finished combined preview supplied by that orchestrator without
   interpreting overlay content. Combined Save is coordinated there. Do not

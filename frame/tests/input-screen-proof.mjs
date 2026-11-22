@@ -70,14 +70,10 @@ const checkInput = async (page, settings, name) => {
   page.on('pageerror', (error) => errors.push(error.message));
   await page.waitForSelector('main[aria-label="Input"]');
   await page.evaluate(() => window.inputDev?.inspect(false));
-  await page.waitForFunction(() => document.querySelectorAll('[data-section-card]').length === 4);
-  assert.equal(await page.locator('[data-section-card]').count(), 4, 'Input renders the four approved foundation sections');
-  assert.deepEqual(await page.locator('[data-section-title]').allTextContents(), ['Language', 'Code', 'Date', 'Time']);
-  assert.equal(await page.locator('[data-card-renderer="shared-mui"]').count(), 4);
-  assert.equal(await page.getByRole('combobox').count(), 1);
-  assert.match(await page.locator('[data-code-value]').textContent(), /^[ABCDEGHKLMNPRTUWXY123469]{14}$/, 'Code starts with a generated code');
-  assert.match(await page.locator('[data-date-result]').textContent(), /\S/, 'Date starts with a formatted date');
-  assert.match(await page.locator('[data-time-result]').textContent(), /^\d{2}:\d{2}$/, 'Time starts with a generated time');
+  await page.waitForFunction(() => document.querySelector('[data-input-stack]') !== null);
+  assert.equal(await page.locator('[data-section-card]').count(), 0, 'Input has no sections or task content');
+  assert.equal(await page.locator('[data-input-stack] > *').count(), 0, 'Input content area is empty');
+  assert.equal(await page.getByRole('combobox').count(), 0);
   assert.equal(await page.locator('canvas, img, iframe').count(), 0);
   assert.deepEqual(await page.evaluate(() => ({ host: typeof window.frameHost, node: typeof require })),
     { host: 'undefined', node: 'undefined' });
@@ -118,123 +114,6 @@ const checkInput = async (page, settings, name) => {
   metrics.push({ name, native, geometry });
 };
 
-const checkFoundation = async (page) => {
-  const baseline = await page.evaluate(() => structuredClone(window.inputDev.config));
-  const headers = () => page.locator('[data-section-title]').allTextContents();
-  const blurHeaders = () => page.mouse.move(2, 1000);
-  await page.getByRole('combobox').click();
-  await page.getByRole('option', { name: 'Indonesia', exact: true }).click();
-  await page.waitForFunction(() => window.inputDev.snapshot().language === 'id');
-  assert.deepEqual(await headers(), ['Bahasa', 'Kode', 'Tanggal', 'Waktu']);
-  await page.evaluate(() => { window.inputProofContent = document.querySelector('#language [data-card-content]'); });
-  const expandedHeight = (await page.locator('[data-instance="code"]').boundingBox()).height;
-  await page.locator('#code-heading').click();
-  await page.waitForFunction(() => document.getElementById('code-heading').getAttribute('aria-expanded') === 'false');
-  assert.ok((await page.locator('[data-instance="code"]').boundingBox()).height < expandedHeight / 2);
-  assert.equal(await page.locator('#date-heading').getAttribute('aria-expanded'), 'true');
-  assert.equal(await page.locator('#time-heading').getAttribute('aria-expanded'), 'true');
-  await page.locator('#language-heading').click();
-  await page.waitForFunction(() => document.getElementById('language-heading').getAttribute('aria-expanded') === 'false');
-  assert.equal(await page.evaluate(() => window.inputDev.snapshot().language), 'id');
-  assert.equal(await page.evaluate(() => window.inputProofContent === document.querySelector('#language [data-card-content]')), true, 'Collapse keeps content mounted');
-  await page.locator('#language-heading').focus();
-  await page.keyboard.press('Enter');
-  await page.waitForFunction(() => document.getElementById('language-heading').getAttribute('aria-expanded') === 'true');
-  assert.equal(await page.getByRole('combobox').textContent(), 'Indonesia');
-  assert.equal(await page.locator('#code-heading').getAttribute('aria-expanded'), 'false');
-  await page.locator('#code-heading').click();
-  await blurHeaders();
-
-  const variant = structuredClone(baseline);
-  variant.layouts.id.order = ['language', 'time', 'date', 'code'];
-  variant.layouts.id.sections.code = { label: 'Kode', bounds: { width: 80, height: 16 }, parts: { header: { colors: { background: '#285776' } } } };
-  await page.evaluate((config) => window.inputDev.reconfigure(config), variant);
-  await page.waitForFunction(() => getComputedStyle(document.getElementById('code-heading')).backgroundColor === 'rgb(40, 87, 118)');
-  assert.deepEqual(await page.locator('[data-instance]').evaluateAll((nodes) => nodes.map((node) => node.dataset.instance)), variant.layouts.id.order);
-  const parentWidth = (await page.locator('[data-input-stack]').boundingBox()).width;
-  assert.ok(Math.abs((await page.locator('[data-instance="code"]').boundingBox()).width - parentWidth * 0.8) < 1, 'Section width is parent relative');
-  assert.equal(await page.locator('#date-heading').evaluate((node) => getComputedStyle(node).backgroundColor), 'rgb(29, 37, 47)');
-  await page.getByRole('combobox').click();
-  await page.getByRole('option', { name: 'English', exact: true }).click();
-  await page.getByRole('listbox').waitFor({ state: 'hidden' });
-  assert.deepEqual(await headers(), ['Language', 'Code', 'Date', 'Time']);
-  assert.equal(await page.locator('#code-heading').evaluate((node) => getComputedStyle(node).backgroundColor), 'rgb(29, 37, 47)', 'Indonesian layout override does not alter English');
-
-  const shared = structuredClone(baseline);
-  shared.presets.sectionHeader.colors.background = '#2c6180';
-  await page.evaluate((config) => window.inputDev.reconfigure(config), shared);
-  await blurHeaders();
-  await page.waitForFunction(() => [...document.querySelectorAll('[data-section-card] button[id$="-heading"]')].every((node) => getComputedStyle(node).backgroundColor === 'rgb(44, 97, 128)'));
-  assert.equal(await page.locator('[data-section-card]').count(), 4);
-  await page.screenshot({ path: path.join(artifacts, 'shared-card-preset.png') });
-  await page.evaluate((config) => window.inputDev.reconfigure(config), baseline);
-  await page.evaluate(() => window.inputDev.inspect(true));
-  assert.equal(await page.locator('[data-inspection]').count(), 4);
-  assert.match(await page.locator('[data-inspection="code"]').textContent(), /input.code.*code.*inputRoot.*code\/CodeSection.jsx/);
-  assert.equal(await page.locator('[data-inspection="code"]').evaluate((node) => getComputedStyle(node).pointerEvents), 'none');
-  await page.evaluate(() => window.inputDev.inspect(false));
-
-  const invalid = structuredClone(baseline);
-  invalid.sections[1].parts = { header: { colors: { background: 'not-a-color' } } };
-  await page.evaluate((config) => window.inputDev.reconfigure(config), invalid);
-  await page.waitForFunction(() => document.querySelectorAll('[data-section-card]').length === 3);
-  assert.equal(await page.locator('#language-heading').isEnabled(), true);
-  assert.equal(await page.locator('#date-heading').isEnabled(), true);
-  const records = await page.evaluate(() => window.inputDev.records());
-  assert.ok(records.some((issue) => issue.code === 'INPUT_VISUAL_INVALID' && issue.instanceId === 'code' && issue.filePath === 'code/CodeSection.jsx'));
-  assert.ok(records.every((issue) => issue.code === 'INPUT_VISUAL_INVALID'));
-  assert.match(await page.locator('[data-input-diagnostics]').textContent(), /code/i);
-  assert.equal(await page.locator('[data-input-diagnostics]').evaluate((node) => node.scrollWidth <= node.clientWidth), true, 'Diagnostics wrap without horizontal scrolling');
-  await page.evaluate(() => window.inputDev.flush());
-  const logPath = await page.evaluate(() => window.inputDev.logPath);
-  const persisted = JSON.parse(await fs.readFile(logPath, 'utf8'));
-  assert.ok(persisted.some((issue) => issue.instanceId === 'code'));
-  await page.evaluate((config) => window.inputDev.reconfigure(config), baseline);
-  await page.waitForFunction(() => document.querySelectorAll('[data-section-card]').length === 4);
-  await page.screenshot({ path: path.join(artifacts, 'foundation-en-restored.png') });
-  await page.evaluate(() => window.inputDev.setLanguage('id'));
-  await page.screenshot({ path: path.join(artifacts, 'foundation-id.png') });
-  await page.evaluate(() => window.inputDev.setLanguage('en'));
-};
-
-const checkLiveTasks = async (page) => {
-  // Code owns a real generated value and a working Generate command.
-  const codeValue = page.locator('#code [data-code-value]');
-  const firstCode = await codeValue.textContent();
-  assert.match(firstCode, /^[ABCDEGHKLMNPRTUWXY123469]{14}$/);
-  await page.locator('#code').getByRole('button', { name: 'Generate code' }).click();
-  await page.waitForFunction((previous) => document.querySelector('#code [data-code-value]').textContent !== previous, firstCode);
-  assert.match(await codeValue.textContent(), /^[ABCDEGHKLMNPRTUWXY123469]{14}$/);
-  assert.equal(await page.locator('#code [data-code-status]').textContent(), 'Generated');
-
-  // Date follows the global language and owns its format/picker.
-  await page.locator('#date input[type="date"]').fill('2026-03-21');
-  await page.locator('#date').getByRole('button', { name: 'DAY, DD MONTH YYYY' }).click();
-  await page.waitForFunction(() => document.querySelector('#date [data-date-result]').textContent === 'Saturday, 21 March 2026');
-  await page.evaluate(() => window.inputDev.setLanguage('id'));
-  await page.waitForFunction(() => document.querySelector('#date [data-date-result]').textContent === 'Sabtu, 21 Maret 2026');
-  await page.locator('#date').getByRole('button', { name: 'DD/MM/YYYY' }).click();
-  await page.waitForFunction(() => document.querySelector('#date [data-date-result]').textContent === '21/03/2026', null, { timeout: 2000 });
-  await page.evaluate(() => window.inputDev.setLanguage('en'));
-
-  // Time owns the HH:MM mask, range generate and 12h/24h rendering.
-  const fromInput = page.locator('#time input[aria-label="From time"]');
-  assert.equal(await fromInput.inputValue(), '08:00');
-  await fromInput.focus();
-  for (const digit of ['1', '4', '0', '0']) await page.keyboard.press(digit);
-  assert.equal(await fromInput.inputValue(), '14:00');
-  await page.keyboard.press('9');
-  assert.equal(await fromInput.inputValue(), '40:09', 'Overflowing digits shift and the colon stays fixed');
-  await page.keyboard.press('Escape');
-  assert.equal(await fromInput.inputValue(), '14:00');
-  await page.locator('#time').getByRole('button', { name: 'Generate time' }).click();
-  assert.match(await page.locator('#time [data-time-result]').textContent(), /^\d{2}:\d{2}$/);
-  await page.locator('#time').getByRole('button', { name: '12h' }).click();
-  assert.match(await page.locator('#time [data-time-result]').textContent(), /^(0[1-9]|1[0-2]):[0-5]\d (AM|PM)$/);
-  await page.locator('#time').getByRole('button', { name: '24h' }).click();
-  await page.screenshot({ path: path.join(artifacts, 'live-sections.png') });
-};
-
 try {
   const frame = await app.firstWindow();
   frame.on('pageerror', (error) => errors.push(error.message));
@@ -245,8 +124,6 @@ try {
   const frameBounds = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getBounds());
   let [input] = await Promise.all([app.waitForEvent('window'), frame.click('#orphanEdit')]);
   await checkInput(input, config.window, 'startup');
-  await checkLiveTasks(input);
-  await checkFoundation(input);
   const firstId = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()
     .find((win) => win.webContents.getURL().includes('/ui-control/view-built/index.html')).id);
   assert.deepEqual(await frame.evaluate(() => window.frameDev.snapshot()), before);
@@ -353,10 +230,8 @@ try {
   await Promise.all([inputClosed, frameClosed, processExited]);
   assert.equal(child.exitCode, 0);
   finished = true;
-  console.log(JSON.stringify({ pass: true, checked: ['real pencil toggles four-section frameless Input', 'shared MUI cards and scoped Input bootstrap',
-    'global language dropdown and independent locale layouts', 'keyboard/click collapse preserves selection and mounted content',
-    'live code generation, date formatting in both locales, and the HH:MM range generator',
-    'shared card preset updates all four headers', 'section parent percentages and sibling isolation', 'invalid UI section logged and isolated', 'development inspection', 'rapid-click parity with one live window',
+  console.log(JSON.stringify({ pass: true, checked: ['real pencil toggles empty frameless Input', 'no sections or task content',
+    'scoped Input bootstrap and no Frame/file/data/preview bridge', 'rapid-click parity with one live window',
     '40% Frame width at startup/minimum', 'full work-area height', 'Input right edge touches Frame left edge',
     'no native caption or Windows-Bar space', 'JSON geometry/background without sibling changes', 'isolated Input configuration failure',
     'black export with invalid Input', 'no Frame/file/data/preview bridge', 'Input close leaves Frame alive', 'Frame close closes Input'], artifacts }, null, 2));
