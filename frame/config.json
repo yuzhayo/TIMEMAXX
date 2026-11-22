@@ -31,7 +31,7 @@
       "typography": { "family": "\"Segoe UI\", system-ui, sans-serif", "weight": 400 },
       "content": { "direction": "row", "verticalAlign": "center", "horizontalAlign": "center", "textAlign": "center", "whiteSpace": "nowrap", "overflow": "hidden", "wrap": "nowrap" }
     },
-    "bar": { "preset": "base", "colors": { "background": "#171c22", "border": "#2b333d" }, "geometry": { "borderWidth": 1 } },
+    "bar": { "preset": "base", "colors": { "background": "#171c22" }, "geometry": { "borderWidth": 0 } },
     "button": {
       "preset": "base",
       "colors": { "background": "#1d252f", "border": "#43505f" },
