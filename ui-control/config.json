@@ -116,7 +116,7 @@
   "diagnostics": { "preset": "diagnostic", "height": 8 },
   "development": { "inspectionEnabled": false, "inspector": { "preset": "inspection", "zIndex": 10 } },
   "sections": [
-    { "id": "language", "componentId": "input.language", "parentId": "inputRoot", "folder": "language", "enabled": true, "expanded": true, "bounds": { "width": 100, "height": 24 }, "preset": "sectionCard", "parts": { "field": { "preset": "languageField" } } },
+    { "id": "language", "componentId": "input.language", "parentId": "inputRoot", "folder": "language", "enabled": true, "expanded": true, "bounds": { "width": 100, "height": 35 }, "sizing": "fixed", "preset": "sectionCard", "parts": { "field": { "preset": "languageField" } } },
     { "id": "code", "componentId": "input.code", "parentId": "inputRoot", "folder": "code", "enabled": true, "expanded": true, "bounds": { "width": 100, "height": 24 }, "preset": "sectionCard", "parts": {
       "field": { "preset": "codeField", "bounds": { "x": 0, "y": 0, "width": 100, "height": 34 } },
       "generate": { "preset": "primaryAction", "label": "Generate code", "bounds": { "x": 0, "y": 42, "width": 47, "height": 34 } },
