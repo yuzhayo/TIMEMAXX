@@ -247,7 +247,7 @@ frame/
   clicks. Closing Input leaves Frame running; closing Frame closes Input. Toggling
   Input does not change photo/history/inspection state.
 - `ui-control/config.json` owns the width/height percentages, their bases, placement,
-  native-frame flags, title metadata and background. On each opening Input uses 25%
+  native-frame flags, title metadata and background. On each opening Input uses 40%
   of current Frame width, 100% of the current monitor work-area height excluding
   the taskbar, work-area top alignment, and its right edge touching Frame's left
   boundary: `[ Input ][ Frame ]`. Computed bounds use native DIP; no stored manual
@@ -290,7 +290,7 @@ frame/
 ## Input screen verification
 
 `npm.cmd run test:input-screen` checks the window-only command and the real Electron
-pencil path: four frameless section cards, 25% width at Frame startup/minimum sizes,
+pencil path: four frameless section cards, 40% width at Frame startup/minimum sizes,
 full work-area height and adjoining-left bounds, JSON-driven geometry/background,
 global language, collapse state/content preservation, per-locale layouts, live
 code/date/time tasks, shared preset consumption, section isolation/logging,

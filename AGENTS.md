@@ -98,7 +98,7 @@ latest explicit decisions take precedence over older examples and historical tes
 - Action Bar contains one standalone/orphan Edit button with a pencil icon after
   Size. Its approved command toggles the Input screen in `ui-control/`:
   closed → open, open → close. Input is frameless with no caption, native controls,
-  title text or reserved Windows-Bar area. On each opening its width is 25% of
+  title text or reserved Windows-Bar area. On each opening its width is 40% of
   current Frame width, height is the full current monitor work area excluding the
   taskbar, and its right edge touches Frame's left edge: `[ Input ][ Frame ]`.
   Input contains Language plus live Code, Date and Time tasks. They share

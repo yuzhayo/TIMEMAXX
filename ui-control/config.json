@@ -5,7 +5,7 @@
     "units": "DIP",
     "frame": false,
     "thickFrame": false,
-    "width": { "base": "frame", "percent": 25 },
+    "width": { "base": "frame", "percent": 40 },
     "height": { "base": "workArea", "percent": 100 },
     "placement": { "x": "beforeFrame", "y": "workAreaStart" },
     "background": "#111418"

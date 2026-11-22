@@ -45,20 +45,20 @@ test('Input capability is absent when its host transport is unavailable', () => 
 });
 
 test('Input bounds use Frame width and monitor work area, adjoining its left boundary', () => {
-  const settings = { width: { base: 'frame', percent: 25 }, height: { base: 'workArea', percent: 100 },
+  const settings = { width: { base: 'frame', percent: 40 }, height: { base: 'workArea', percent: 100 },
     placement: { x: 'beforeFrame', y: 'workAreaStart' } };
   const frame = { x: 1626, y: 240, width: 934, height: 960 };
   const area = { x: 0, y: 0, width: 2560, height: 1366 };
-  assert.deepEqual(inputScreen.inputWindowBounds(frame, area, settings), { x: 1392, y: 0, width: 234, height: 1366 });
+  assert.deepEqual(inputScreen.inputWindowBounds(frame, area, settings), { x: 1252, y: 0, width: 374, height: 1366 });
   assert.deepEqual(inputScreen.inputWindowBounds({ ...frame, x: 1800, width: 760 }, area, settings),
-    { x: 1610, y: 0, width: 190, height: 1366 });
+    { x: 1496, y: 0, width: 304, height: 1366 });
   assert.deepEqual(inputScreen.inputWindowBounds({ x: -934, y: 40, width: 934, height: 960 },
-    { x: -2560, y: -40, width: 2560, height: 1400 }, settings), { x: -1168, y: -40, width: 234, height: 1400 });
+    { x: -2560, y: -40, width: 2560, height: 1400 }, settings), { x: -1308, y: -40, width: 374, height: 1400 });
 });
 
 test('Input never invents another position when there is no room beside Frame', () => {
   assert.throws(() => inputScreen.inputWindowBounds({ x: 100, y: 0, width: 934, height: 960 },
-    { x: 0, y: 0, width: 2560, height: 1366 }, { width: { base: 'frame', percent: 25 },
+    { x: 0, y: 0, width: 2560, height: 1366 }, { width: { base: 'frame', percent: 40 },
       height: { base: 'workArea', percent: 100 }, placement: { x: 'beforeFrame', y: 'workAreaStart' } }), /room.*left.*Frame/i);
 });
 

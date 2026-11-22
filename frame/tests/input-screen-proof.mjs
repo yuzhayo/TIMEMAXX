@@ -357,7 +357,7 @@ try {
     'global language dropdown and independent locale layouts', 'keyboard/click collapse preserves selection and mounted content',
     'live code generation, date formatting in both locales, and the HH:MM range generator',
     'shared card preset updates all four headers', 'section parent percentages and sibling isolation', 'invalid UI section logged and isolated', 'development inspection', 'rapid-click parity with one live window',
-    '25% Frame width at startup/minimum', 'full work-area height', 'Input right edge touches Frame left edge',
+    '40% Frame width at startup/minimum', 'full work-area height', 'Input right edge touches Frame left edge',
     'no native caption or Windows-Bar space', 'JSON geometry/background without sibling changes', 'isolated Input configuration failure',
     'black export with invalid Input', 'no Frame/file/data/preview bridge', 'Input close leaves Frame alive', 'Frame close closes Input'], artifacts }, null, 2));
 } finally {
