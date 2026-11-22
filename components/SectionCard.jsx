@@ -17,7 +17,7 @@ export default function SectionCard({ config, expanded, onExpandedChange, childr
     slotProps={{ transition: { timeout: config.animation.durationMs, unmountOnExit: false } }}
     sx={{ ...fill, ...configuredSx(config), position: 'relative', '&::before': { display: 'none' },
       '&.Mui-expanded': { margin: 0 }, margin: 0,
-      '& .MuiAccordion-heading': { margin: 0, padding: 0, width: '100%', height: expanded ? `${header.bounds.height}%` : '100%', flexShrink: 0 },
+      '& .MuiAccordion-heading': { margin: 0, padding: 0, width: '100%', height: expanded ? `${header.resolvedHeightPercent ?? header.bounds.height}%` : '100%', flexShrink: 0 },
       '& .MuiCollapse-root': { flex: expanded ? '1 1 0' : '0 0 0', minHeight: 0, width: '100%' },
       '& .MuiCollapse-wrapper, & .MuiCollapse-wrapperInner': { width: '100%', height: '100%' },
       '& .MuiAccordion-region': { ...fill, containerType: 'size' },

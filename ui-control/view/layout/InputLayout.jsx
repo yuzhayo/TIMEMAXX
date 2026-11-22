@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState, useSyncExternalSto
 import Box from '@mui/material/Box';
 import { configuredSx, fill } from '@ui/appearance.mjs';
 import { diagnosticSummary } from '@ui/LayoutDiagnostics.mjs';
-import { compactHeightPercent } from '@input/logic/CompactLayout.mjs';
+import { compactDetailsPercent, resolveCompactLayout } from '@input/logic/CompactLayout.mjs';
 
 // LOGIC — an isolated section render failure never removes valid siblings.
 class SectionBoundary extends React.Component {
@@ -31,15 +31,6 @@ function measureCompact(wrapper, node, stackHeight) {
   const previousHeight = wrapper.style.height;
   wrapper.style.height = `${node.bounds.height}%`;
   try {
-    const headerFraction = node.parts.header.bounds.height / 100;
-    const title = wrapper.querySelector('[data-section-title]');
-    const titleStyle = title ? getComputedStyle(title) : null;
-    const fontSize = titleStyle ? parseFloat(titleStyle.fontSize) : 12;
-    const lineHeight = titleStyle && titleStyle.lineHeight !== 'normal' ? parseFloat(titleStyle.lineHeight) : NaN;
-    const textHeight = Number.isFinite(lineHeight) && lineHeight > 0 ? lineHeight : (Number.isFinite(fontSize) && fontSize > 0 ? fontSize * 1.3 : 0);
-    const iconFraction = node.parts.header.parts?.icon?.bounds?.height / 100 || 1;
-    const minHeaderPx = textHeight > 0 ? textHeight / iconFraction : 0;
-    const minCardPx = minHeaderPx > 0 ? minHeaderPx / headerFraction : 0;
     const heights = parts.map((part) => {
       const style = getComputedStyle(part);
       const box = ['paddingTop', 'paddingBottom', 'borderTopWidth', 'borderBottomWidth']
@@ -52,15 +43,21 @@ function measureCompact(wrapper, node, stackHeight) {
           range.selectNode(node);
           measured.push(range.getBoundingClientRect().height);
         } else if (node.nodeType === Node.ELEMENT_NODE) {
-          if (node.matches('input, textarea, select')) measured.push(node.getBoundingClientRect().height);
+          if (node.matches('input, textarea, select')) {
+            const control = getComputedStyle(node);
+            const size = parseFloat(control.fontSize);
+            const leading = parseFloat(control.lineHeight);
+            measured.push(Number.isFinite(leading) && leading > 0 ? leading : (Number.isFinite(size) && size > 0 ? size * 1.3 : 0));
+          }
           Array.from(node.childNodes).forEach(visit);
         }
       };
       visit(part);
-      const content = measured.length ? Math.max(...measured) : part.getBoundingClientRect().height;
+      const content = measured.length ? Math.max(...measured) : 0;
+      if (!measured.length) return 0;
       return content + box;
     });
-    return compactHeightPercent({ heights, fractions, headerFraction, stackHeight, minCardPx });
+    return compactDetailsPercent({ heights, fractions, stackHeight });
   } finally {
     wrapper.style.height = previousHeight;
   }
@@ -93,7 +90,7 @@ export default function InputLayout({ plan, session, diagnostics, development })
       const wrapper = wrappers.current.get(node.id);
       if (!wrapper) continue;
       const measured = measureCompact(wrapper, node, stackHeight);
-      if (measured !== null) next[node.id] = Math.min(node.bounds.height, measured);
+      if (measured !== null) next[node.id] = measured;
     }
     setCompact((current) => {
       const ids = new Set([...Object.keys(current), ...Object.keys(next)]);
@@ -112,14 +109,20 @@ export default function InputLayout({ plan, session, diagnostics, development })
       display: 'flex', flexDirection: 'column', alignItems: 'flex-start', rowGap: layout ? `${layout.gapY}%` : undefined, overflow: 'auto', containerType: 'size' }}>
       {layout?.sections.map((node) => {
         const Component = node.Component;
-        const base = node.sizing === 'fixed' ? node.bounds.height : (compact[node.id] ?? node.bounds.height);
-        const height = state.expanded[node.id] ? base : base * node.parts.header.bounds.height / 100;
+        const headerFraction = node.parts.header.bounds.height / 100;
+        const detailsPercent = node.sizing === 'fixed'
+          ? node.bounds.height * (1 - headerFraction)
+          : (compact[node.id] ?? node.bounds.height * (1 - headerFraction));
+        const resolved = resolveCompactLayout({ boundsHeight: node.bounds.height, headerFraction, detailsPercent });
+        const height = state.expanded[node.id] ? resolved.cardPercent : resolved.collapsedPercent;
+        const view = { ...node, parts: { ...node.parts,
+          header: { ...node.parts.header, resolvedHeightPercent: resolved.headerPercentOfCard } } };
         return <Box key={node.id} ref={(element) => { if (element) wrappers.current.set(node.id, element); else wrappers.current.delete(node.id); }}
           data-instance={node.id} data-component={node.componentId} data-parent={node.parentId} data-source={node.filePath}
           data-compact={node.sizing === 'fixed' ? 'false' : 'true'}
           sx={{ width: `${node.bounds.width}%`, height: `${height}%`, minWidth: 0, minHeight: 0, flexShrink: 0, position: 'relative', containerType: 'size' }}>
-          <SectionBoundary node={node} diagnostics={diagnostics}>
-            <Component config={node} state={state} actions={session} languages={plan.languages} />
+          <SectionBoundary node={view} diagnostics={diagnostics}>
+            <Component config={view} state={state} actions={session} languages={plan.languages} />
           </SectionBoundary>
           {development && state.inspection && plan.development && <Box aria-hidden="true" data-inspection={node.id}
             sx={{ ...fill, ...configuredSx(plan.development.inspector), position: 'absolute', left: 0, top: 0,
