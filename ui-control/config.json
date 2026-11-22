@@ -116,14 +116,14 @@
   "diagnostics": { "preset": "diagnostic", "height": 8 },
   "development": { "inspectionEnabled": false, "inspector": { "preset": "inspection", "zIndex": 10 } },
   "sections": [
-    { "id": "language", "componentId": "input.language", "parentId": "inputRoot", "folder": "language", "enabled": true, "expanded": true, "bounds": { "width": 100, "height": 14 }, "preset": "sectionCard", "parts": { "field": { "preset": "languageField" } } },
-    { "id": "code", "componentId": "input.code", "parentId": "inputRoot", "folder": "code", "enabled": true, "expanded": true, "bounds": { "width": 100, "height": 18 }, "preset": "sectionCard", "parts": {
+    { "id": "language", "componentId": "input.language", "parentId": "inputRoot", "folder": "language", "enabled": true, "expanded": true, "bounds": { "width": 100, "height": 24 }, "preset": "sectionCard", "parts": { "field": { "preset": "languageField" } } },
+    { "id": "code", "componentId": "input.code", "parentId": "inputRoot", "folder": "code", "enabled": true, "expanded": true, "bounds": { "width": 100, "height": 24 }, "preset": "sectionCard", "parts": {
       "field": { "preset": "codeField", "bounds": { "x": 0, "y": 0, "width": 100, "height": 34 } },
       "generate": { "preset": "primaryAction", "label": "Generate code", "bounds": { "x": 0, "y": 42, "width": 47, "height": 34 } },
       "copy": { "preset": "secondaryAction", "label": "Copy code", "bounds": { "x": 53, "y": 42, "width": 47, "height": 34 } },
       "status": { "preset": "captionText", "bounds": { "x": 0, "y": 82, "width": 100, "height": 18 } }
     } },
-    { "id": "date", "componentId": "input.date", "parentId": "inputRoot", "folder": "date", "enabled": true, "expanded": true, "bounds": { "width": 100, "height": 26 }, "preset": "sectionCard", "parts": {
+    { "id": "date", "componentId": "input.date", "parentId": "inputRoot", "folder": "date", "enabled": true, "expanded": true, "bounds": { "width": 100, "height": 24 }, "preset": "sectionCard", "parts": {
       "field": { "preset": "timeField", "label": "Choose date", "bounds": { "x": 0, "y": 4, "width": 100, "height": 18 } },
       "numeric": { "preset": "choice", "label": "DD/MM/YYYY", "bounds": { "x": 0, "y": 26, "width": 100, "height": 14 } },
       "dayName": { "preset": "choice", "label": "DAY, DD MONTH YYYY", "bounds": { "x": 0, "y": 42, "width": 100, "height": 14 } },
@@ -132,7 +132,7 @@
       "copy": { "preset": "secondaryAction", "label": "Copy date", "bounds": { "x": 0, "y": 93, "width": 40, "height": 7 } },
       "status": { "preset": "captionText", "bounds": { "x": 42, "y": 93, "width": 58, "height": 7 } }
     } },
-    { "id": "time", "componentId": "input.time", "parentId": "inputRoot", "folder": "time", "enabled": true, "expanded": true, "bounds": { "width": 100, "height": 26 }, "preset": "sectionCard", "parts": {
+    { "id": "time", "componentId": "input.time", "parentId": "inputRoot", "folder": "time", "enabled": true, "expanded": true, "bounds": { "width": 100, "height": 24 }, "preset": "sectionCard", "parts": {
       "fromLabel": { "preset": "captionText", "label": "From", "bounds": { "x": 0, "y": 0, "width": 45, "height": 10 } },
       "toLabel": { "preset": "captionText", "label": "To", "bounds": { "x": 55, "y": 0, "width": 45, "height": 10 } },
       "from": { "preset": "timeField", "label": "From time", "bounds": { "x": 0, "y": 12, "width": 45, "height": 18 } },
