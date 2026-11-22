@@ -97,7 +97,8 @@ export function validateInputConfig(raw, catalog, diagnostics) {
     if (instanceCounts.get(source?.id) > 1) { report('INPUT_DUPLICATE_INSTANCE', `${path}.id`, 'unique instance ID', source?.id, origin); continue; }
     if (!object(source) || !name(source.id) || source.id === root?.id || !name(source.componentId) || source.parentId !== root?.id
       || typeof source.folder !== 'string' || !source.folder || typeof source.enabled !== 'boolean' || typeof source.expanded !== 'boolean'
-      || !percent(source.bounds?.width) || !percent(source.bounds?.height)) { report('INPUT_SECTION_INVALID', path, 'valid identity/parent/folder/enabling/bounds', source, origin); continue; }
+      || (source.sizing !== undefined && !['content', 'fixed'].includes(source.sizing))
+      || !percent(source.bounds?.width) || !percent(source.bounds?.height)) { report('INPUT_SECTION_INVALID', path, 'valid identity/parent/folder/enabling/bounds/sizing', source, origin); continue; }
     const matches = catalog.filter((entry) => entry.componentId === source.componentId);
     if (matches.length > 1) continue;
     const entry = matches[0];

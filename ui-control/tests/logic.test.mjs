@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { ALPHABET, LENGTH, MAX_ENCODABLE, encode, decode, newCode, isValidCode } from '../logic/CodeLogic.mjs';
 import { DAYS, MONTHS, today, toIso, fromIso, formatDate, FORMATS } from '../logic/DateLogic.mjs';
 import { maskDigits, digitsFromText, typeDigit, backspaceDigits, parseDigits, pickTime, renderTime } from '../logic/TimeLogic.mjs';
+import { compactHeightPercent } from '../logic/CompactLayout.mjs';
 
 test('code: encoding is a padded base-24 big-endian value', () => {
   assert.equal(ALPHABET.length, 24);
@@ -97,6 +98,15 @@ test('time: the HH:MM mask skips the colon and shifts overflowing digits', () =>
   assert.equal(parseDigits('2459'), null);
   assert.equal(parseDigits('1260'), null);
   assert.equal(parseDigits('13'), null);
+});
+
+test('compact layout: content height is solved from measured slots and a parent percentage', () => {
+  const sized = compactHeightPercent({ heights: [80, 40, 20], fractions: [40, 40, 20], headerFraction: 0.1, stackHeight: 1000 });
+  assert.equal(sized.toFixed(2), '22.22');
+  assert.equal(compactHeightPercent({ heights: [90, 45, 18], fractions: [40, 40, 20], headerFraction: 0.1, stackHeight: 1000 }).toFixed(2), '25.00');
+  assert.equal(compactHeightPercent({ heights: [0], fractions: [0], headerFraction: 0.1, stackHeight: 1000 }), null);
+  assert.equal(compactHeightPercent({ heights: [10], fractions: [50], headerFraction: 1, stackHeight: 1000 }), null);
+  assert.equal(compactHeightPercent({ heights: [10], fractions: [50], headerFraction: 0.1, stackHeight: 0 }), null);
 });
 
 test('time: range generation normalises reversed bounds and renders both clocks', () => {
