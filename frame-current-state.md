@@ -259,13 +259,21 @@ frame/
   JSON supplies stable instance/component IDs, assigned folders, parent, bounds,
   labels, presets and enabled/expanded state. No manual section import registry.
 - All four use the shared MUI SectionCard. Headers support click/keyboard collapse;
-  content stays mounted. Language is one global English/Indonesia selector; both
-  locales have independent order/appearance/label configuration. Current defaults
-  use the approved Language → Code → Date → Time order; detailed generator layouts
-  and format rules per language are not claimed or implemented yet.
-- Code/Date/Time currently contain card foundations only. No fake data or disabled
-  generator fields. LongLat and other data sections are deferred. There is no
-  generator behavior, persistence, photo preview, engine or overlay integration.
+  content and local task state stay mounted. Language is one global
+  English/Indonesia selector and drives date naming; both locales have independent
+  order/appearance/label configuration. Current defaults use the approved
+  Language → Code → Date → Time order.
+- Code, Date and Time now run live tasks ported from the WinForms reference. Each
+  task has one pure owner in `ui-control/logic/` — `CodeLogic.mjs` (24-symbol,
+  14-character padded base-24 encode/decode and rejection sampling below
+  `21 × 24¹³`), `DateLogic.mjs` (en/id weekday/month names and three fixed formats)
+  and `TimeLogic.mjs` (fixed HH:MM mask, inclusive range pick, 24h/12h render).
+  Those modules import no React, DOM, renderer, Frame, file or overlay API; the
+  section adapters own only local values and configured MUI rendering. Code
+  starts with a generated identifier, Date starts with today, Time starts with a
+  picked minute; Generate/Copy/format/clock controls update the same card.
+  LongLat and other data sections remain deferred. There is no persistence,
+  photo preview, engine or overlay integration.
 - Input's scoped preload exposes only config bootstrap and diagnostic delivery,
   never Frame commands or filesystem/Node access. Its local diagnostic outlet is
   visible only for issues; development inspection is off in normal use.
@@ -284,10 +292,12 @@ frame/
 `npm.cmd run test:input-screen` checks the window-only command and the real Electron
 pencil path: four frameless section cards, 25% width at Frame startup/minimum sizes,
 full work-area height and adjoining-left bounds, JSON-driven geometry/background,
-global language, collapse state/content preservation, per-locale layouts, shared
-preset consumption, section isolation/logging, toggle parity during rapid clicks,
-unchanged Frame state, failure isolation and
+global language, collapse state/content preservation, per-locale layouts, live
+code/date/time tasks, shared preset consumption, section isolation/logging,
+toggle parity during rapid clicks, unchanged Frame state, failure isolation and
 parent-window cleanup. Artifacts stay in ignored `frame/.runtime/checks/input-screen/`.
 
-Input's pure config/state/catalog checks run with `npm.cmd run test:contract` from
-`ui-control/`. Dependencies, built renderer and local logs stay ignored there.
+From `ui-control/`, `npm.cmd test` runs both the config/state/catalog contract
+checks and the pure code/date/time logic checks. `npm.cmd run test:logic` runs only
+the ported generator rules. Dependencies, built renderer and local logs stay
+ignored there.

@@ -101,11 +101,15 @@ latest explicit decisions take precedence over older examples and historical tes
   title text or reserved Windows-Bar area. On each opening its width is 25% of
   current Frame width, height is the full current monitor work area excluding the
   taskbar, and its right edge touches Frame's left edge: `[ Input ][ Frame ]`.
-  Input currently contains Language, Code, Date and Time card foundations. They
-  share `components/SectionCard.jsx`; headers expand/collapse independently without
-  resetting selection. Language is the one global English/Indonesia choice.
-  Layouts/labels/visuals are configured separately per locale. Generator/date/time
-  business controls, LongLat and other data sections remain deferred.
+  Input contains Language plus live Code, Date and Time tasks. They share
+  `components/SectionCard.jsx`; headers expand/collapse independently without
+  resetting selection or local task state. Language is the one global
+  English/Indonesia choice and drives date naming. Code generates a 14-character
+  base-24 identifier, Date formats the chosen day in three patterns, and Time
+  picks a minute in an editable HH:MM range with a 24h/12h result. Each task has
+  one pure, UI-agnostic owner in `ui-control/logic/`; its section adapter only
+  renders configured parts. Layouts/labels/visuals are configured separately per
+  locale. LongLat and other data sections remain deferred.
 - Startup and vertical maximize use the approved narrow configured width, full
   monitor work-area height excluding the taskbar, and right alignment. Restore
   returns to previous bounds. Native geometry is not photo or section-layout logic.
@@ -186,8 +190,10 @@ No separate inspection framework/service is needed.
   adjoining-left placement, native-frame flags and background; computed native
   bounds use DIP. Its title is metadata only, never rendered. It has
   only a scoped config/diagnostic preload, a global language selector and four
-  discovered section adapters. Code/Date/Time bodies remain intentionally empty;
-  no generation, data persistence, preview, Frame/file bridge, engine or overlay.
+  discovered section adapters. Code/Date/Time own their values and local task
+  state; pure rules live in `ui-control/logic/` and never import React, Frame,
+  file or overlay APIs. No data persistence, preview, Frame/file bridge, engine
+  or overlay.
   Each section exports a filename-independent ID and is assigned by JSON folder/
   parent. Shared catalog/diagnostic owners live in `components/`; Frame's old paths
   are compatibility reexports, not duplicated implementations.

@@ -5,13 +5,15 @@ import { validateInputConfig } from '../logic/InputConfig.mjs';
 import { createInputSession } from '../logic/InputSession.mjs';
 import { createDiagnostics } from '../../components/LayoutDiagnostics.mjs';
 import { discoverComponents } from '../../components/ComponentDiscovery.mjs';
-import { validateSectionCard } from '../../components/SectionCardConfig.mjs';
 import { validateLanguageConfig } from '../view/sections/language/LanguageConfig.mjs';
+import { validateCodeConfig } from '../view/sections/code/CodeConfig.mjs';
+import { validateDateConfig } from '../view/sections/date/DateConfig.mjs';
+import { validateTimeConfig } from '../view/sections/time/TimeConfig.mjs';
 
 const raw = JSON.parse(fs.readFileSync(new URL('../config.json', import.meta.url), 'utf8'));
+const validators = { language: validateLanguageConfig, code: validateCodeConfig, date: validateDateConfig, time: validateTimeConfig };
 const catalog = raw.sections.map((node) => ({ componentId: node.componentId, folder: node.folder,
-  filePath: `${node.folder}/${node.id}Section.jsx`, Component() {},
-  validateConfig: node.id === 'language' ? validateLanguageConfig : validateSectionCard }));
+  filePath: `${node.folder}/${node.id}Section.jsx`, Component() {}, validateConfig: validators[node.id] }));
 const validate = (config = structuredClone(raw), modules = catalog) => {
   const diagnostics = createDiagnostics();
   return { plan: validateInputConfig(config, modules, diagnostics), issues: diagnostics.getSnapshot() };
