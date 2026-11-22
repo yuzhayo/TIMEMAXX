@@ -15,7 +15,7 @@
   "presets": {
     "base": {
       "colors": { "background": "transparent", "foreground": "#e4e9ef", "border": "transparent", "outline": "transparent" },
-      "geometry": { "paddingX": 0, "paddingY": 0, "gap": 0, "radius": 0, "borderWidth": 0, "borderStyle": "solid", "outlineWidth": 0, "outlineStyle": "solid", "outlineOffset": 0, "fontSize": 14, "lineHeight": 1.3, "letterSpacing": 0, "opacity": 1, "shadow": "none", "transition": "none" },
+      "geometry": { "paddingX": 0, "paddingY": 0, "gap": 0, "radius": 0, "borderWidth": 0, "borderStyle": "solid", "outlineWidth": 0, "outlineStyle": "solid", "outlineOffset": 0, "fontSize": 11, "lineHeight": 1.3, "letterSpacing": 0, "opacity": 1, "shadow": "none", "transition": "none" },
       "typography": { "family": "\"Segoe UI\", system-ui, sans-serif", "weight": 400 },
       "content": { "direction": "row", "verticalAlign": "center", "horizontalAlign": "flex-start", "textAlign": "left", "whiteSpace": "normal", "overflow": "hidden", "wrap": "nowrap", "overflowWrap": "normal" },
       "states": {}
@@ -28,13 +28,13 @@
         "hover": { "colors": { "background": "#303d4c" } },
         "focusVisible": { "colors": { "outline": "#ffc44d" }, "geometry": { "outlineWidth": 1 } }
       },
-      "bounds": { "width": 100, "height": 20 },
+      "bounds": { "width": 100, "height": 10 },
       "parts": {
         "title": { "preset": "base", "bounds": { "width": 82, "height": 100 }, "typography": { "weight": 600 } },
         "icon": { "preset": "base", "bounds": { "width": 12, "height": 60 }, "name": "expandMore", "rotation": { "closed": 0, "open": 180 } }
       }
     },
-    "sectionDetails": { "preset": "base", "geometry": { "paddingX": 5, "paddingY": 6 }, "content": { "direction": "column", "verticalAlign": "flex-start", "horizontalAlign": "stretch" } },
+    "sectionDetails": { "preset": "base", "geometry": { "paddingX": 2, "paddingY": 2 }, "content": { "direction": "column", "verticalAlign": "flex-start", "horizontalAlign": "stretch" } },
     "sectionCard": {
       "preset": "base", "colors": { "background": "#171c22", "border": "#43505f" },
       "geometry": { "borderWidth": 1, "radius": 6 }, "content": { "direction": "column", "verticalAlign": "flex-start", "horizontalAlign": "stretch" },
