@@ -59,14 +59,14 @@ export class SideTextCalibration {
     this.state = normalizeCalibrationState(null); this.layers = new Map();
     this.locked = new Set(config.lockedGroups ?? []);
     this.selected = GROUP_IDS.find((id) => !this.locked.has(id)) ?? null;
-    this.action = null; this.hitRegions = []; this.controlsVisible = true; this.hideTimer = null;
+    this.action = null; this.hitRegions = []; this.saveTimer = null;
     this.resize = new ResizeObserver(() => this.draw()); this.resize.observe(canvas.parentElement);
     this.down = (event) => this.pointerDown(event); this.move = (event) => this.pointerMove(event);
-    this.up = (event) => this.pointerUp(event);
+    this.up = (event) => this.pointerUp(event); this.key = (event) => this.keyDown(event);
     canvas.addEventListener('pointerdown', this.down); canvas.addEventListener('pointermove', this.move);
     canvas.addEventListener('pointerup', this.up); canvas.addEventListener('pointercancel', this.up);
-    Promise.resolve(load()).then((value) => { this.state = normalizeCalibrationState(value); this.draw();
-      this.scheduleHide(); }).catch(onError);
+    canvas.addEventListener('keydown', this.key);
+    Promise.resolve(load()).then((value) => { this.state = normalizeCalibrationState(value); this.draw(); }).catch(onError);
   }
 
   async setLayers(layers) {
@@ -114,42 +114,11 @@ export class SideTextCalibration {
         box.width * geometry.scale, box.height * geometry.scale);
       context.restore();
 
-      const frameCorners = cornersOf(box), corners = frameCorners.map((point) => this.screenPoint(point, geometry));
+      const frameCorners = cornersOf(box);
       if (!locked) {
         this.hitRegions.push({ id, box, frameCorners });
-        if (this.controlsVisible && id === this.selected) {
-          context.save(); context.strokeStyle = this.config.selectedOutline;
-          context.lineWidth = this.config.lineWidth; context.beginPath(); context.moveTo(corners[0].x, corners[0].y);
-          for (let index = 1; index < corners.length; index++) context.lineTo(corners[index].x, corners[index].y);
-          context.closePath(); context.stroke(); context.restore();
-          this.drawHandles(context, box, geometry);
-        }
       }
     }
-  }
-
-  drawHandles(context, box, geometry) {
-    const local = [
-      ['nw', -1, -1], ['n', 0, -1], ['ne', 1, -1], ['e', 1, 0],
-      ['se', 1, 1], ['s', 0, 1], ['sw', -1, 1], ['w', -1, 0],
-    ];
-    this.hitRegions = this.hitRegions.filter((entry) => entry.type !== 'handle');
-    for (const [name, sx, sy] of local) {
-      const rotated = rotate(sx * box.width / 2, sy * box.height / 2, box.rotation);
-      const frame = { x: box.cx + rotated.x, y: box.cy + rotated.y }, screen = this.screenPoint(frame, geometry);
-      this.handle(context, screen); this.hitRegions.push({ type: 'handle', id: this.selected, name, screen });
-    }
-    const offset = this.config.rotationHandleOffset / geometry.scale;
-    const rotated = rotate(0, -box.height / 2 - offset, box.rotation);
-    const frame = { x: box.cx + rotated.x, y: box.cy + rotated.y }, screen = this.screenPoint(frame, geometry);
-    this.handle(context, screen); this.hitRegions.push({ type: 'handle', id: this.selected, name: 'rotate', screen });
-  }
-
-  handle(context, point) {
-    context.save(); context.fillStyle = this.config.handleFill; context.strokeStyle = this.config.handleStroke;
-    context.lineWidth = this.config.lineWidth; context.beginPath();
-    context.rect(point.x - this.config.handleSize / 2, point.y - this.config.handleSize / 2,
-      this.config.handleSize, this.config.handleSize); context.fill(); context.stroke(); context.restore();
   }
 
   hitGroup(point, region) {
@@ -157,60 +126,24 @@ export class SideTextCalibration {
     return Math.abs(local.x) <= region.box.width / 2 && Math.abs(local.y) <= region.box.height / 2;
   }
 
-  showControls() {
-    clearTimeout(this.hideTimer); this.hideTimer = null;
-    if (!this.controlsVisible) { this.controlsVisible = true; this.draw(); }
-  }
-
-  scheduleHide() {
-    clearTimeout(this.hideTimer);
-    this.hideTimer = setTimeout(() => {
-      if (this.action) return;
-      this.controlsVisible = false; this.draw();
-    }, this.config.autoHideMs);
-  }
-
   pointerDown(event) {
     const frame = this.framePoint(event); if (!frame) return;
-    const radius = this.config.handleSize;
-    const handle = [...this.hitRegions].reverse().find((entry) => entry.type === 'handle'
-      && Math.hypot(event.offsetX - entry.screen.x, event.offsetY - entry.screen.y) <= radius);
-    let id = handle?.id, mode = handle?.name;
-    if (!id) {
-      const group = [...this.hitRegions].reverse().find((entry) => !entry.type && this.hitGroup(frame, entry));
-      if (!group) return; id = group.id; mode = 'move';
-    }
-    this.showControls();
-    this.selected = id;
+    const group = [...this.hitRegions].reverse().find((entry) => this.hitGroup(frame, entry));
+    if (!group) return;
+    this.selected = group.id; this.canvas.focus({ preventScroll: true });
+    const id = group.id;
     const layer = this.layers.get(id), start = { ...this.state.groups[id] }, box = transformedGroupBox(layer.source, start);
-    this.action = { pointerId: event.pointerId, id, mode, start, startPoint: frame, box, source: layer.source,
-      startAngle: Math.atan2(frame.y - box.cy, frame.x - box.cx) };
+    this.action = { pointerId: event.pointerId, id, start, startPoint: frame, box, source: layer.source };
     this.canvas.setPointerCapture(event.pointerId); event.preventDefault(); this.draw();
   }
 
   pointerMove(event) {
     const action = this.action;
-    if (!action) {
-      const point = this.framePoint(event);
-      const group = point && [...this.hitRegions].reverse().find((entry) => !entry.type && this.hitGroup(point, entry));
-      if (group) { this.selected = group.id; this.showControls(); this.scheduleHide(); }
-      return;
-    }
+    if (!action) return;
     if (action.pointerId !== event.pointerId) return;
     const point = this.framePoint(event); if (!point) return;
     const next = { ...action.start };
-    if (action.mode === 'move') {
-      next.x += point.x - action.startPoint.x; next.y += point.y - action.startPoint.y;
-    } else if (action.mode === 'rotate') {
-      const angle = Math.atan2(point.y - action.box.cy, point.x - action.box.cx);
-      next.rotation += (angle - action.startAngle) * 180 / Math.PI;
-    } else {
-      const delta = rotate(point.x - action.startPoint.x, point.y - action.startPoint.y, -action.box.rotation);
-      if (action.mode.includes('e')) next.scaleX = Math.max(0.05, action.start.scaleX + 2 * delta.x / action.source.width);
-      if (action.mode.includes('w')) next.scaleX = Math.max(0.05, action.start.scaleX - 2 * delta.x / action.source.width);
-      if (action.mode.includes('s')) next.scaleY = Math.max(0.05, action.start.scaleY + 2 * delta.y / action.source.height);
-      if (action.mode.includes('n')) next.scaleY = Math.max(0.05, action.start.scaleY - 2 * delta.y / action.source.height);
-    }
+    next.x += point.x - action.startPoint.x; next.y += point.y - action.startPoint.y;
     this.state.groups[action.id] = next; this.draw(); event.preventDefault();
   }
 
@@ -218,12 +151,24 @@ export class SideTextCalibration {
     if (!this.action || this.action.pointerId !== event.pointerId) return;
     this.canvas.releasePointerCapture?.(event.pointerId); this.action = null;
     Promise.resolve(this.saveState(this.state)).catch(this.onError); this.draw();
-    this.scheduleHide();
+  }
+
+  keyDown(event) {
+    if (!this.selected || this.locked.has(this.selected)) return;
+    const directions = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+    const direction = directions[event.key]; if (!direction) return;
+    const step = event.shiftKey ? this.config.keyboardStepFast : this.config.keyboardStep;
+    const group = this.state.groups[this.selected]; group.x += direction[0] * step; group.y += direction[1] * step;
+    clearTimeout(this.saveTimer); this.saveTimer = setTimeout(() => {
+      Promise.resolve(this.saveState(this.state)).catch(this.onError);
+    }, 80);
+    this.draw(); event.preventDefault();
   }
 
   dispose() {
-    clearTimeout(this.hideTimer); this.resize.disconnect(); this.canvas.removeEventListener('pointerdown', this.down);
+    clearTimeout(this.saveTimer); this.resize.disconnect(); this.canvas.removeEventListener('pointerdown', this.down);
     this.canvas.removeEventListener('pointermove', this.move); this.canvas.removeEventListener('pointerup', this.up);
-    this.canvas.removeEventListener('pointercancel', this.up); this.layers.clear();
+    this.canvas.removeEventListener('pointercancel', this.up); this.canvas.removeEventListener('keydown', this.key);
+    this.layers.clear();
   }
 }

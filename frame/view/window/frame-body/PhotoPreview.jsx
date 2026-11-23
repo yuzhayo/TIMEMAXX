@@ -37,8 +37,7 @@ export function validateConfig(config, report) {
   }
   if (config.calibration !== undefined) {
     const calibration = config.calibration;
-    const keys = ['enabled', 'lockedGroups', 'opacity', 'autoHideMs', 'outline', 'selectedOutline', 'handleFill', 'handleStroke',
-      'handleSize', 'rotationHandleOffset', 'lineWidth'];
+    const keys = ['enabled', 'lockedGroups', 'opacity', 'keyboardStep', 'keyboardStepFast'];
     if (!calibration || typeof calibration !== 'object' || Array.isArray(calibration)) {
       report('calibration', 'configured calibration object', calibration); valid = false;
     } else {
@@ -52,15 +51,7 @@ export function validateConfig(config, report) {
       if (!Number.isFinite(calibration.opacity) || calibration.opacity <= 0 || calibration.opacity > 1) {
         report('calibration.opacity', 'number above 0 through 1', calibration.opacity); valid = false;
       }
-      if (!Number.isFinite(calibration.autoHideMs) || calibration.autoHideMs < 0) {
-        report('calibration.autoHideMs', 'non-negative milliseconds', calibration.autoHideMs); valid = false;
-      }
-      for (const key of ['outline', 'selectedOutline', 'handleFill', 'handleStroke']) {
-        if (typeof calibration[key] !== 'string' || !/^#[0-9a-f]{6}$/i.test(calibration[key])) {
-          report(`calibration.${key}`, '#RRGGBB color', calibration[key]); valid = false;
-        }
-      }
-      for (const key of ['handleSize', 'rotationHandleOffset', 'lineWidth']) if (!Number.isFinite(calibration[key]) || calibration[key] <= 0) {
+      for (const key of ['keyboardStep', 'keyboardStepFast']) if (!Number.isFinite(calibration[key]) || calibration[key] <= 0) {
         report(`calibration.${key}`, 'positive number', calibration[key]); valid = false;
       }
     }
@@ -146,7 +137,7 @@ export default function PhotoPreview({ config, state, actions }) {
   return <Box sx={{ ...fill, ...configuredSx(config), position: 'relative' }}>
     <canvas id={config.id} ref={canvas} aria-label={config.label} tabIndex={0} style={{ ...fill, touchAction: 'none',
       outlineColor: 'inherit', outlineWidth: 'inherit', outlineStyle: 'inherit', outlineOffset: 'inherit' }} />
-    {config.calibration?.enabled && <canvas ref={calibrationCanvas} aria-label="Side text calibration overlay"
-      style={{ ...fill, position: 'absolute', inset: 0, touchAction: 'none', cursor: 'crosshair' }} />}
+    {config.calibration?.enabled && <canvas ref={calibrationCanvas} aria-label="Side text calibration overlay" tabIndex={0}
+      style={{ ...fill, position: 'absolute', inset: 0, touchAction: 'none', cursor: 'move', outline: 'none' }} />}
   </Box>;
 }

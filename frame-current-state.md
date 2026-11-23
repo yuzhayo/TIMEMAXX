@@ -304,8 +304,9 @@ frame/
   handle rotates. Values use the 1200x1600 frame coordinate system and auto-save
   to ignored `frame/.runtime/measurements/side-stamp.json`. They do not affect
   photo history, Save or engine source until the operator completes alignment.
-  Text renders at 100% opacity. Selection outlines/handles appear on hover or
-  transform and auto-hide after 900ms; calibrated text remains visible.
+  Text renders at 100% opacity with no selection outline or handles. The unlocked
+  text itself is draggable and focusable; Arrow keys move one frame pixel and
+  Shift+Arrow moves ten.
   `sideCode` is now operator-approved: its x=-1.3252054 translation is applied in
   `sideStamp.rs`, its saved calibration transform is reset to identity and the
   calibration UI locks it without handles. Only `sideVerified` remains editable.
