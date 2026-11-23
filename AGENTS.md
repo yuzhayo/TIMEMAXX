@@ -254,6 +254,17 @@ No separate inspection framework/service is needed.
   Frame only carries those PNGs through
   `desktop/LayerReceiver.cjs` and stacks them in `PreviewPainter`; it interprets
   no stamp content. Combined export with layers remains deferred.
+- `branding.rs` is one flat child that renders the Indonesian top-right branding
+  only; other locales get no layers from it. The operator's Photoshop data is
+  the authority: `brandTitle` z20 is the two-run wordmark `Time` in `#F1B733`
+  plus white `mark`, x985.92/y22.42/w195.79/h46.71, Roboto Condensed Regular
+  41.47pt, tracking 10, 100% opacity/fill. `brandSubtitle` z21 is
+  `Foto 100% akurat` in white at 50% opacity, x986.63/y76.94/w195.08/h30.66,
+  Roboto Condensed Regular 27.22pt, tracking 10. Both use the same soft shadow
+  mechanism as the vertical texts: black40, 1.5dp Y offset, 3.5dp blur. The
+  `timemark-web` wordmark (`Timemark App` / `Authentic time, GPS`) is a different
+  variant and must not be copied here. Visual parity remains pending operator
+  approval.
 - When `photoPreview.calibration.enabled` is true, Frame keeps `sideShield` locked
   in the normal layer stack and replaces only `sideCode` and `sideVerified` with
   independent Sketch-style calibration overlays. Each supports move, X/Y scale

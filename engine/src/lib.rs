@@ -53,12 +53,19 @@ pub struct SoftShadow {
     pub blur: f32,
 }
 
+pub struct TextRun {
+    pub text: String,
+    pub color: [u8; 4],
+}
+
 /// A child's drawing decision. The parent owns all rasterising and file IO.
 pub enum Paint {
     Image { path: PathBuf, x: f32, y: f32, w: f32, h: f32, alpha: f32 },
     RotatedImage { path: PathBuf, x: f32, y: f32, w: f32, h: f32, alpha: f32 },
     Rect { x: f32, y: f32, w: f32, h: f32, color: [u8; 4] },
     Text { text: String, font: PathBuf, size: f32, color: [u8; 4], x: f32, y: f32 },
+    FittedText { runs: Vec<TextRun>, font: PathBuf, size: f32, tracking: f32,
+        x: f32, y: f32, w: f32, h: f32, shadow: Option<SoftShadow> },
     RotatedText { text: String, font: PathBuf, size: f32, tracking: f32,
         color: [u8; 4], x: f32, y: f32, w: f32, h: f32, shadow: Option<SoftShadow> },
     VerticalText { text: String, font: PathBuf, size: f32, color: [u8; 4],
@@ -211,6 +218,44 @@ fn draw_rotated_text(image: &mut RgbaImage, spec: &Paint) -> EngineResult<()> {
     Ok(())
 }
 
+fn draw_fitted_text(image: &mut RgbaImage, spec: &Paint) -> EngineResult<()> {
+    let Paint::FittedText { runs, font, size, tracking, x, y, w, h, shadow } = spec else { return Ok(()) };
+    let bytes = fs::read(font).map_err(|error| format!("font unreadable: {error}"))?;
+    let face = FontRef::try_from_slice(&bytes).map_err(|error| format!("font invalid: {error}"))?;
+    let scale = PxScale::from(*size); let scaled = face.as_scaled(scale);
+    let characters: Vec<(char, [u8; 4])> = runs.iter().flat_map(|run| run.text.chars().map(|character| (character, run.color))).collect();
+    let tracking_px = *size * *tracking / 1000.0;
+    let advances: Vec<f32> = characters.iter().map(|(character, _)| scaled.h_advance(face.glyph_id(*character))).collect();
+    let total = advances.iter().sum::<f32>() + tracking_px * advances.len().saturating_sub(1) as f32;
+    let natural_width = total.ceil().max(1.0) as u32;
+    let target_width = w.round().max(1.0) as u32;
+    let target_height = h.round().max(1.0) as u32;
+    let baseline = (target_height as f32 - (scaled.ascent() - scaled.descent())) / 2.0 + scaled.ascent();
+    let mut horizontal = RgbaImage::new(natural_width, target_height); let mut pen = 0.0;
+    for (index, (character, color)) in characters.iter().enumerate() {
+        let glyph = face.glyph_id(*character).with_scale(scale);
+        let positioned = ab_glyph::Glyph { position: Point { x: pen, y: baseline }, ..glyph };
+        if let Some(outline) = face.outline_glyph(positioned) {
+            let origin = outline.px_bounds().min;
+            outline.draw(|gx, gy, coverage| {
+                let px = gx as i32 + origin.x as i32;
+                let py = gy as i32 + origin.y as i32;
+                if px < 0 || py < 0 || px >= horizontal.width() as i32 || py >= horizontal.height() as i32 { return; }
+                let pixel = horizontal.get_pixel_mut(px as u32, py as u32);
+                pixel[0] = color[0]; pixel[1] = color[1]; pixel[2] = color[2];
+                pixel[3] = (coverage * color[3] as f32).round().clamp(0.0, 255.0) as u8;
+            });
+        }
+        pen += advances[index] + tracking_px;
+    }
+    let fitted = imageops::resize(&horizontal, target_width, target_height, imageops::FilterType::Lanczos3);
+    let mut foreground = RgbaImage::new(image.width(), image.height());
+    imageops::overlay(&mut foreground, &fitted, x.round() as i64, y.round() as i64);
+    if let Some(shadow) = shadow { overlay_shadow(image, &foreground, shadow); }
+    imageops::overlay(image, &foreground, 0, 0);
+    Ok(())
+}
+
 fn draw_vertical_glyphs(image: &mut RgbaImage, text: &str, font: &Path, size: f32,
     color: [u8; 4], axis_x: f32, origin_y: f32, advance_scale: f32) -> EngineResult<()> {
     let bytes = fs::read(font).map_err(|error| format!("font unreadable: {error}"))?;
@@ -316,6 +361,7 @@ fn rasterize(spec: &LayerSpec, config: &Value) -> EngineResult<RgbaImage> {
             }
         }
         Paint::Text { .. } => draw_text(&mut canvas, &spec.paint)?,
+        Paint::FittedText { .. } => draw_fitted_text(&mut canvas, &spec.paint)?,
         Paint::RotatedText { .. } => draw_rotated_text(&mut canvas, &spec.paint)?,
         Paint::VerticalText { .. } => draw_vertical_text(&mut canvas, &spec.paint)?,
     }

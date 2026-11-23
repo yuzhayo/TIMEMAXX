@@ -317,6 +317,17 @@ frame/
   approved sideVerified position is x1164.73/y419.9 (Photoshop identity shifted
   1px left);
   earlier runtime offsets are superseded and must not be reapplied.
+- `branding.rs` is one flat child that renders the Indonesian top-right branding
+  only; other locales get no layers from it. The operator's Photoshop data is
+  the authority: `brandTitle` z20 is the two-run wordmark `Time` in `#F1B733`
+  plus white `mark`, x985.92/y22.42/w195.79/h46.71, Roboto Condensed Regular
+  41.47pt, tracking 10, 100% opacity/fill. `brandSubtitle` z21 is
+  `Foto 100% akurat` in white at 50% opacity, x986.63/y76.94/w195.08/h30.66,
+  Roboto Condensed Regular 27.22pt, tracking 10. Both use the same soft shadow
+  mechanism as the vertical texts: black40, 1.5dp Y offset, 3.5dp blur. The
+  `timemark-web` wordmark (`Timemark App` / `Authentic time, GPS`) is a different
+  variant and must not be copied here. Visual parity remains pending operator
+  approval.
 - Combined photo/overlay export, accepted revisions, stale-overlay rejection and
   combined Save still belong to a future background orchestrator. The optional
   Bottom Bar Info control and export-size UI remain out of scope.
@@ -346,6 +357,7 @@ ignored `frame/.runtime/checks/input-screen/`.
 From `frame/`, `node tests/engine-layers-proof.mjs` checks that the running Frame
 can ask the parent engine for its current layer list, that the list contains the
 discovered `shield` and `codeStamp` children at 3:4 1200x1600 with PNG data,
+plus `brandTitle`/`brandSubtitle` when the Input language selection is `id`,
 then edits `code.json` and asserts the pushed layer changes without a restart,
 capturing `frame/.runtime/checks/engine-layers/frame-with-layers.png` as visual
 proof. Direct engine probes covered auto-registration of a temporary child, a

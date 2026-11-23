@@ -7,6 +7,7 @@ const require = createRequire(import.meta.url);
 const root = path.resolve(import.meta.dirname, '..');
 const artifacts = path.join(root, '.runtime/checks/engine-layers');
 const codePath = path.resolve(root, '../ui-control/code.json');
+const statePath = path.resolve(root, '../ui-control/state.json');
 
 await fs.mkdir(artifacts, { recursive: true });
 process.env.ELECTRON_CACHE = path.join(root, '.runtime/electron-cache');
@@ -16,6 +17,7 @@ const app = await _electron.launch({ executablePath: require('electron'),
   args: [root, '--layout-proof'], cwd: root, timeout: 20000 });
 
 const original = await fs.readFile(codePath, 'utf8');
+const inputState = JSON.parse(await fs.readFile(statePath, 'utf8'));
 
 try {
   const page = await app.firstWindow();
@@ -26,9 +28,10 @@ try {
   });
   const result = await page.evaluate(() => window.frameHost.layers());
   assert.equal(result.ok, true, 'Frame can ask the parent engine for layers');
-  assert.deepEqual(result.layers.map((layer) => layer.id).sort(),
-    ['shield', 'codeDivider', 'codeLabel', 'codeColon', 'codeStamp',
-      'sideShield', 'sideCode', 'sideVerified'].sort(),
+  const expectedLayers = ['shield', 'codeDivider', 'codeLabel', 'codeColon', 'codeStamp',
+    'sideShield', 'sideCode', 'sideVerified'];
+  if (inputState.sections?.language?.language === 'id') expectedLayers.push('brandTitle', 'brandSubtitle');
+  assert.deepEqual(result.layers.map((layer) => layer.id).sort(), expectedLayers.sort(),
     'the engine returns the approved bottom pieces and one three-section side child');
   assert.ok(result.frame.width === 1200 && result.frame.height === 1600, 'layers are 3:4 1200x1600');
   assert.ok(result.layers.every((layer) => layer.dataUrl.startsWith('data:image/png;base64,')),
