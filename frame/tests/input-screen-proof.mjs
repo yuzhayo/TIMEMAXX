@@ -83,10 +83,10 @@ const checkInput = async (page, settings, name) => {
   await page.waitForSelector('main[aria-label="Input"]');
   await page.evaluate(() => window.inputDev?.inspect(false));
   await page.waitForFunction(() => document.querySelector('[data-input-stack]') !== null);
-  assert.equal(await page.locator('[data-section-card]').count(), 3, 'Input renders the enabled language, code-generator and time cards');
-  assert.equal(await page.locator('[data-input-stack] > *').count(), 3, 'Input content area holds only configured section slots');
+  assert.equal(await page.locator('[data-section-card]').count(), 4, 'Input renders the enabled language, code-generator, time and date cards');
+  assert.equal(await page.locator('[data-input-stack] > *').count(), 4, 'Input content area holds only configured section slots');
   assert.equal(await page.locator('[data-instance="placeholder"]').count(), 0, 'the disabled placeholder chassis never mounts');
-  assert.equal(await page.getByRole('combobox').count(), 2, 'the language and time sections own one dropdown each');
+  assert.equal(await page.getByRole('combobox').count(), 4, 'language, time format, date day and date month own one dropdown each');
   assert.equal(await page.locator('canvas, img, iframe').count(), 0);
   assert.deepEqual(await page.evaluate(() => ({ host: typeof window.frameHost, node: typeof require })),
     { host: 'undefined', node: 'undefined' });
@@ -170,6 +170,11 @@ const checkInput = async (page, settings, name) => {
   }
   assert.ok(Math.abs(timeBoxes.main.pad - timeBoxes.stack * timeConfig.parts.value.geometry.paddingY / 100) < 1,
     'the time value height comes from configured paddingY, not hardcoded pixels');
+  const dateValue = await page.locator('[data-date-value]').evaluate((element) => element.value);
+  assert.match(dateValue, /^(?:0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/\d{4}$/,
+    'the date value box shows DD/MM/YYYY');
+  assert.equal(await page.locator('[data-date-day] option').count(), 2, 'the day dropdown offers full and short names');
+  assert.equal(await page.locator('[data-date-month] option').count(), 2, 'the month dropdown offers full and short names');
   await page.screenshot({ path: path.join(artifacts, `${name}.png`) });
   await captureNative(page, name);
   if (name === 'startup') await captureNative(page, 'input-beside-frame', true);
@@ -305,8 +310,8 @@ try {
     'double-clicking the range end copies its displayed time');
 
   // Every value box is its own picker trigger; no separate button or icon.
-  assert.equal(await input.locator('[data-popover-trigger]').count(), 3,
-    'the three value boxes are the only picker triggers');
+  assert.equal(await input.locator('[data-popover-trigger]').count(), 4,
+    'the four value boxes are the only picker triggers');
   await input.locator('[data-time-value="main"]').click();
   await input.waitForSelector('[data-popover-surface]');
   await input.waitForSelector('[data-popover-surface]');
@@ -385,6 +390,44 @@ try {
   assert.deepEqual(persistedState.sections.time, { hourFormat: '12' },
     'the hour format is saved as the time section own selection');
 
+  // Date section: DD/MM/YYYY, a full-month grid, locale day/month names and
+  // copy-on-double-click.
+  const dateValue = () => input.locator('[data-date-value]').evaluate((element) => element.value);
+  const dateDay = input.locator('[data-date-day]');
+  const dateMonth = input.locator('[data-date-month]');
+  const englishDay = await dateDay.locator('option').evaluateAll((options) => options.map((option) => option.textContent));
+  assert.deepEqual(englishDay, ['Monday', 'Mon'], 'English day names offer full and short forms');
+  assert.deepEqual(await dateMonth.locator('option').evaluateAll((options) => options.map((option) => option.textContent)),
+    ['November', 'Nov'], 'English month names offer full and short forms');
+  await dateDay.selectOption('short');
+  await dateMonth.selectOption('short');
+  assert.equal(await dateDay.evaluate((element) => element.selectedOptions[0].textContent), 'Mon');
+  await select.selectOption('id');
+  await input.waitForFunction(() => document.querySelector('[data-instance="date"] [data-section-header]')?.textContent === 'Tanggal');
+  assert.deepEqual(await dateDay.locator('option').evaluateAll((options) => options.map((option) => option.textContent)),
+    ['Senin', 'Sen'], 'Indonesian day names offer Senin and Sen');
+  await select.selectOption('en');
+  await input.waitForFunction(() => document.querySelector('[data-instance="date"] [data-section-header]')?.textContent === 'Date');
+  const beforeDate = await dateValue();
+  const [, monthPart, yearPart] = beforeDate.split('/');
+  await input.locator('[data-date-value]').click();
+  await input.waitForSelector('[data-popover-surface]');
+  const cells = await input.locator('[data-date-cell]').count();
+  assert.ok(cells >= 28 && cells <= 31, `the calendar shows a full month of ${cells} days`);
+  await input.screenshot({ path: path.join(artifacts, 'date-picker.png') });
+  await input.locator(`[data-date-cell$="-15"]`).click();
+  assert.equal(await dateValue(), `15/${monthPart}/${yearPart}`, 'picking a calendar cell writes DD/MM/YYYY');
+  await input.keyboard.press('Escape');
+  await copyAndWait(input, '[data-date-value]', `15/${monthPart}/${yearPart}`,
+    'double-clicking the date value copies it');
+  let storedDate = (await readCode())?.sections?.date;
+  for (let attempt = 0; attempt < 50 && storedDate?.value !== `15/${monthPart}/${yearPart}`; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    storedDate = (await readCode())?.sections?.date;
+  }
+  assert.deepEqual(storedDate, { value: `15/${monthPart}/${yearPart}`, dayMode: 'short', monthMode: 'short' },
+    'every date change is auto-saved in the date bucket');
+
   const firstId = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()
     .find((win) => win.webContents.getURL().includes('/ui-control/view-built/index.html')).id);
   assert.deepEqual(await frame.evaluate(() => window.frameDev.snapshot()), before);
@@ -412,6 +455,12 @@ try {
   assert.equal(await input.locator('[data-time-value="to"]').evaluate((element) => element.value), '04:15 PM',
     'the reopened Input restores the saved range end');
   assert.match(await input.locator('[data-time-value="main"]').evaluate((element) => element.value), /(AM|PM)$/);
+  assert.equal(await input.locator('[data-date-value]').evaluate((element) => element.value),
+    `15/${monthPart}/${yearPart}`, 'a reopened Input restores the saved date');
+  const expectedShort = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][
+    new Date(Date.UTC(Number(yearPart), Number(monthPart) - 1, 15)).getUTCDay()];
+  assert.equal(await input.locator('[data-date-day]').evaluate((element) => element.selectedOptions[0].textContent),
+    expectedShort, 'a reopened Input restores the short day label for the saved date');
   assert.notEqual(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()
     .find((win) => win.webContents.getURL().includes('/ui-control/view-built/index.html')).id), firstId);
   const minimumClosed = input.waitForEvent('close');
@@ -513,7 +562,7 @@ try {
   await Promise.all([inputClosed, frameClosed, processExited]);
   assert.equal(child.exitCode, 0);
   finished = true;
-  console.log(JSON.stringify({ pass: true, checked: ['real pencil toggles frameless Input with the enabled language, code-generator and time cards',
+  console.log(JSON.stringify({ pass: true, checked: ['real pencil toggles frameless Input with the enabled language, code-generator, time and date cards',
     'the disabled placeholder chassis never mounts',
     'header expands/collapses the card and mounts the body inside',
     'a content-sized slot hugs its card and sections stack tightly',
@@ -529,6 +578,9 @@ try {
     'value box and button share one config-driven, comfortable height',
     'time section reuses the language dropdown for a 24/12-hour format with 24 as the default',
     'each value box is its own picker trigger; no separate button or icon',
+    'the date value box shows DD/MM/YYYY and opens a full-month calendar on single click',
+    'day and month dropdowns offer full and short locale names: Senin/Sen and Monday/Mon',
+    'picking a calendar cell, copying and every dropdown change are auto-saved in sections.date',
     'the picker hides its scrollbar and mouse wheel scrolls both columns',
     'four typed digits normalize to colon time in every value box',
     'an out-of-range entry keeps the last accepted time',

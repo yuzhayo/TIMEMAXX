@@ -108,11 +108,14 @@ latest explicit decisions take precedence over older examples and historical tes
   whose shared 24/12-hour dropdown formats three editable value boxes. Four
   typed digits normalize to HH:MM, double-click copies, and each box owns a
   popup hour/minute picker; Generate fills the main box from the two range
-  bounds. The placeholder chassis stays configured but disabled
+  bounds; and a date section, whose DD/MM/YYYY value box opens a full-month
+  calendar grid on single click and copies on double-click, with day and month
+  dropdowns offering full and short locale names (`Senin / Sen`, `Monday / Mon`,
+  and the same for months). The placeholder chassis stays configured but disabled
   (`enabled: false`); card headers take their height from configured `paddingY`.
   Cards share `components/SectionCard.jsx` (header expand/collapse, auto-compact
-  body); the language and time dropdowns share `components/ConfiguredSelect.jsx`,
-  and the time pickers use `components/ConfiguredPopover.jsx`. A content-sized
+  body); the language, time and date dropdowns share `components/ConfiguredSelect.jsx`,
+  and the time/date pickers use `components/ConfiguredPopover.jsx`. A content-sized
   section hugs its card instead of reserving its bounds height. It has no task
   content or data. Task content and generator behavior are future explicit
   requests, not an implied work queue.
@@ -199,9 +202,9 @@ No separate inspection framework/service is needed.
   selection made inside each section instance, one bucket per instance; a
   discovered component declares what it persists through `stateKeys`. Outputs
   are not selections: `ui-control/code.json` is a generic `sections` envelope
-  keyed by instance id — `codeGenerator.code` and `time` (`value`, `from`, `to`,
-  `hourFormat`). Each bucket is replaced atomically after any change, never kept
-  as a log; a future overlay reads `sections.time` directly. Missing or
+  keyed by instance id — `codeGenerator.code`, `time` (`value`, `from`, `to`,
+  `hourFormat`) and `date` (`value`, `dayMode`, `monthMode`). Each bucket is replaced atomically after any change, never kept
+  as a log; a future overlay reads `sections.time` and `sections.date` directly. Missing or
   damaged files never block Input and fall back to configured defaults. No
   preview, Frame/file bridge, engine or overlay. `engine/` and overlay behavior
   are not implemented.

@@ -59,9 +59,15 @@ function createInputScreen({ BrowserWindow, screen, parent, ipcMain, development
   // A legacy top-level "code" string is still read and migrated on next write.
   const CODE = /^[A-Z0-9]{14}$/;
   const TIME = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+  const DATE = /^(?:0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/\d{4}$/;
+  const MODES = ['long', 'short'];
+  const mode = (value) => value === undefined || MODES.includes(value);
   const validTime = (value) => shape(value) && TIME.test(value.value) && TIME.test(value.from)
     && TIME.test(value.to) && Object.keys(value).every((key) => ['value', 'from', 'to', 'hourFormat'].includes(key))
     && (value.hourFormat === undefined || value.hourFormat === '12' || value.hourFormat === '24');
+  const validDate = (value) => shape(value) && DATE.test(value.value)
+    && Object.keys(value).every((key) => ['value', 'dayMode', 'monthMode'].includes(key))
+    && mode(value.dayMode) && mode(value.monthMode);
 
   const readOutputs = () => {
     let stored;
@@ -70,18 +76,20 @@ function createInputScreen({ BrowserWindow, screen, parent, ipcMain, development
     } catch (error) {
       if (error.code !== 'ENOENT') log.write([{ code: 'INPUT_CODE_UNREADABLE', configPath: codePath, expected: 'readable code.json',
         actual: error.message, action: 'stored outputs ignored; configured defaults apply', timestamp: new Date().toISOString() }]);
-      return { code: null, time: null };
+      return { code: null, time: null, date: null };
     }
     if (stored?.schemaVersion !== 1 || !shape(stored)) {
       log.write([{ code: 'INPUT_CODE_INVALID', configPath: codePath, expected: 'schemaVersion 1 outputs envelope',
         actual: stored, action: 'stored outputs ignored; configured defaults apply', timestamp: new Date().toISOString() }]);
-      return { code: null, time: null };
+      return { code: null, time: null, date: null };
     }
     const sections = shape(stored.sections) ? stored.sections : {};
     const legacy = typeof stored.code === 'string' && CODE.test(stored.code) ? stored.code : null;
     const storedCode = typeof sections.codeGenerator?.code === 'string' && CODE.test(sections.codeGenerator.code)
       ? sections.codeGenerator.code : legacy;
-    return { code: storedCode, time: validTime(sections.time) ? { ...sections.time } : null };
+    return { code: storedCode, time: validTime(sections.time) ? { ...sections.time } : null,
+      date: validDate(sections.date) ? { value: sections.date.value,
+        dayMode: sections.date.dayMode ?? 'long', monthMode: sections.date.monthMode ?? 'long' } : null };
   };
 
   // LOGIC — serialize writes and replace atomically so a crash never leaves a
@@ -162,9 +170,10 @@ function createInputScreen({ BrowserWindow, screen, parent, ipcMain, development
         if (!CODE.test(payload)) return { ok: false, error: 'Input sender supplied an invalid generated code' };
         patch = { code: payload };
       } else if (shape(payload)) {
-        if (Object.keys(payload).some((key) => !['code', 'time'].includes(key))
+        if (Object.keys(payload).some((key) => !['code', 'time', 'date'].includes(key))
           || (Object.hasOwn(payload, 'code') && (typeof payload.code !== 'string' || !CODE.test(payload.code)))
-          || (Object.hasOwn(payload, 'time') && !validTime(payload.time))) {
+          || (Object.hasOwn(payload, 'time') && !validTime(payload.time))
+          || (Object.hasOwn(payload, 'date') && !validDate(payload.date))) {
           return { ok: false, error: 'Input sender supplied an invalid output patch' };
         }
         patch = payload;
@@ -173,6 +182,7 @@ function createInputScreen({ BrowserWindow, screen, parent, ipcMain, development
       const sections = {};
       if (next.code) sections.codeGenerator = { code: next.code };
       if (next.time) sections.time = { ...next.time };
+      if (next.date) sections.date = { ...next.date };
       const previous = outputs;
       outputs = next;
       const operation = writeJson(codePath, { schemaVersion: 1, sections });

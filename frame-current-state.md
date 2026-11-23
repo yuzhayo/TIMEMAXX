@@ -6,7 +6,8 @@
 preview and export remain standalone. The pencil button has one launch-only link
 to a frameless Input window owned by `ui-control/`; Input renders baked section
 cards — the enabled language section whose dropdown selects the global
-layout language (English/Indonesian), a code generator, and a time section —
+layout language (English/Indonesian), a code generator, a time section and a
+date section —
 with no task content, engine or data integration.
 
 The active application currently provides:
@@ -21,8 +22,8 @@ The active application currently provides:
 - Bottom Bar operation messages and structured local diagnostics;
 - development-only layout inspection;
 - toggling a frameless Input window from the pencil button; Input renders the
-  enabled shared section cards (a language dropdown, a code generator and a
-  time section; the placeholder chassis is configured but disabled).
+  enabled shared section cards (a language dropdown, a code generator, a time
+  section and a date section; the placeholder chassis is configured but disabled).
 
 Frame has four configured sections, sixteen configured instances, and fifteen
 enabled instances.
@@ -247,7 +248,7 @@ frame/
   is its public window-only contract; Frame loads it only on a pencil click.
   Input owns its own locked dependencies and Vite build, with no Frame build
   dependency. It renders configured section cards (a language dropdown, a code
-  generator and a time section) and has no task content or data.
+  generator, a time section and a date section) and has no task content or data.
 - Input is one non-modal frameless window: no native caption/buttons/title text or
   reserved Windows-Bar area. Pencil clicks alternate open/close, including rapid
   clicks. Closing Input leaves Frame running; closing Frame closes Input. Toggling
@@ -288,7 +289,9 @@ generic `ui-control/code.json` envelope, every time change auto-saved, double-cl
 24/12-hour dropdown, three editable value boxes where four typed digits
 normalize to HH:MM and double-click copies, a picker attached to each box
 (hidden scrollbars, mouse-wheel scrolling), range Generate, colon-only time
-display, damaged state falling back to defaults), 40% width at Frame startup/minimum sizes, full work-area height and
+display, a DD/MM/YYYY date box with a full-month calendar grid and locale
+day/month dropdowns offering Senin/Sen and Monday/Mon names, every date change
+auto-saved in `sections.date`, damaged state falling back to defaults), 40% width at Frame startup/minimum sizes, full work-area height and
 adjoining-left bounds, JSON-driven geometry/background, toggle parity during
 rapid clicks, unchanged Frame state, failure isolation and parent-window cleanup.
 Artifacts stay in

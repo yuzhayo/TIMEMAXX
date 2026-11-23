@@ -7,6 +7,8 @@ import { applyInputState, collectInputState } from '../logic/InputState.mjs';
 import { ALPHABET, LENGTH, MAX_ENCODABLE, decode, encode, isValidCode, newCode } from '../logic/CodeGenerator.mjs';
 import { DEFAULT_HOUR_FORMAT, HOUR_FORMATS, formatTime, fromMinutes, generateTime, isValidHourFormat,
   normalizeRange, parseTime, renderTime, toMinutes, typeTimeDigits } from '../logic/TimeValue.mjs';
+import { daysInMonth, formatDate, isValidDateValue, monthCells, monthName, parseDate,
+  shiftMonth, weekdayName } from '../logic/DateValue.mjs';
 import { createDiagnostics } from '../../components/LayoutDiagnostics.mjs';
 import { discoverComponents } from '../../components/ComponentDiscovery.mjs';
 
@@ -20,26 +22,28 @@ const catalog = [
     folder: 'code-generator', filePath: 'code-generator/CodeGenerator.jsx', stateKeys: [] },
   { componentId: 'input.time', Component: function Time() {},
     folder: 'time', filePath: 'time/Time.jsx', stateKeys: ['hourFormat'] },
+  { componentId: 'input.date', Component: function Date() {},
+    folder: 'date', filePath: 'date/Date.jsx', stateKeys: [] },
 ];
 const validate = (config = structuredClone(raw), entries = catalog) => {
   const diagnostics = createDiagnostics();
   return { plan: validateInputConfig(config, entries, diagnostics), issues: diagnostics.getSnapshot() };
 };
 
-test('baseline mounts the enabled language, code-generator and time cards, keeping the placeholder chassis disabled', () => {
+test('baseline mounts the enabled language, code-generator, time and date cards, keeping the placeholder chassis disabled', () => {
   const { plan, issues } = validate();
   assert.deepEqual(issues, []);
-  assert.deepEqual(plan.sections.map((node) => node.id), ['language', 'codeGenerator', 'time']);
+  assert.deepEqual(plan.sections.map((node) => node.id), ['language', 'codeGenerator', 'time', 'date']);
   assert.deepEqual(plan.sections.map((node) => node.componentId),
-    ['input.language', 'input.code-generator', 'input.time']);
-  assert.deepEqual(plan.sections.map((node) => node.folder), ['language', 'code-generator', 'time']);
+    ['input.language', 'input.code-generator', 'input.time', 'input.date']);
+  assert.deepEqual(plan.sections.map((node) => node.folder), ['language', 'code-generator', 'time', 'date']);
   for (const node of plan.sections) {
     assert.equal(node.expanded, true);
     assert.equal(node.sizing, 'content');
     assert.ok(node.parts.header.geometry.paddingY > 0, 'header height comes from configured paddingY');
     assert.ok(node.parts.body, `${node.id} body part resolves`);
   }
-  const [language, generator, time] = plan.sections;
+  const [language, generator, time, date] = plan.sections;
   assert.ok(language.parts.select, 'language select part resolves');
   assert.deepEqual(language.stateKeys, ['language'], 'the persisted selection travels with the discovered component');
   assert.ok(generator.parts.value, 'the code-generator value box resolves its own part');
@@ -63,6 +67,13 @@ test('baseline mounts the enabled language, code-generator and time cards, keepi
   assert.equal(time.parts.picker.portal.placement, 'bottom-start', 'the picker uses the shared popup placement contract');
   assert.ok(Number.isFinite(time.parts.picker.size.width) && Number.isFinite(time.parts.picker.size.height),
     'the popup size is explicit viewport percentages in JSON');
+  assert.deepEqual(date.stateKeys, [], 'date values are outputs, not persisted selections');
+  for (const name of ['value', 'row', 'day', 'month', 'picker', 'pickerGrid', 'pickerCell']) {
+    assert.ok(date.parts[name], `the date section resolves its ${name} part`);
+  }
+  assert.equal(date.parts.body.content.direction, 'column', 'the date value sits above the day and month dropdowns');
+  assert.equal(date.parts.row.content.direction, 'row', 'the day and month dropdowns sit side by side');
+  assert.equal(date.parts.picker.portal.placement, 'bottom-start', 'the calendar uses the shared popup placement contract');
   assert.equal(raw.sections[0].id, 'placeholder');
   assert.equal(raw.sections[0].enabled, false, 'the placeholder chassis stays configured but disabled');
   assert.deepEqual(raw.sections.map((section) => section.parts.header.geometry.paddingY),
@@ -72,9 +83,9 @@ test('baseline mounts the enabled language, code-generator and time cards, keepi
     [['en', 'English'], ['id', 'Indonesian']]);
   assert.equal(plan.initialLanguage, 'en');
   assert.deepEqual(plan.layouts.en.sections.map((node) => [node.id, node.label]),
-    [['language', 'Language'], ['codeGenerator', 'Code Generator'], ['time', 'Time']]);
+    [['language', 'Language'], ['codeGenerator', 'Code Generator'], ['time', 'Time'], ['date', 'Date']]);
   assert.deepEqual(plan.layouts.id.sections.map((node) => [node.id, node.label]),
-    [['language', 'Bahasa'], ['codeGenerator', 'Generator Kode'], ['time', 'Waktu']]);
+    [['language', 'Bahasa'], ['codeGenerator', 'Generator Kode'], ['time', 'Waktu'], ['date', 'Tanggal']]);
   assert.deepEqual(plan.layouts.id.sections[0].parts.select, plan.sections[0].parts.select);
 });
 
@@ -149,14 +160,16 @@ test('a configured section without an implementation is reported, never invented
   const config = structuredClone(raw);
   config.sections.push({ id: 'later', componentId: 'input.later', parentId: 'inputRoot', folder: 'later', enabled: true,
     expanded: true, bounds: { width: 100, height: 24 }, preset: 'root' });
-  config.layouts.en.order = ['placeholder', 'language', 'codeGenerator', 'time', 'later'];
+  config.layouts.en.order = ['placeholder', 'language', 'codeGenerator', 'time', 'date', 'later'];
+  config.layouts.en.sections.date = { label: 'Date' };
   config.layouts.en.sections.later = { label: 'Later' };
-  config.layouts.id.order = ['placeholder', 'language', 'codeGenerator', 'time', 'later'];
+  config.layouts.id.order = ['placeholder', 'language', 'codeGenerator', 'time', 'date', 'later'];
+  config.layouts.id.sections.date = { label: 'Tanggal' };
   config.layouts.id.sections.later = { label: 'Terlambat' };
   const { plan, issues } = validate(config);
-  assert.deepEqual(plan.sections.map((node) => node.id), ['language', 'codeGenerator', 'time']);
+  assert.deepEqual(plan.sections.map((node) => node.id), ['language', 'codeGenerator', 'time', 'date']);
   assert.ok(issues.some((issue) => issue.code === 'INPUT_COMPONENT_MISSING' && issue.instanceId === 'later'));
-  assert.deepEqual(plan.layouts.en.sections.map((node) => node.id), ['language', 'codeGenerator', 'time']);
+  assert.deepEqual(plan.layouts.en.sections.map((node) => node.id), ['language', 'codeGenerator', 'time', 'date']);
   assert.equal(plan.initialLanguage, 'en');
 });
 
@@ -168,7 +181,7 @@ test('session owns language, hour format and expand/collapse state and rejects u
   restored.dispose();
   assert.equal(createInputSession(plan).getSnapshot().language, 'en', 'without persisted state the configured default applies');
   const session = createInputSession(plan);
-  assert.deepEqual(session.getSnapshot().expanded, { language: true, codeGenerator: true, time: true });
+  assert.deepEqual(session.getSnapshot().expanded, { language: true, codeGenerator: true, time: true, date: true });
   assert.equal(session.getSnapshot().language, 'en');
   assert.equal(session.getSnapshot().hourFormat, '24', 'the time format defaults to 24 hour');
   let events = 0;
@@ -272,4 +285,34 @@ test('time values keep a colon separator and the reference 12/24-hour rules', ()
     const value = generateTime('08:00', '17:00');
     assert.ok(toMinutes(value) >= 480 && toMinutes(value) <= 1020, `${value} stays inside the range`);
   }
+});
+
+test('date values keep the DD/MM/YYYY mask and locale day/month names', () => {
+  const monday = parseDate('23/11/2026');
+  assert.deepEqual(monday, { day: 23, month: 11, year: 2026 });
+  assert.equal(formatDate(monday), '23/11/2026');
+  assert.equal(isValidDateValue('23/11/2026'), true);
+  assert.equal(isValidDateValue('31/02/2026'), false);
+  assert.equal(isValidDateValue('29/02/2025'), false);
+  assert.equal(isValidDateValue('29/02/2024'), true);
+  assert.equal(isValidDateValue('15/13/2026'), false);
+  assert.equal(isValidDateValue('1/1/2026'), false);
+  assert.equal(weekdayName(monday, 'en', 'long'), 'Monday');
+  assert.equal(weekdayName(monday, 'en', 'short'), 'Mon');
+  assert.equal(weekdayName(monday, 'id', 'long'), 'Senin');
+  assert.equal(weekdayName(monday, 'id', 'short'), 'Sen');
+  assert.equal(monthName(1, 'en', 'long'), 'January');
+  assert.equal(monthName(1, 'en', 'short'), 'Jan');
+  assert.equal(monthName(1, 'id', 'long'), 'Januari');
+  assert.equal(monthName(1, 'id', 'short'), 'Jan');
+  assert.equal(monthName(11, 'id', 'long'), 'November');
+  assert.equal(daysInMonth(2024, 2), 29);
+  assert.equal(daysInMonth(2026, 11), 30);
+  const cells = monthCells(2026, 11);
+  assert.equal(cells.length, 36, 'six leading blanks plus 30 days');
+  assert.equal(cells[6], 1);
+  assert.equal(cells[cells.length - 1], 30);
+  assert.equal(shiftMonth('31/01/2026', 1), '28/02/2026', 'a short month clamps the day');
+  assert.equal(shiftMonth('15/12/2026', 1), '15/01/2027');
+  assert.equal(shiftMonth('15/01/2026', -1), '15/12/2025');
 });
