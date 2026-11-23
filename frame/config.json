@@ -75,7 +75,7 @@
     },
     { "id": "fileName", "componentId": "photo.fileName", "parentId": "windowsBar", "enabled": true, "label": "Current image", "placement": { "align": "start", "order": 3 }, "bounds": { "y": 15, "width": 64, "height": 70 }, "preset": "fileName", "interaction": { "pointerEvents": "none", "dragRegion": "inherit" } },
     { "id": "photoPreview", "componentId": "photo.preview", "parentId": "frameBody", "enabled": true, "label": "Photo preview", "bounds": { "x": 0, "y": 0, "width": 100, "height": 100 }, "preset": "base", "presentation": { "insetX": 1, "insetY": 1 }, "colors": { "border": "#64707b" }, "geometry": { "borderWidth": 1 },
-      "calibration": { "enabled": true, "lockedGroups": ["sideCode"], "opacity": 1, "keyboardStep": 1, "keyboardStepFast": 10 },
+      "calibration": { "enabled": false, "lockedGroups": ["sideCode", "sideVerified"], "opacity": 1, "keyboardStep": 1, "keyboardStepFast": 10 },
       "input": {
         "pointer": { "enabled": true, "photoButton": 0, "viewButton": 1, "panKey": "Space" },
         "wheel": { "enabled": true, "bindings": { "none": "size", "control": "rotate", "alt": "moveX", "shift": "moveY" }, "linePixels": 16, "pagePixels": 100, "maxDelta": 120, "sizeRate": 0.0015, "rotationRate": 0.05, "moveRate": 0.4, "viewRate": 0.0015, "idleMs": 180 },

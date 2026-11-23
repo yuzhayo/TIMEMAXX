@@ -310,7 +310,9 @@ frame/
   Shift+Arrow moves ten.
   `sideCode` is now operator-approved: its x=-1.3252054 translation is applied in
   `sideStamp.rs`, its saved calibration transform is reset to identity and the
-  calibration UI locks it without handles. Only `sideVerified` remains editable.
+  calibration UI locks it without handles.
+  The current `sideVerified` position is operator-approved. Calibration is now
+  disabled; `sideCode` and `sideVerified` render as normal engine layers.
 - Combined photo/overlay export, accepted revisions, stale-overlay rejection and
   combined Save still belong to a future background orchestrator. The optional
   Bottom Bar Info control and export-size UI remain out of scope.

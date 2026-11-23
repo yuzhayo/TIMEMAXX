@@ -265,7 +265,9 @@ No separate inspection framework/service is needed.
   one frame pixel and Shift+Arrow nudges ten. The text itself is the hit target.
   The operator approved `sideCode` with x=-1.3252054, y=0, scaleX/scaleY=1 and
   rotation=0; that translation now lives in `sideStamp.rs`. `sideCode` is locked
-  and drawn without transform handles. Only `sideVerified` remains adjustable.
+  and drawn without transform handles.
+  The operator approved the current `sideVerified` position; calibration is now
+  disabled and both text groups render only through the normal engine layers.
 - Photo transforms affect photo only; view transforms affect inspection only.
   Future stale-overlay rejection, clearing and accepted-revision consistency are
   orchestrator responsibilities. Photo replacement must not mutate its overlay.
