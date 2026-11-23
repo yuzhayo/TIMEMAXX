@@ -272,10 +272,13 @@ frame/
 - `engine/` now has one Rust parent (`src/lib.rs`) and flat children. Phase 1
   children are `shield` and `codeStamp`; the parent globs them through `build.rs`,
   reads `ui-control/code.json`, writes z-ordered transparent 1200x1600 PNGs and
-  logs missing input/children or child failures in `engine/log.json`. Frame
-  carries the PNGs through `desktop/LayerReceiver.cjs` and stacks them in
-  `PreviewPainter` without interpreting stamp content. A child error or bad input
-  hides only that section.
+  logs missing input/children or child failures in `engine/log.json`. The bridge
+  polls `code.json` by content hash and pushes fresh layers on change, so a code
+  generated in Input appears in Frame immediately. Shield size and code font/size
+  follow the TIMEMARK reference (12×14 dp shield, 12 dp RobotoCondensed text);
+  only the row's vertical position is still provisional. Frame carries the PNGs
+  through `desktop/LayerReceiver.cjs` and stacks them in `PreviewPainter` without
+  interpreting stamp content. A child error or bad input hides only that section.
 - Combined photo/overlay export, accepted revisions, stale-overlay rejection and
   combined Save still belong to a future background orchestrator. The optional
   Bottom Bar Info control and export-size UI remain out of scope.
@@ -304,8 +307,9 @@ ignored `frame/.runtime/checks/input-screen/`.
 
 From `frame/`, `node tests/engine-layers-proof.mjs` checks that the running Frame
 can ask the parent engine for its current layer list, that the list contains the
-discovered `shield` and `codeStamp` children at 3:4 1200x1600 with PNG data, and
-captures `frame/.runtime/checks/engine-layers/frame-with-layers.png` as visual
+discovered `shield` and `codeStamp` children at 3:4 1200x1600 with PNG data,
+then edits `code.json` and asserts the pushed layer changes without a restart,
+capturing `frame/.runtime/checks/engine-layers/frame-with-layers.png` as visual
 proof. Direct engine probes covered auto-registration of a temporary child, a
 panicking child and a missing `code.json`: each failure was logged in
 `engine/log.json` and only its own section disappeared.

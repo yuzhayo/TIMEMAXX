@@ -224,7 +224,12 @@ No separate inspection framework/service is needed.
   by z, writes transparent 1200x1600 PNGs to `frame/.runtime/engine-layers/` and
   records missing input, missing children and child failures in `engine/log.json`
   without crashing. Phase 1 children are `shield` (static mark) and `codeStamp`
-  (`sections.codeGenerator.code`). Frame only carries those PNGs through
+  (`sections.codeGenerator.code`). The bridge polls `code.json` by content hash
+  and pushes new layers to Frame on change, so a generated code updates the
+  display without a restart. Shield size (12×14 dp) and code text size (12 dp,
+  RobotoCondensed-Regular) follow `timemark-web/src/templates/render.ts` and
+  `core/theme.ts`; the row's vertical position is still provisional until the
+  full template layout is ported. Frame only carries those PNGs through
   `desktop/LayerReceiver.cjs` and stacks them in `PreviewPainter`; it interprets
   no stamp content. Combined export with layers remains deferred.
 - Photo transforms affect photo only; view transforms affect inspection only.

@@ -5,6 +5,11 @@ contextBridge.exposeInMainWorld('frameHost', {
   bootstrap: () => ipcRenderer.invoke('frame:bootstrap'),
   diagnostics: (records) => ipcRenderer.invoke('frame:diagnostics', records),
   layers: () => ipcRenderer.invoke('frame:layers'),
+  onLayersChanged: (callback) => {
+    const listener = (_event, result) => callback(result);
+    ipcRenderer.on('frame:layers-changed', listener);
+    return () => ipcRenderer.removeListener('frame:layers-changed', listener);
+  },
   toggleInputScreen: () => ipcRenderer.invoke('frame:input-toggle'),
   openImage: (currentPhotoId) => ipcRenderer.invoke('frame:image-open', currentPhotoId),
   dropImage: async (file, currentPhotoId) => {

@@ -6,7 +6,7 @@ const { createFrameWindow, bindWindowActions, frameAppId } = require('./FrameWin
 const { DiagnosticLog } = require('./DiagnosticLog.cjs');
 const { ImageWorker } = require('./ImageWorker.cjs');
 const { ImageFileDialogs } = require('./ImageFileDialogs.cjs');
-const { receiveLayers } = require('./LayerReceiver.cjs');
+const { receiveLayers, pollLayers } = require('./LayerReceiver.cjs');
 
 // LOGIC — photo lifetime stays in Frame; the only Input link is its approved window toggle.
 const root = path.resolve(__dirname, '..');
@@ -26,6 +26,7 @@ let files;
 let inputScreen;
 let sessionDirectory;
 let quitting = false;
+let layerTimer;
 
 app.whenReady().then(async () => {
   const configPath = path.resolve(root, option('--config') ?? 'config.json');
@@ -91,6 +92,11 @@ app.whenReady().then(async () => {
     });
   }
   await window.loadFile(path.join(root, 'view-built/index.html'));
+  layerTimer = setInterval(() => {
+    if (!window || window.isDestroyed() || window.webContents.isDestroyed()) return;
+    const { changed, result } = pollLayers({ root, runtime });
+    if (changed && result.ok) window.webContents.send('frame:layers-changed', result);
+  }, 500);
   window.show();
 }).catch(async (error) => {
   console.error(error);
@@ -104,7 +110,10 @@ app.on('before-quit', (event) => {
   event.preventDefault();
   quitting = true;
   (async () => {
-    try { await inputScreen?.dispose(); await files?.dispose(); }
+    try {
+      clearInterval(layerTimer);
+      await inputScreen?.dispose(); await files?.dispose();
+    }
     finally {
       await worker?.close();
       if (sessionDirectory) await fs.promises.rm(sessionDirectory, { recursive: true, force: true });

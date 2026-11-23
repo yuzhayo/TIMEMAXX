@@ -1,5 +1,7 @@
 // LOGIC — the one parent engine. It is the only part that talks to Input
 // (code.json) and Frame (transparent layer files). Children only calculate.
+// The same file is compiled as a library and as the renderer binary.
+#![allow(dead_code)]
 use std::{
     fs,
     panic::{catch_unwind, AssertUnwindSafe},
