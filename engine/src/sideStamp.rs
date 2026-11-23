@@ -33,11 +33,12 @@ pub fn calculate(data: Option<&Value>, context: &Context) -> EngineResult<Vec<La
     // gap owns both relationships; the shield's frame anchor is independent of
     // text metrics and therefore invariant across every code length.
     let text_size = dp(9.0);
-    let gap = dp(2.8);
+    let gap = dp(2.5);
     // BottomToTopTextView's measured character chain occupies 1.2x the plain
     // ab_glyph advances at this export scale; this reproduces the shipped
     // per-character layout without scaling the glyphs themselves.
-    let advance_scale = 1.2;
+    let code_advance_scale = 1.205;
+    let verified_advance_scale = 1.2;
     let axis_x = frame_w - dp(2.5); // measured right-edge baseline of the original export
     // The APK drawable is 24x27px (nominal 8x9dp), while the burnt-in export
     // presents it at 80% of that nominal box. Keep the original asset and apply
@@ -51,7 +52,7 @@ pub fn calculate(data: Option<&Value>, context: &Context) -> EngineResult<Vec<La
 
     let code_font = asset(context, "sideCodeFont")?;
     let verified_font = asset(context, "sideVerifiedFont")?;
-    let code_advance = _layout::text_width(&code_font, text_size, code)? * advance_scale;
+    let code_advance = _layout::text_width(&code_font, text_size, code)? * code_advance_scale;
     let code_origin_y = shield_y - gap;
     let verified_origin_y = code_origin_y - code_advance - gap;
     Ok(vec![
@@ -75,7 +76,7 @@ pub fn calculate(data: Option<&Value>, context: &Context) -> EngineResult<Vec<La
             paint: Paint::VerticalText {
                 text: code.into(), font: code_font, size: text_size,
                 color: [255, 255, 255, 255], axis_x, origin_y: code_origin_y,
-                advance_scale, outline: None,
+                advance_scale: code_advance_scale, cross_scale: 1.143, outline: None,
             },
         },
         // UI — section 3: follows the measured code advance at the same gap.
@@ -85,7 +86,7 @@ pub fn calculate(data: Option<&Value>, context: &Context) -> EngineResult<Vec<La
             paint: Paint::VerticalText {
                 text: "Timemark Verified".into(), font: verified_font, size: text_size,
                 color: [255, 255, 255, 255], axis_x, origin_y: verified_origin_y,
-                advance_scale, outline: None,
+                advance_scale: verified_advance_scale, cross_scale: 1.0, outline: None,
             },
         },
     ])

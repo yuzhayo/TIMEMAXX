@@ -240,14 +240,15 @@ No separate inspection framework/service is needed.
   `sideStamp.rs` is one flat child that returns three independent layers:
   `sideShield` z10, `sideCode` z11 and `sideVerified` z12. The child owns the
   entire right-edge calculation: the shield is a fixed anchor; both relationships
-  use one 2.8dp gap; code advance is measured with 9dp PT Mono Regular; `Timemark
+  use one 2.5dp gap; code advance is measured with 9dp PT Mono Regular; `Timemark
   Verified` uses 9dp Roboto Condensed Regular and moves by exactly the code-width
   delta. It reproduces the per-character bottom-to-top layout with plain white
   fill: no outline and no shadow, as observed in the supplied export. The icon is the APK
   `anti_code_icon_small`, rotated -90; the burnt-in reference presents it at
   80% of its nominal 8x9dp XML box. Its measured strong-alpha bounds at
   1200x1600 are x1173..1189/y944..958. The current test code measures
-  x1172..1192/y667..930. Visual parity remains pending operator
+  x1169..1192/y667..931; the sample measurement is also x1169..1192/y667..931.
+  Visual parity remains pending operator
   approval.
   Frame only carries those PNGs through
   `desktop/LayerReceiver.cjs` and stacks them in `PreviewPainter`; it interprets

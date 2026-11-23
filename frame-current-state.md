@@ -285,11 +285,12 @@ frame/
   and code x244..538. Visual parity remains pending operator approval.
   One additional flat child, `sideStamp.rs`, owns the complete right-edge chain
   and returns `sideShield`/`sideCode`/`sideVerified` at z10/z11/z12. Shield is the
-  fixed anchor; one 2.8dp gap separates each relationship; code advance determines
+  fixed anchor; one 2.5dp gap separates each relationship; code advance determines
   only the Verified position. It transcribes `BottomToTopTextView`: 8x9dp rotated
   anti-code icon; 9dp PT Mono code; 9dp Roboto Condensed Verified; per-character
   bottom-to-top placement; plain white fill with no outline or shadow. The test
-  code measures x1172..1192/y667..930 against x1169..1192/y667..931 in the sample.
+  code and sample each measure x1169..1192/y667..931; visual parity remains
+  pending operator approval.
   The original 8x9dp icon is rendered at the observed 80% burnt-in scale;
   strong-alpha bounds are x1173..1189/y944..958 at 1200x1600. A focused
   two-length render proved byte-identical shield layers and equal
