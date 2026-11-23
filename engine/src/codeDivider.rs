@@ -16,7 +16,7 @@ pub fn calculate(_data: Option<&Value>, context: &Context) -> EngineResult<Vec<L
             y: row.divider_y,
             w: row.width,
             h: (0.5 * row.scale).max(1.0),
-            color: [255, 255, 255, 128], // measured from stacked export
+            color: [255, 255, 255, 89], // white50 under row alpha 0.7
         },
     }])
 }

@@ -65,8 +65,8 @@ pub fn code_row(config: &Value, _assets: &Assets) -> EngineResult<CodeRow> {
         shield_h: 42.0 * k,
         text_x: 79.0 * k,
         text_baseline: frame_h - 40.0 * k,
-        text_size: 39.5 * k,
-        code_size: 41.0 * k,
+        text_size: 40.0 * k,
+        code_size: 40.0 * k,
         scale,
     })
 }
@@ -81,11 +81,11 @@ pub fn label_width(row: &CodeRow, assets: &Assets, language: &str) -> EngineResu
 }
 
 pub fn colon_x(row: &CodeRow, assets: &Assets, language: &str) -> EngineResult<f32> {
-    Ok(row.text_x + label_width(row, assets, language)? - 6.0 * row.scale)
+    Ok(row.text_x + label_width(row, assets, language)?)
 }
 
 pub fn code_x(row: &CodeRow, assets: &Assets, language: &str) -> EngineResult<f32> {
     Ok(colon_x(row, assets, language)?
         + text_width(font(assets, false), row.text_size, ":")?
-        + 6.0 * row.scale)
+        + 2.0 * row.scale)
 }

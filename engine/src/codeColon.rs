@@ -15,7 +15,7 @@ pub fn calculate(_data: Option<&Value>, context: &Context) -> EngineResult<Vec<L
             text: ":".into(),
             font: context.assets.font.clone(),
             size: row.text_size,
-            color: [255, 255, 255, 200],
+            color: [255, 255, 255, 125],
             x: _layout::colon_x(&row, context.assets, context.language)?,
             y: row.text_baseline,
         },

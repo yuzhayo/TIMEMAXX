@@ -16,7 +16,7 @@ pub fn calculate(_data: Option<&Value>, context: &Context) -> EngineResult<Vec<L
             text: _layout::label_for(context.language).into(),
             font: context.assets.label.clone(),
             size: row.text_size,
-            color: [255, 255, 255, 200], // white70, measured from stacked export
+            color: [255, 255, 255, 125], // white70 under row alpha 0.7
             x: row.text_x,
             y: row.text_baseline,
         },

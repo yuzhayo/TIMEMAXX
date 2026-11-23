@@ -279,8 +279,9 @@ frame/
   pushes fresh layers on change, so a generated code or language switch appears
   in Frame immediately. Geometry is measured from the operator's 1200x1600
   Indonesian stacked export: shield x31..66/y1527..1568, divider
-  x31..538/y1509, label x82..230/y1533..1560, code x244..536/y1534..1559,
-  using the APK's Roboto-Regular label and Roboto-Bold code.
+  x31..538/y1509. Photo-code typography follows `timemark-web` exactly:
+  RobotoCondensed-Bold label, RobotoCondensed-Regular colon and code, 12dp,
+  white70 under row alpha 0.7, with the code starting 2dp after the colon.
   Frame carries the PNGs
   through `desktop/LayerReceiver.cjs` and stacks them in `PreviewPainter` without
   interpreting stamp content. A child error or bad input hides only that section.

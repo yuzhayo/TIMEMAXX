@@ -233,8 +233,9 @@ No separate inspection framework/service is needed.
   or a language switch updates the display without a restart. Geometry is
   measured from the operator's Indonesian stacked export downscaled to
   1200x1600, not from `render.ts`: shield x31..66/y1527..1568, divider
-  x31..538/y1509, label x82..230/y1533..1560 and code x244..536/y1534..1559,
-  using the APK's Roboto-Regular label and Roboto-Bold code.
+  x31..538/y1509. Photo-code typography follows `timemark-web` exactly:
+  RobotoCondensed-Bold label, RobotoCondensed-Regular colon and code, 12dp,
+  white70 under row alpha 0.7, with the code starting 2dp after the colon.
   Frame only carries those PNGs through
   `desktop/LayerReceiver.cjs` and stacks them in `PreviewPainter`; it interprets
   no stamp content. Combined export with layers remains deferred.

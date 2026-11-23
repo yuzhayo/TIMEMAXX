@@ -102,12 +102,9 @@ impl Log {
 }
 
 fn blend(pixel: &mut image::Rgba<u8>, color: [u8; 4]) {
-    let mix = color[3] as f32 / 255.0;
-    if mix == 0.0 { return; }
-    for channel in 0..3 {
-        pixel[channel] = (color[channel] as f32 * mix + pixel[channel] as f32 * (1.0 - mix)).round() as u8;
-    }
-    pixel[3] = (color[3] as u32 + pixel[3] as u32).min(255) as u8;
+    // PNG stores straight (unpremultiplied) RGBA. Premultiplying RGB here
+    // would apply alpha a second time when Frame composites the layer.
+    *pixel = image::Rgba(color);
 }
 
 // LOGIC — pure rasterisation of a child's Paint::Text decision.
@@ -130,11 +127,10 @@ fn draw_text(image: &mut RgbaImage, spec: &Paint) -> EngineResult<()> {
                 if px < 0 || py < 0 || px >= image.width() as i32 || py >= image.height() as i32 { return; }
                 let alpha = (coverage * color[3] as f32).round().clamp(0.0, 255.0) as u8;
                 if alpha == 0 { return; }
-                let mix = alpha as f32 / 255.0;
                 let pixel = image.get_pixel_mut(px as u32, py as u32);
-                for channel in 0..3 {
-                    pixel[channel] = (color[channel] as f32 * mix + pixel[channel] as f32 * (1.0 - mix)).round() as u8;
-                }
+                pixel[0] = color[0];
+                pixel[1] = color[1];
+                pixel[2] = color[2];
                 pixel[3] = alpha.max(pixel[3]);
             });
         }
