@@ -259,18 +259,20 @@ try {
   const generated = await codeValue();
   assert.notEqual(generated, 'UBDCEAAU9R2PAC', 'Generate replaces the value');
   assert.match(generated, /^[ABCDEGHKLMNPRTUWXY123469]{14}$/, 'the generated code keeps the format rules');
+  const storedCodeValue = async () => (await readCode())?.sections?.codeGenerator?.code;
   let storedCode = await readCode();
-  for (let attempt = 0; attempt < 50 && storedCode?.code !== generated; attempt++) {
+  for (let attempt = 0; attempt < 50 && (await storedCodeValue()) !== generated; attempt++) {
     await new Promise((resolve) => setTimeout(resolve, 100));
     storedCode = await readCode();
   }
-  assert.deepEqual(storedCode, { schemaVersion: 1, code: generated },
-    'code.json keeps one dynamic value, never a log of old codes');
+  assert.equal(await storedCodeValue(), generated, 'Generate replaces the code bucket without a log');
+  assert.deepEqual(Object.keys(storedCode).sort(), ['schemaVersion', 'sections'], 'code.json is a generic sections envelope');
+  assert.ok(storedCode.sections.time, 'the time bucket sits beside the code bucket');
   await input.locator('[data-code-generate]').click();
   const second = await codeValue();
   assert.notEqual(second, generated, 'each Generate produces a new value');
-  for (let attempt = 0; attempt < 50 && (await readCode())?.code !== second; attempt++) await new Promise((resolve) => setTimeout(resolve, 100));
-  assert.deepEqual(Object.keys(await readCode()).sort(), ['code', 'schemaVersion'], 'a second generate overwrites, it does not append');
+  for (let attempt = 0; attempt < 50 && (await storedCodeValue()) !== second; attempt++) await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.equal(await storedCodeValue(), second, 'a second generate overwrites, it does not append');
 
   // The time section: the shared format dropdown, the shared popup picker, copy
   // and one generated value inside the two range bounds.
@@ -354,6 +356,13 @@ try {
   await input.keyboard.press('Escape');
   assert.equal(await input.locator('[data-time-value="to"]').evaluate((element) => element.value), '16:15',
     'the range end box owns its own picker');
+  let storedTime = (await readCode())?.sections?.time;
+  for (let attempt = 0; attempt < 50 && storedTime?.value !== '14:30'; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    storedTime = (await readCode())?.sections?.time;
+  }
+  assert.deepEqual(storedTime, { value: '14:30', from: '07:45', to: '16:15', hourFormat: '24' },
+    'every stored time change is auto-saved in code.json');
   for (let draw = 0; draw < 20; draw++) {
     await input.locator('[data-time-generate]').click();
     const picked = await timeValue();
@@ -398,8 +407,10 @@ try {
     'a reopened Input restores the generated code from code.json');
   assert.equal(await input.locator('[data-hour-format-select]').evaluate((element) => element.value), '12',
     'a reopened Input restores the hour format saved on the previous visit');
-  assert.equal(await input.locator('[data-time-value="from"]').evaluate((element) => element.value), '08:00 AM',
-    'the restored 12-hour format reaches the reopened range boxes');
+  assert.equal(await input.locator('[data-time-value="from"]').evaluate((element) => element.value), '07:45 AM',
+    'the reopened Input restores the saved range start');
+  assert.equal(await input.locator('[data-time-value="to"]').evaluate((element) => element.value), '04:15 PM',
+    'the reopened Input restores the saved range end');
   assert.match(await input.locator('[data-time-value="main"]').evaluate((element) => element.value), /(AM|PM)$/);
   assert.notEqual(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()
     .find((win) => win.webContents.getURL().includes('/ui-control/view-built/index.html')).id), firstId);
@@ -513,7 +524,8 @@ try {
     'a reopened Input restores the saved selection',
     'code.json restores the generated code on open',
     'double-clicking the value box copies it',
-    'Generate replaces the value and stores it as one dynamic value, never a log',
+    'Generate replaces the code bucket in a generic sections envelope, never a log',
+    'legacy top-level code in code.json is restored and migrated on write',
     'value box and button share one config-driven, comfortable height',
     'time section reuses the language dropdown for a 24/12-hour format with 24 as the default',
     'each value box is its own picker trigger; no separate button or icon',
@@ -523,7 +535,7 @@ try {
     'double-clicking any time value box copies its displayed text',
     'the range bounds own separate pickers and Generate stays inside their inclusive range',
     'the three value boxes share the configured row height',
-    'the hour format is saved as its own selection and restored on reopen',
+    'every time value change is auto-saved in the time bucket and restored on reopen',
     'every time display keeps a colon separator, including the 12-hour form',
     'damaged state never blocks Input and falls back to configured defaults',
     'expand/collapse state survives language switching',

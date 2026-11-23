@@ -197,9 +197,11 @@ No separate inspection framework/service is needed.
   metadata only, never rendered. Input has its own build under `ui-control/`;
   Frame does not build Input. `ui-control/state.json` holds only the last
   selection made inside each section instance, one bucket per instance; a
-  discovered component declares what it persists through `stateKeys`. Generated
-  codes are an output, not a selection: `ui-control/code.json` holds one dynamic
-  value that each Generate replaces, never a log of past codes. Missing or
+  discovered component declares what it persists through `stateKeys`. Outputs
+  are not selections: `ui-control/code.json` is a generic `sections` envelope
+  keyed by instance id — `codeGenerator.code` and `time` (`value`, `from`, `to`,
+  `hourFormat`). Each bucket is replaced atomically after any change, never kept
+  as a log; a future overlay reads `sections.time` directly. Missing or
   damaged files never block Input and fall back to configured defaults. No
   preview, Frame/file bridge, engine or overlay. `engine/` and overlay behavior
   are not implemented.

@@ -283,8 +283,8 @@ pencil path: a frameless Input with the enabled shared section cards (header
 toggle, body mount, auto-compact below the configured slot, header height from
 configured paddingY, language dropdown swapping
 the locale layout, the last selection restored from `ui-control/state.json` and
-saved per section, a generated code restored from `ui-control/code.json`,
-double-click copying, Generate replacing that one dynamic value, a shared
+saved per section, a generated code and the time bucket restored from the
+generic `ui-control/code.json` envelope, every time change auto-saved, double-click copying, Generate replacing that one code bucket, a shared
 24/12-hour dropdown, three editable value boxes where four typed digits
 normalize to HH:MM and double-click copies, a picker attached to each box
 (hidden scrollbars, mouse-wheel scrolling), range Generate, colon-only time

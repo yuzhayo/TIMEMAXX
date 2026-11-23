@@ -16,7 +16,7 @@ export const partConfigKeys = {};
 // old codes), so it declares no stateKeys: nothing here is a selection.
 export default function CodeGenerator({ config, state, actions, resources }) {
   const expanded = state.expanded[config.id] ?? Boolean(config.expanded);
-  const restored = isValidCode(resources?.code) ? resources.code : null;
+  const restored = isValidCode(resources?.outputs?.code) ? resources.outputs.code : null;
   const [code, setCode] = useState(() => restored ?? newCode());
   const [copied, setCopied] = useState(false);
   const flash = useRef(null);

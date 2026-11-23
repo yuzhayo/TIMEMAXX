@@ -54,18 +54,34 @@ function createInputScreen({ BrowserWindow, screen, parent, ipcMain, development
     }
   };
 
-  // LOGIC — code.json holds one dynamic value, never a log of past codes. The shape
-  // check here is a transport guard; the format rules stay with the renderer's
-  // generator module, which also re-validates what it reads back.
-  const readCode = () => {
+  // LOGIC — code.json is one generic outputs envelope: a bucket per section
+  // instance, so a future overlay reads sections.time without a special path.
+  // A legacy top-level "code" string is still read and migrated on next write.
+  const CODE = /^[A-Z0-9]{14}$/;
+  const TIME = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+  const validTime = (value) => shape(value) && TIME.test(value.value) && TIME.test(value.from)
+    && TIME.test(value.to) && Object.keys(value).every((key) => ['value', 'from', 'to', 'hourFormat'].includes(key))
+    && (value.hourFormat === undefined || value.hourFormat === '12' || value.hourFormat === '24');
+
+  const readOutputs = () => {
+    let stored;
     try {
-      const stored = JSON.parse(fs.readFileSync(codePath, 'utf8'));
-      return typeof stored?.code === 'string' ? stored.code : null;
+      stored = JSON.parse(fs.readFileSync(codePath, 'utf8'));
     } catch (error) {
       if (error.code !== 'ENOENT') log.write([{ code: 'INPUT_CODE_UNREADABLE', configPath: codePath, expected: 'readable code.json',
-        actual: error.message, action: 'stored code ignored; a new one is generated', timestamp: new Date().toISOString() }]);
-      return null;
+        actual: error.message, action: 'stored outputs ignored; configured defaults apply', timestamp: new Date().toISOString() }]);
+      return { code: null, time: null };
     }
+    if (stored?.schemaVersion !== 1 || !shape(stored)) {
+      log.write([{ code: 'INPUT_CODE_INVALID', configPath: codePath, expected: 'schemaVersion 1 outputs envelope',
+        actual: stored, action: 'stored outputs ignored; configured defaults apply', timestamp: new Date().toISOString() }]);
+      return { code: null, time: null };
+    }
+    const sections = shape(stored.sections) ? stored.sections : {};
+    const legacy = typeof stored.code === 'string' && CODE.test(stored.code) ? stored.code : null;
+    const storedCode = typeof sections.codeGenerator?.code === 'string' && CODE.test(sections.codeGenerator.code)
+      ? sections.codeGenerator.code : legacy;
+    return { code: storedCode, time: validTime(sections.time) ? { ...sections.time } : null };
   };
 
   // LOGIC — serialize writes and replace atomically so a crash never leaves a
@@ -105,6 +121,7 @@ function createInputScreen({ BrowserWindow, screen, parent, ipcMain, development
   // UI — frameless client area fills the configured bounds; no caption or Windows-Bar space.
   const create = async () => {
     const configuration = settings(), config = configuration.window;
+    let outputs = readOutputs();
     const frame = parent.getBounds();
     const area = screen.getDisplayMatching(frame).workArea;
     const token = randomUUID();
@@ -124,7 +141,7 @@ function createInputScreen({ BrowserWindow, screen, parent, ipcMain, development
     created.on('page-title-updated', (event) => event.preventDefault());
     const allowed = (event) => event.sender === created.webContents && event.senderFrame === created.webContents.mainFrame;
     ipcMain.handle(bootstrapChannel, (event) => allowed(event)
-      ? { config: configuration, state: readState(), code: readCode(), development, inspectionRequested: development && inspectionRequested, logPath: log.path } : null);
+      ? { config: configuration, state: readState(), outputs, development, inspectionRequested: development && inspectionRequested, logPath: log.path } : null);
     ipcMain.handle(diagnosticsChannel, (event, records) => {
       if (!allowed(event) || !Array.isArray(records) || records.length > 1000) return { ok: false, error: 'Unknown Input sender or invalid diagnostic records' };
       return log.write(records);
@@ -135,11 +152,34 @@ function createInputScreen({ BrowserWindow, screen, parent, ipcMain, development
       }
       return writeJson(statePath, { schemaVersion: 1, sections });
     });
-    ipcMain.handle(codeChannel, (event, code) => {
-      if (!allowed(event) || typeof code !== 'string' || !/^[A-Z0-9]{14}$/.test(code)) {
-        return { ok: false, error: 'Unknown Input sender or invalid generated code' };
-      }
-      return writeJson(codePath, { schemaVersion: 1, code });
+    // LOGIC — one patch writer for every dynamic output bucket. A string is the
+    // legacy code-only call; an object carries named buckets. Both merge into
+    // the same envelope, so saving time never erases the code and vice versa.
+    ipcMain.handle(codeChannel, (event, payload) => {
+      if (!allowed(event)) return { ok: false, error: 'Unknown Input sender' };
+      let patch;
+      if (typeof payload === 'string') {
+        if (!CODE.test(payload)) return { ok: false, error: 'Input sender supplied an invalid generated code' };
+        patch = { code: payload };
+      } else if (shape(payload)) {
+        if (Object.keys(payload).some((key) => !['code', 'time'].includes(key))
+          || (Object.hasOwn(payload, 'code') && (typeof payload.code !== 'string' || !CODE.test(payload.code)))
+          || (Object.hasOwn(payload, 'time') && !validTime(payload.time))) {
+          return { ok: false, error: 'Input sender supplied an invalid output patch' };
+        }
+        patch = payload;
+      } else return { ok: false, error: 'Input sender supplied an invalid output patch' };
+      const next = { ...outputs, ...patch };
+      const sections = {};
+      if (next.code) sections.codeGenerator = { code: next.code };
+      if (next.time) sections.time = { ...next.time };
+      const previous = outputs;
+      outputs = next;
+      const operation = writeJson(codePath, { schemaVersion: 1, sections });
+      // writeJson resolves after the atomic rename; only roll the memory copy
+      // back if this was still the newest patch when the write failed.
+      operation.then((result) => { if (!result.ok && outputs === next) outputs = previous; });
+      return operation;
     });
     created.once('closed', () => {
       ipcMain.removeHandler(bootstrapChannel); ipcMain.removeHandler(diagnosticsChannel);

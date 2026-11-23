@@ -35,7 +35,7 @@ function InputApp() {
   const [plan, setPlan] = useState(initialPlan);
   reconfigure = (raw) => { currentPlan = validateInputConfig(raw, catalog, diagnostics); setPlan(currentPlan); };
   return <InputLayout plan={plan} session={session} diagnostics={diagnostics} development={bootstrap.development}
-    resources={{ code: bootstrap.code }} />;
+    resources={{ outputs: bootstrap.outputs }} />;
 }
 
 // LOGIC — development-only proof/inspection surface; no Node/file or Frame operations.

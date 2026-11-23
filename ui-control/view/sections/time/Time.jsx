@@ -7,7 +7,7 @@ import { copyText } from '@ui/clipboard.mjs';
 import { configuredSx, part } from '@ui/appearance.mjs';
 import {
   DEFAULT_HOUR_FORMAT, HOUR_FORMATS, RANGE_END, RANGE_START, formatTime, generateTime,
-  isValidHourFormat, parseTime, renderTime, typeTimeDigits,
+  isValidHourFormat, isValidTime, parseTime, renderTime, typeTimeDigits,
 } from '@input/logic/TimeValue.mjs';
 
 export const componentId = 'input.time';
@@ -111,15 +111,22 @@ function TimeValueBox({ config, attribute, partName, value, format, onPick, copy
 
 // UI — the shared card owns rendering; this section owns the generated time,
 // the range bounds, the hour format and one picker per value box.
-export default function Time({ config, state, actions }) {
+export default function Time({ config, state, actions, resources }) {
   const expanded = state.expanded[config.id] ?? Boolean(config.expanded);
   const format = isValidHourFormat(state.hourFormat) ? state.hourFormat : DEFAULT_HOUR_FORMAT;
-  const [time, setTime] = useState(() => generateTime(RANGE_START, RANGE_END) ?? RANGE_START);
-  const [from, setFrom] = useState(RANGE_START);
-  const [to, setTo] = useState(RANGE_END);
+  const stored = resources?.outputs?.time;
+  const restored = stored && isValidTime(stored.value) && isValidTime(stored.from) && isValidTime(stored.to) ? stored : null;
+  const [time, setTime] = useState(() => restored?.value ?? generateTime(RANGE_START, RANGE_END) ?? RANGE_START);
+  const [from, setFrom] = useState(restored?.from ?? RANGE_START);
+  const [to, setTo] = useState(restored?.to ?? RANGE_END);
   const [copiedBox, setCopiedBox] = useState(null);
   const flash = useRef(null);
   useEffect(() => () => clearTimeout(flash.current), []);
+  // LOGIC — every stored change in this section is written as one atomic patch.
+  // The file owner merges it beside the code bucket without re-reading a log.
+  useEffect(() => {
+    window.inputHost?.code?.save?.({ time: { value: time, from, to, hourFormat: format } })?.catch?.(() => undefined);
+  }, [time, from, to, format]);
   const copy = async (key, value, element) => {
     await copyText(renderTime(value, format), element);
     setCopiedBox(key);
