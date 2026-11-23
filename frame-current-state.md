@@ -278,9 +278,10 @@ frame/
   code; the label child generates `Photo Code` or `Kode Foto` by language. The bridge polls both JSON files by content hash and
   pushes fresh layers on change, so a generated code or language switch appears
   in Frame immediately. Geometry is measured from the operator's 1200x1600
-  reference export: shield x26..61/y1530..1571, divider x26..554/y1509, label
-  x78..247/y1537..1565, code x262..551/y1540..1565, using the APK's
-  Roboto-Regular face. Frame carries the PNGs
+  Indonesian stacked export: shield x31..66/y1527..1568, divider
+  x31..538/y1509, label x82..230/y1533..1560, code x244..536/y1534..1559,
+  using the APK's Roboto-Regular label and Roboto-Bold code.
+  Frame carries the PNGs
   through `desktop/LayerReceiver.cjs` and stacks them in `PreviewPainter` without
   interpreting stamp content. A child error or bad input hides only that section.
 - Combined photo/overlay export, accepted revisions, stale-overlay rejection and

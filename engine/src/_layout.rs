@@ -54,19 +54,19 @@ pub fn code_row(config: &Value, _assets: &Assets) -> EngineResult<CodeRow> {
     let k = frame_w / 1200.0;
     let scale = k;
     Ok(CodeRow {
-        x: 26.0 * k,
-        top: frame_h - 70.0 * k,
-        width: 529.0 * k,
+        x: 31.0 * k,
+        top: frame_h - 73.0 * k,
+        width: 508.0 * k,
         row_h: 42.0 * k,
         divider_y: 1509.0 * k,
-        shield_x: 26.0 * k,
-        shield_y: frame_h - 70.0 * k,
+        shield_x: 31.0 * k,
+        shield_y: frame_h - 73.0 * k,
         shield_w: 36.0 * k,
         shield_h: 42.0 * k,
-        text_x: 75.0 * k,
-        text_baseline: frame_h - 34.0 * k,
-        text_size: 45.0 * k,
-        code_size: 41.5 * k,
+        text_x: 79.0 * k,
+        text_baseline: frame_h - 40.0 * k,
+        text_size: 39.5 * k,
+        code_size: 41.0 * k,
         scale,
     })
 }
