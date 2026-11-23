@@ -1,3 +1,5 @@
+import { isValidHourFormat } from './TimeValue.mjs';
+
 // LOGIC — per-section persisted selections. One bucket per section instance, so
 // each section owns its own choices in state.json and never another's.
 // Pure rules only: file I/O belongs to the Input window owner (screen.cjs).
@@ -10,6 +12,7 @@ const name = (value) => typeof value === 'string' && /^[A-Za-z][\w.-]*$/.test(va
 // never silently coerced, so the configured default applies instead.
 const selections = {
   language: (value, plan) => (typeof value === 'string' && Object.hasOwn(plan.layouts ?? {}, value) ? value : null),
+  hourFormat: (value) => (isValidHourFormat(value) ? value : null),
 };
 
 export function applyInputState(sections, plan, diagnostics) {

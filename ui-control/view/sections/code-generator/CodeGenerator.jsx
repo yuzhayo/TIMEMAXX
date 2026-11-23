@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Box from '@mui/material/Box';
 import SectionCard from '@ui/SectionCard.jsx';
+import { copyText } from '@ui/clipboard.mjs';
 import { configuredSx, part } from '@ui/appearance.mjs';
 import { isValidCode, newCode } from '@input/logic/CodeGenerator.mjs';
 
@@ -26,12 +27,7 @@ export default function CodeGenerator({ config, state, actions, resources }) {
   useEffect(() => () => clearTimeout(flash.current), []);
   const generate = () => { const next = newCode(); setCode(next); save(next); };
   const copy = async (event) => {
-    try {
-      await navigator.clipboard.writeText(code);
-    } catch {
-      event.currentTarget.select();
-      document.execCommand('copy');
-    }
+    await copyText(code, event.currentTarget);
     setCopied(true);
     clearTimeout(flash.current);
     flash.current = setTimeout(() => setCopied(false), 1100);
@@ -43,7 +39,7 @@ export default function CodeGenerator({ config, state, actions, resources }) {
         onDoubleClick={copy} className={copied ? 'Mui-selected' : undefined} aria-label={config.label}
         sx={{ ...configuredSx(part(config, 'value')), flex: '1 1 auto', minWidth: 0 }} />
       <Box component="button" type="button" data-code-generate onClick={generate}
-        sx={{ ...configuredSx(part(config, 'generate')), flexShrink: 0, cursor: 'pointer', font: 'inherit' }}>
+        sx={{ ...configuredSx(part(config, 'generate')), flexShrink: 0, cursor: 'pointer' }}>
         Generate
       </Box>
     </SectionCard>

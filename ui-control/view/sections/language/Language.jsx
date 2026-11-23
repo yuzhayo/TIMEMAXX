@@ -1,6 +1,5 @@
-import Box from '@mui/material/Box';
 import SectionCard from '@ui/SectionCard.jsx';
-import { configuredSx, part } from '@ui/appearance.mjs';
+import ConfiguredSelect from '@ui/ConfiguredSelect.jsx';
 
 export const componentId = 'input.language';
 
@@ -18,11 +17,9 @@ export default function Language({ config, state, actions, languages }) {
   return (
     <SectionCard config={config} label={config.label} expanded={expanded}
       onToggle={() => actions.setExpanded(config.id, !expanded)}>
-      <Box component="select" data-language-select aria-label={config.label} value={state.language ?? ''}
-        onChange={(event) => actions.setLanguage(event.target.value)}
-        sx={{ ...configuredSx(part(config, 'select')), width: '100%', minWidth: 0, cursor: 'pointer' }}>
-        {languages.map((language) => <option key={language.id} value={language.id}>{language.label}</option>)}
-      </Box>
+      <ConfiguredSelect config={config} label={config.label} value={state.language ?? ''}
+        onChange={actions.setLanguage} data-language-select
+        options={languages.map((language) => ({ value: language.id, label: language.label }))} />
     </SectionCard>
   );
 }

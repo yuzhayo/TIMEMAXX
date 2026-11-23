@@ -1,8 +1,10 @@
+import { DEFAULT_HOUR_FORMAT, isValidHourFormat } from './TimeValue.mjs';
+
 // LOGIC — generic session state for a shell with no configured sections yet.
 // persisted carries validated per-section selections restored from state.json.
 export function createInputSession(plan, inspection = false, persisted = {}) {
   const listeners = new Set();
-  let state = { language: persisted?.language ?? plan.initialLanguage, expanded: Object.fromEntries(plan.sections.map((node) => [node.id, node.expanded])), inspection };
+  let state = { language: persisted?.language ?? plan.initialLanguage, hourFormat: persisted?.hourFormat ?? DEFAULT_HOUR_FORMAT, expanded: Object.fromEntries(plan.sections.map((node) => [node.id, node.expanded])), inspection };
   const publish = (next) => { state = next; for (const listener of listeners) listener(); };
   return {
     subscribe: (listener) => { listeners.add(listener); return () => listeners.delete(listener); },
@@ -10,6 +12,10 @@ export function createInputSession(plan, inspection = false, persisted = {}) {
     setLanguage: (language) => {
       if (!plan.layouts[language] || state.language === language) return false;
       publish({ ...state, language }); return true;
+    },
+    setHourFormat: (hourFormat) => {
+      if (!isValidHourFormat(hourFormat) || state.hourFormat === hourFormat) return false;
+      publish({ ...state, hourFormat }); return true;
     },
     setExpanded: (id, expanded) => {
       if (!Object.hasOwn(state.expanded, id) || typeof expanded !== 'boolean' || state.expanded[id] === expanded) return false;

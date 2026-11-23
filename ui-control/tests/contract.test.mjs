@@ -5,6 +5,8 @@ import { validateInputConfig } from '../logic/InputConfig.mjs';
 import { createInputSession } from '../logic/InputSession.mjs';
 import { applyInputState, collectInputState } from '../logic/InputState.mjs';
 import { ALPHABET, LENGTH, MAX_ENCODABLE, decode, encode, isValidCode, newCode } from '../logic/CodeGenerator.mjs';
+import { DEFAULT_HOUR_FORMAT, HOUR_FORMATS, formatTime, fromMinutes, generateTime, isValidHourFormat,
+  normalizeRange, parseTime, renderTime, toMinutes } from '../logic/TimeValue.mjs';
 import { createDiagnostics } from '../../components/LayoutDiagnostics.mjs';
 import { discoverComponents } from '../../components/ComponentDiscovery.mjs';
 
@@ -16,25 +18,28 @@ const catalog = [
     folder: 'language', filePath: 'language/Language.jsx', stateKeys: ['language'] },
   { componentId: 'input.code-generator', Component: function CodeGenerator() {},
     folder: 'code-generator', filePath: 'code-generator/CodeGenerator.jsx', stateKeys: [] },
+  { componentId: 'input.time', Component: function Time() {},
+    folder: 'time', filePath: 'time/Time.jsx', stateKeys: ['hourFormat'] },
 ];
 const validate = (config = structuredClone(raw), entries = catalog) => {
   const diagnostics = createDiagnostics();
   return { plan: validateInputConfig(config, entries, diagnostics), issues: diagnostics.getSnapshot() };
 };
 
-test('baseline mounts the enabled language and code-generator cards, keeping the placeholder chassis disabled', () => {
+test('baseline mounts the enabled language, code-generator and time cards, keeping the placeholder chassis disabled', () => {
   const { plan, issues } = validate();
   assert.deepEqual(issues, []);
-  assert.deepEqual(plan.sections.map((node) => node.id), ['language', 'codeGenerator']);
-  assert.deepEqual(plan.sections.map((node) => node.componentId), ['input.language', 'input.code-generator']);
-  assert.deepEqual(plan.sections.map((node) => node.folder), ['language', 'code-generator']);
+  assert.deepEqual(plan.sections.map((node) => node.id), ['language', 'codeGenerator', 'time']);
+  assert.deepEqual(plan.sections.map((node) => node.componentId),
+    ['input.language', 'input.code-generator', 'input.time']);
+  assert.deepEqual(plan.sections.map((node) => node.folder), ['language', 'code-generator', 'time']);
   for (const node of plan.sections) {
     assert.equal(node.expanded, true);
     assert.equal(node.sizing, 'content');
     assert.ok(node.parts.header.geometry.paddingY > 0, 'header height comes from configured paddingY');
     assert.ok(node.parts.body, `${node.id} body part resolves`);
   }
-  const [language, generator] = plan.sections;
+  const [language, generator, time] = plan.sections;
   assert.ok(language.parts.select, 'language select part resolves');
   assert.deepEqual(language.stateKeys, ['language'], 'the persisted selection travels with the discovered component');
   assert.ok(generator.parts.value, 'the code-generator value box resolves its own part');
@@ -44,6 +49,19 @@ test('baseline mounts the enabled language and code-generator cards, keeping the
   assert.equal(generator.parts.body.content.verticalAlign, 'stretch', 'both controls share one row height');
   assert.ok(generator.parts.value.geometry.paddingY > 0 && generator.parts.generate.geometry.paddingY > 0,
     'control height comes from configured padding, not hardcoded pixels');
+  assert.deepEqual(time.stateKeys, ['hourFormat'], 'the hour format is the only persisted time selection');
+  for (const name of ['select', 'row', 'value', 'timeButton', 'range', 'from', 'to', 'generate', 'picker']) {
+    assert.ok(time.parts[name], `the time section resolves its ${name} part`);
+  }
+  assert.deepEqual(time.parts.select, language.parts.select, 'the format dropdown reuses the language dropdown part');
+  assert.equal(time.parts.body.content.direction, 'column', 'the time body stacks format, value row, range row and Generate');
+  assert.equal(time.parts.row.content.direction, 'row', 'the main value box sits beside the Time button');
+  assert.equal(time.parts.range.content.direction, 'row', 'the two range bounds sit side by side');
+  assert.equal(time.parts.value.geometry.paddingY, time.parts.timeButton.geometry.paddingY,
+    'value box and Time button derive one proportional height from the same configured padding');
+  assert.equal(time.parts.picker.portal.placement, 'bottom-start', 'the picker uses the shared popup placement contract');
+  assert.ok(Number.isFinite(time.parts.picker.size.width) && Number.isFinite(time.parts.picker.size.height),
+    'the popup size is explicit viewport percentages in JSON');
   assert.equal(raw.sections[0].id, 'placeholder');
   assert.equal(raw.sections[0].enabled, false, 'the placeholder chassis stays configured but disabled');
   assert.deepEqual(raw.sections.map((section) => section.parts.header.geometry.paddingY),
@@ -53,9 +71,9 @@ test('baseline mounts the enabled language and code-generator cards, keeping the
     [['en', 'English'], ['id', 'Indonesian']]);
   assert.equal(plan.initialLanguage, 'en');
   assert.deepEqual(plan.layouts.en.sections.map((node) => [node.id, node.label]),
-    [['language', 'Language'], ['codeGenerator', 'Code Generator']]);
+    [['language', 'Language'], ['codeGenerator', 'Code Generator'], ['time', 'Time']]);
   assert.deepEqual(plan.layouts.id.sections.map((node) => [node.id, node.label]),
-    [['language', 'Bahasa'], ['codeGenerator', 'Generator Kode']]);
+    [['language', 'Bahasa'], ['codeGenerator', 'Generator Kode'], ['time', 'Waktu']]);
   assert.deepEqual(plan.layouts.id.sections[0].parts.select, plan.sections[0].parts.select);
 });
 
@@ -95,6 +113,13 @@ test('persisted state applies only declared selections and never invents a fallb
   assert.deepEqual(applyInputState({ language: { language: 'id' } }, plan, diagnostics),
     { language: 'id' }, 'the last chosen language is restored');
   assert.deepEqual(diagnostics.getSnapshot(), []);
+  assert.deepEqual(applyInputState({ time: { hourFormat: '12' } }, plan, diagnostics),
+    { hourFormat: '12' }, 'the last chosen hour format is restored for its own section');
+  assert.deepEqual(applyInputState({ time: { hourFormat: '13' } }, plan, diagnostics), {},
+    'an unsupported hour format falls back to the configured default');
+  assert.ok(diagnostics.getSnapshot().some((issue) => issue.code === 'INPUT_STATE_INVALID' && issue.instanceId === 'time'));
+  assert.deepEqual(applyInputState({ time: { language: 'id' } }, plan, diagnostics), {},
+    'a section cannot store a selection it did not declare');
   assert.deepEqual(applyInputState({ language: { language: 'xx' } }, plan, diagnostics), {},
     'an unknown locale falls back to the configured default');
   assert.ok(diagnostics.getSnapshot().some((issue) => issue.code === 'INPUT_STATE_INVALID' && issue.instanceId === 'language'));
@@ -108,13 +133,14 @@ test('persisted state applies only declared selections and never invents a fallb
 
 test('collect writes one bucket per section and drops empty or disabled ones', () => {
   const { plan } = validate();
-  const live = { language: 'id', expanded: { language: true }, inspection: false };
-  assert.deepEqual(collectInputState(plan, live), { schemaVersion: 1, sections: { language: { language: 'id' } } },
-    'each section owns its own bucket');
+  const live = { language: 'id', hourFormat: '12', expanded: { language: true }, inspection: false };
+  assert.deepEqual(collectInputState(plan, live), { schemaVersion: 1,
+    sections: { language: { language: 'id' }, time: { hourFormat: '12' } } },
+  'each section owns its own bucket');
   assert.deepEqual(collectInputState(plan, { expanded: { language: true } }), { schemaVersion: 1, sections: {} },
     'transient expansion state is not a persisted selection');
   const { plan: disabled } = validate((() => { const config = structuredClone(raw); config.sections[1].enabled = false; return config; })());
-  assert.deepEqual(collectInputState(disabled, live), { schemaVersion: 1, sections: {} },
+  assert.deepEqual(collectInputState(disabled, live), { schemaVersion: 1, sections: { time: { hourFormat: '12' } } },
     'a disabled section leaves no stale bucket');
 });
 
@@ -122,26 +148,28 @@ test('a configured section without an implementation is reported, never invented
   const config = structuredClone(raw);
   config.sections.push({ id: 'later', componentId: 'input.later', parentId: 'inputRoot', folder: 'later', enabled: true,
     expanded: true, bounds: { width: 100, height: 24 }, preset: 'root' });
-  config.layouts.en.order = ['placeholder', 'language', 'codeGenerator', 'later'];
+  config.layouts.en.order = ['placeholder', 'language', 'codeGenerator', 'time', 'later'];
   config.layouts.en.sections.later = { label: 'Later' };
-  config.layouts.id.order = ['placeholder', 'language', 'codeGenerator', 'later'];
+  config.layouts.id.order = ['placeholder', 'language', 'codeGenerator', 'time', 'later'];
   config.layouts.id.sections.later = { label: 'Terlambat' };
   const { plan, issues } = validate(config);
-  assert.deepEqual(plan.sections.map((node) => node.id), ['language', 'codeGenerator']);
+  assert.deepEqual(plan.sections.map((node) => node.id), ['language', 'codeGenerator', 'time']);
   assert.ok(issues.some((issue) => issue.code === 'INPUT_COMPONENT_MISSING' && issue.instanceId === 'later'));
-  assert.deepEqual(plan.layouts.en.sections.map((node) => node.id), ['language', 'codeGenerator']);
+  assert.deepEqual(plan.layouts.en.sections.map((node) => node.id), ['language', 'codeGenerator', 'time']);
   assert.equal(plan.initialLanguage, 'en');
 });
 
-test('session owns language and expand/collapse state and rejects unknown changes', () => {
+test('session owns language, hour format and expand/collapse state and rejects unknown changes', () => {
   const { plan } = validate();
-  const restored = createInputSession(plan, false, { language: 'id' });
+  const restored = createInputSession(plan, false, { language: 'id', hourFormat: '12' });
   assert.equal(restored.getSnapshot().language, 'id', 'a persisted selection seeds the session');
+  assert.equal(restored.getSnapshot().hourFormat, '12', 'the persisted hour format seeds the session');
   restored.dispose();
   assert.equal(createInputSession(plan).getSnapshot().language, 'en', 'without persisted state the configured default applies');
   const session = createInputSession(plan);
-  assert.deepEqual(session.getSnapshot().expanded, { language: true, codeGenerator: true });
+  assert.deepEqual(session.getSnapshot().expanded, { language: true, codeGenerator: true, time: true });
   assert.equal(session.getSnapshot().language, 'en');
+  assert.equal(session.getSnapshot().hourFormat, '24', 'the time format defaults to 24 hour');
   let events = 0;
   session.subscribe(() => events++);
   assert.equal(session.setExpanded('language', false), true);
@@ -152,7 +180,11 @@ test('session owns language and expand/collapse state and rejects unknown change
   assert.equal(session.getSnapshot().language, 'id');
   assert.equal(session.setLanguage('id'), false);
   assert.equal(session.setLanguage('xx'), false);
-  assert.equal(events, 2);
+  assert.equal(session.setHourFormat('12'), true);
+  assert.equal(session.getSnapshot().hourFormat, '12');
+  assert.equal(session.setHourFormat('12'), false);
+  assert.equal(session.setHourFormat('13'), false);
+  assert.equal(events, 3);
   session.dispose();
 });
 
@@ -193,4 +225,43 @@ test('generated codes satisfy all three rules and never lead with an unreachable
   assert.equal(isValidCode('ABCDEGHKLMNP'), false, '13 characters is not a code');
   assert.equal(isValidCode('ABCDEGHKLMNPRF'), false, 'a symbol outside the alphabet is not a code');
   assert.equal(isValidCode(null), false);
+});
+
+test('time values keep a colon separator and the reference 12/24-hour rules', () => {
+  assert.deepEqual(HOUR_FORMATS, ['24', '12']);
+  assert.equal(DEFAULT_HOUR_FORMAT, '24', '24 hour is the configured default');
+  assert.equal(isValidHourFormat('24'), true);
+  assert.equal(isValidHourFormat('12'), true);
+  assert.equal(isValidHourFormat('13'), false);
+  assert.equal(isValidHourFormat(24), false);
+  assert.deepEqual(parseTime('14:30'), { hour: 14, minute: 30 });
+  assert.equal(parseTime('24:00'), null);
+  assert.equal(parseTime('14.30'), null, 'a dotted time mark is never a valid time');
+  assert.equal(parseTime('2:30'), null, 'the stored mask is zero-padded');
+  assert.equal(formatTime(8, 5), '08:05');
+  assert.equal(renderTime('14:30', '24'), '14:30');
+  assert.equal(renderTime('14:30', '12'), '02:30 PM');
+  assert.equal(renderTime('00:05', '12'), '12:05 AM');
+  assert.equal(renderTime('12:05', '12'), '12:05 PM');
+  assert.equal(renderTime('00:00', '24'), '00:00');
+  assert.equal(renderTime('23:59', '24'), '23:59');
+  assert.ok(!renderTime('14:30', '24').includes('.') && !renderTime('14:30', '12').includes('.'),
+    'the time mark never uses a dot');
+  assert.equal(renderTime('not a time', '24'), '--:--');
+  assert.equal(toMinutes('00:00'), 0);
+  assert.equal(toMinutes('23:59'), 1439);
+  assert.equal(fromMinutes(0), '00:00');
+  assert.equal(fromMinutes(1439), '23:59');
+  assert.equal(fromMinutes(1440), null);
+  assert.deepEqual(normalizeRange('17:00', '08:00'), { start: 480, end: 1020 },
+    'a reversed range is normalized, not rejected');
+  assert.equal(generateTime('08:00', '17:00', () => 0), '08:00', 'the range start is inclusive');
+  assert.equal(generateTime('08:00', '17:00', () => 540), '17:00', 'the range end is inclusive');
+  assert.equal(generateTime('17:00', '08:00', () => 1), '08:01', 'a reversed range still generates inside its bounds');
+  assert.equal(generateTime('08:00', '08:00', () => 99), '08:00', 'a one-minute range is stable');
+  assert.equal(generateTime('bad', '17:00'), null, 'an invalid bound generates nothing');
+  for (let index = 0; index < 500; index++) {
+    const value = generateTime('08:00', '17:00');
+    assert.ok(toMinutes(value) >= 480 && toMinutes(value) <= 1020, `${value} stays inside the range`);
+  }
 });

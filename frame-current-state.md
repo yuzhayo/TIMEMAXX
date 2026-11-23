@@ -6,8 +6,8 @@
 preview and export remain standalone. The pencil button has one launch-only link
 to a frameless Input window owned by `ui-control/`; Input renders baked section
 cards — the enabled language section whose dropdown selects the global
-layout language (English/Indonesian) — with no task content, engine or data
-integration.
+layout language (English/Indonesian), a code generator, and a time section —
+with no task content, engine or data integration.
 
 The active application currently provides:
 
@@ -21,8 +21,8 @@ The active application currently provides:
 - Bottom Bar operation messages and structured local diagnostics;
 - development-only layout inspection;
 - toggling a frameless Input window from the pencil button; Input renders the
-  enabled shared section cards (a language dropdown and a code generator; the
-  placeholder chassis is configured but disabled).
+  enabled shared section cards (a language dropdown, a code generator and a
+  time section; the placeholder chassis is configured but disabled).
 
 Frame has four configured sections, sixteen configured instances, and fifteen
 enabled instances.
@@ -246,8 +246,8 @@ frame/
   per-section selection state and the generated code. `screen.cjs`
   is its public window-only contract; Frame loads it only on a pencil click.
   Input owns its own locked dependencies and Vite build, with no Frame build
-  dependency. It renders configured section cards (a language dropdown and a
-  code generator) and has no task content or data.
+  dependency. It renders configured section cards (a language dropdown, a code
+  generator and a time section) and has no task content or data.
 - Input is one non-modal frameless window: no native caption/buttons/title text or
   reserved Windows-Bar area. Pencil clicks alternate open/close, including rapid
   clicks. Closing Input leaves Frame running; closing Frame closes Input. Toggling
@@ -284,11 +284,13 @@ toggle, body mount, auto-compact below the configured slot, header height from
 configured paddingY, language dropdown swapping
 the locale layout, the last selection restored from `ui-control/state.json` and
 saved per section, a generated code restored from `ui-control/code.json`,
-double-click copying, Generate replacing that one dynamic value, damaged state
-falling back to defaults), 40% width at Frame
-startup/minimum sizes, full work-area height and adjoining-left bounds,
-JSON-driven geometry/background, toggle parity during rapid clicks, unchanged
-Frame state, failure isolation and parent-window cleanup. Artifacts stay in
+double-click copying, Generate replacing that one dynamic value, a shared
+24/12-hour dropdown, popup hour/minute pickers for the value and both range
+bounds, range Generate, colon-only time display, damaged state falling back to
+defaults), 40% width at Frame startup/minimum sizes, full work-area height and
+adjoining-left bounds, JSON-driven geometry/background, toggle parity during
+rapid clicks, unchanged Frame state, failure isolation and parent-window cleanup.
+Artifacts stay in
 ignored `frame/.runtime/checks/input-screen/`.
 
 From `ui-control/`, `npm.cmd run test:contract` checks the enabled-card baseline

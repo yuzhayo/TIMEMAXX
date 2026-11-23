@@ -20,6 +20,18 @@ const child = app.process();
 const errors = [];
 const metrics = [];
 let finished = false;
+const clipboardText = () => app.evaluate(({ clipboard }) => clipboard.readText());
+// Clipboard writes cross the Electron boundary asynchronously; poll instead of
+// assuming the OS clipboard is updated by the time the click resolves.
+const copyAndWait = async (page, selector, expected, message) => {
+  await app.evaluate(({ clipboard }) => clipboard.writeText(''));
+  await page.locator(selector).dblclick();
+  for (let attempt = 0; attempt < 60; attempt++) {
+    if (await clipboardText() === expected) return;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  assert.equal(await clipboardText(), expected, message);
+};
 
 const inputCount = () => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()
   .filter((win) => !win.isDestroyed() && !win.webContents.isDestroyed() && win.webContents.getURL().includes('/ui-control/view-built/index.html')).length);
@@ -71,10 +83,10 @@ const checkInput = async (page, settings, name) => {
   await page.waitForSelector('main[aria-label="Input"]');
   await page.evaluate(() => window.inputDev?.inspect(false));
   await page.waitForFunction(() => document.querySelector('[data-input-stack]') !== null);
-  assert.equal(await page.locator('[data-section-card]').count(), 2, 'Input renders the enabled language and code-generator cards');
-  assert.equal(await page.locator('[data-input-stack] > *').count(), 2, 'Input content area holds only configured section slots');
+  assert.equal(await page.locator('[data-section-card]').count(), 3, 'Input renders the enabled language, code-generator and time cards');
+  assert.equal(await page.locator('[data-input-stack] > *').count(), 3, 'Input content area holds only configured section slots');
   assert.equal(await page.locator('[data-instance="placeholder"]').count(), 0, 'the disabled placeholder chassis never mounts');
-  assert.equal(await page.getByRole('combobox').count(), 1, 'the language section owns the only combobox');
+  assert.equal(await page.getByRole('combobox').count(), 2, 'the language and time sections own one dropdown each');
   assert.equal(await page.locator('canvas, img, iframe').count(), 0);
   assert.deepEqual(await page.evaluate(() => ({ host: typeof window.frameHost, node: typeof require })),
     { host: 'undefined', node: 'undefined' });
@@ -128,6 +140,39 @@ const checkInput = async (page, settings, name) => {
     'the value box height comes from configured paddingY, not hardcoded pixels');
   assert.ok(Math.abs(controls.buttonPad - controls.stack * generatorConfig.parts.generate.geometry.paddingY / 100) < 1,
     'the button height comes from configured paddingY, not hardcoded pixels');
+  // The time section: configured hour format, colon-only display and one
+  // proportional row height for the value box and its Time button.
+  const timeConfig = config.sections.find((section) => section.id === 'time');
+  const hourFormat = await page.locator('[data-hour-format-select]').evaluate((element) => element.value);
+  assert.ok(['12', '24'].includes(hourFormat), 'the time dropdown selects a supported hour format');
+  const timePattern = hourFormat === '12'
+    ? /^(0[1-9]|1[0-2]):[0-5]\d (AM|PM)$/ : /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+  const timeBoxes = await page.evaluate(() => {
+    const read = (selector) => {
+      const element = document.querySelector(selector);
+      return { text: element.value || element.textContent, height: element.getBoundingClientRect().height,
+        pad: parseFloat(getComputedStyle(element).paddingTop) };
+    };
+    return { main: read('[data-time-value="main"]'), from: read('[data-time-from]'), to: read('[data-time-to]'),
+      button: read('[data-time-open]'), stack: document.querySelector('[data-input-stack]').getBoundingClientRect().height,
+      popup: document.querySelectorAll('[data-popover-surface]').length };
+  });
+  assert.match(timeBoxes.main.text, timePattern, 'the main value box shows its configured time format');
+  assert.match(timeBoxes.from.text, timePattern, 'the range start shows its configured time format');
+  assert.match(timeBoxes.to.text, timePattern, 'the range end shows its configured time format');
+  for (const value of [timeBoxes.main.text, timeBoxes.from.text, timeBoxes.to.text]) {
+    assert.ok(!value.includes('.'), 'a time mark never uses a dot');
+  }
+  assert.equal(timeBoxes.popup, 0, 'pickers stay closed until their trigger is used');
+  assert.ok(Math.abs(timeBoxes.main.height - timeBoxes.button.height) < 1, 'the value box and Time button share one row height');
+  assert.ok(Math.abs(timeBoxes.from.height - timeBoxes.to.height) < 1, 'both range bounds share one row height');
+  for (const value of [timeBoxes.main, timeBoxes.button, timeBoxes.from, timeBoxes.to]) {
+    assert.ok(value.height >= 30 && value.height <= 44, `a comfortable click target, measured ${value.height}`);
+  }
+  assert.ok(Math.abs(timeBoxes.main.pad - timeBoxes.stack * timeConfig.parts.value.geometry.paddingY / 100) < 1,
+    'the time value height comes from configured paddingY, not hardcoded pixels');
+  assert.ok(Math.abs(timeBoxes.button.pad - timeBoxes.stack * timeConfig.parts.timeButton.geometry.paddingY / 100) < 1,
+    'the Time button height comes from configured paddingY, not hardcoded pixels');
   await page.screenshot({ path: path.join(artifacts, `${name}.png`) });
   await captureNative(page, name);
   if (name === 'startup') await captureNative(page, 'input-beside-frame', true);
@@ -144,7 +189,8 @@ try {
   // Seed the persisted state: the first open must restore this selection, not the config default.
   const statePath = path.join(inputRoot, 'state.json');
   const codePath = path.join(inputRoot, 'code.json');
-  await fs.writeFile(statePath, JSON.stringify({ schemaVersion: 1, sections: { language: { language: 'id' } } }, null, 2));
+  await fs.writeFile(statePath, JSON.stringify({ schemaVersion: 1, sections: { language: { language: 'id' },
+    time: { hourFormat: '12' } } }, null, 2));
   await fs.writeFile(codePath, JSON.stringify({ schemaVersion: 1, code: 'UBDCEAAU9R2PAC' }, null, 2));
   const frameBounds = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getBounds());
   let [input] = await Promise.all([app.waitForEvent('window'), frame.click('#orphanEdit')]);
@@ -204,16 +250,14 @@ try {
     await new Promise((resolve) => setTimeout(resolve, 100));
     persistedState = await readState();
   }
-  assert.deepEqual(persistedState, { schemaVersion: 1, sections: { language: { language: 'en' } } },
-    'choosing a language saves one bucket for the language section');
+  assert.deepEqual(persistedState, { schemaVersion: 1, sections: { language: { language: 'en' }, time: { hourFormat: '12' } } },
+    'choosing a language saves one bucket for the language section while the time selection stays its own');
 
   // The code generator: restore, double-click copy, generate and store one dynamic value.
   const codeValue = () => input.locator('[data-code-value]').evaluate((element) => element.value);
   const readCode = async () => { try { return JSON.parse(await fs.readFile(codePath, 'utf8')); } catch { return null; } };
   assert.equal(await codeValue(), 'UBDCEAAU9R2PAC', 'the seeded code is restored from code.json');
-  await input.locator('[data-code-value]').dblclick();
-  assert.equal(await app.evaluate(({ clipboard }) => clipboard.readText()), 'UBDCEAAU9R2PAC',
-    'double-clicking the value box copies it');
+  await copyAndWait(input, '[data-code-value]', 'UBDCEAAU9R2PAC', 'double-clicking the value box copies it');
   await input.locator('[data-code-generate]').click();
   const generated = await codeValue();
   assert.notEqual(generated, 'UBDCEAAU9R2PAC', 'Generate replaces the value');
@@ -230,6 +274,67 @@ try {
   assert.notEqual(second, generated, 'each Generate produces a new value');
   for (let attempt = 0; attempt < 50 && (await readCode())?.code !== second; attempt++) await new Promise((resolve) => setTimeout(resolve, 100));
   assert.deepEqual(Object.keys(await readCode()).sort(), ['code', 'schemaVersion'], 'a second generate overwrites, it does not append');
+
+  // The time section: the shared format dropdown, the shared popup picker, copy
+  // and one generated value inside the two range bounds.
+  const timeValue = () => input.locator('[data-time-value="main"]').evaluate((element) => element.value);
+  const formatSelect = input.locator('[data-hour-format-select]');
+  assert.deepEqual(await formatSelect.locator('option').evaluateAll((options) => options.map((option) => [option.value, option.textContent])),
+    [['24', '24 hour'], ['12', '12 hour']], 'the format dropdown offers 24 and 12 hour, default 24');
+  assert.equal(await formatSelect.evaluate((element) => element.value), '12',
+    'the seeded hour format is restored from state.json');
+  assert.match(await timeValue(), /^(0[1-9]|1[0-2]):[0-5]\d (AM|PM)$/);
+  assert.equal(await input.locator('[data-time-from]').textContent(), '08:00 AM');
+  assert.equal(await input.locator('[data-time-to]').textContent(), '05:00 PM');
+  await formatSelect.selectOption('24');
+  await input.waitForFunction(() => /^\d{2}:\d{2}$/.test(document.querySelector('[data-time-value="main"]')?.value ?? ''));
+  assert.equal(await input.locator('[data-time-from]').textContent(), '08:00', 'the hour format change reaches every value box');
+  assert.equal(await input.locator('[data-time-to]').textContent(), '17:00');
+  await input.locator('[data-time-open]').click();
+  await input.waitForSelector('[data-popover-surface]');
+  assert.equal(await input.locator('[data-picker-hour] [data-time-option]').count(), 24, 'the picker lists 24 hours');
+  assert.equal(await input.locator('[data-picker-minute] [data-time-option]').count(), 60, 'the picker lists 60 minutes');
+  await input.screenshot({ path: path.join(artifacts, 'time-picker.png') });
+  await input.locator('[data-time-option="hour-14"]').click();
+  await input.locator('[data-time-option="minute-30"]').click();
+  assert.equal(await timeValue(), '14:30', 'the Time button popup updates the main value');
+  await input.keyboard.press('Escape');
+  await input.waitForSelector('[data-popover-surface]', { state: 'detached' });
+  await copyAndWait(input, '[data-time-value="main"]', '14:30',
+    'double-clicking the time value box copies the displayed time');
+  await input.locator('[data-time-from]').click();
+  await input.locator('[data-time-option="hour-07"]').click();
+  await input.locator('[data-time-option="minute-45"]').click();
+  await input.keyboard.press('Escape');
+  assert.equal(await input.locator('[data-time-from]').textContent(), '07:45',
+    'the range start owns its own picker');
+  await input.locator('[data-time-to]').click();
+  await input.locator('[data-time-option="hour-16"]').click();
+  await input.locator('[data-time-option="minute-15"]').click();
+  await input.keyboard.press('Escape');
+  assert.equal(await input.locator('[data-time-to]').textContent(), '16:15',
+    'the range end owns its own picker');
+  for (let draw = 0; draw < 20; draw++) {
+    await input.locator('[data-time-generate]').click();
+    const picked = await timeValue();
+    const minutes = Number(picked.slice(0, 2)) * 60 + Number(picked.slice(3, 5));
+    assert.ok(minutes >= 7 * 60 + 45 && minutes <= 16 * 60 + 15, `${picked} stays inside the configured range`);
+  }
+  await formatSelect.selectOption('12');
+  await input.waitForFunction(() => /(AM|PM)$/.test(document.querySelector('[data-time-value="main"]')?.value ?? ''));
+  assert.equal(await input.locator('[data-time-from]').textContent(), '07:45 AM');
+  assert.equal(await input.locator('[data-time-to]').textContent(), '04:15 PM');
+  for (const selector of ['[data-time-value="main"]', '[data-time-from]', '[data-time-to]']) {
+    const shownTime = await input.locator(selector).evaluate((element) => element.value || element.textContent);
+    assert.ok(!shownTime.includes('.'), 'the 12-hour display also keeps the colon separator');
+  }
+  persistedState = await readState();
+  for (let attempt = 0; attempt < 50 && persistedState?.sections?.time?.hourFormat !== '12'; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    persistedState = await readState();
+  }
+  assert.deepEqual(persistedState.sections.time, { hourFormat: '12' },
+    'the hour format is saved as the time section own selection');
 
   const firstId = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()
     .find((win) => win.webContents.getURL().includes('/ui-control/view-built/index.html')).id);
@@ -251,6 +356,11 @@ try {
     'a reopened Input restores the language saved on the previous visit');
   assert.equal(await input.locator('[data-code-value]').evaluate((element) => element.value), second,
     'a reopened Input restores the generated code from code.json');
+  assert.equal(await input.locator('[data-hour-format-select]').evaluate((element) => element.value), '12',
+    'a reopened Input restores the hour format saved on the previous visit');
+  assert.equal(await input.locator('[data-time-from]').textContent(), '08:00 AM',
+    'the restored 12-hour format reaches the reopened range boxes');
+  assert.match(await input.locator('[data-time-value="main"]').evaluate((element) => element.value), /(AM|PM)$/);
   assert.notEqual(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()
     .find((win) => win.webContents.getURL().includes('/ui-control/view-built/index.html')).id), firstId);
   const minimumClosed = input.waitForEvent('close');
@@ -336,6 +446,8 @@ try {
   await input.waitForSelector('main[aria-label="Input"]');
   assert.equal(await input.locator('[data-instance="language"] [data-language-select]').evaluate((element) => element.value), 'en',
     'an invalid persisted selection falls back to the configured default');
+  assert.equal(await input.locator('[data-hour-format-select]').evaluate((element) => element.value), '24',
+    'a missing time bucket falls back to the configured 24-hour default');
   assert.equal(await input.evaluate(() => document.querySelector('main').getAttribute('lang')), 'en');
   await fs.writeFile(statePath, JSON.stringify({ schemaVersion: 1, sections: { language: { language: 'en' } } }, null, 2));
   const pencil = await frame.locator('#orphanEdit').evaluate((button) => {
@@ -350,7 +462,7 @@ try {
   await Promise.all([inputClosed, frameClosed, processExited]);
   assert.equal(child.exitCode, 0);
   finished = true;
-  console.log(JSON.stringify({ pass: true, checked: ['real pencil toggles frameless Input with the enabled language and code-generator cards',
+  console.log(JSON.stringify({ pass: true, checked: ['real pencil toggles frameless Input with the enabled language, code-generator and time cards',
     'the disabled placeholder chassis never mounts',
     'header expands/collapses the card and mounts the body inside',
     'a content-sized slot hugs its card and sections stack tightly',
@@ -363,6 +475,13 @@ try {
     'double-clicking the value box copies it',
     'Generate replaces the value and stores it as one dynamic value, never a log',
     'value box and button share one config-driven, comfortable height',
+    'time section reuses the language dropdown for a 24/12-hour format with 24 as the default',
+    'the Time button opens a popup picker with 24 hour and 60 minute choices',
+    'the range bounds own separate pickers and Generate stays inside their inclusive range',
+    'the time value box and Time button share one config-driven row height',
+    'double-clicking the time value copies its colon-separated display text',
+    'the hour format is saved as its own selection and restored on reopen',
+    'every time display keeps a colon separator, including the 12-hour form',
     'damaged state never blocks Input and falls back to configured defaults',
     'expand/collapse state survives language switching',
     'scoped Input bootstrap and no Frame/file/data/preview bridge', 'rapid-click parity with one live window',

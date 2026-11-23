@@ -36,7 +36,7 @@ export function validatePopoverConfig(config, report) {
 // during a gesture and closes on commit, Escape or an outside click. The
 // feature that owns the content owns its values, commands and open state.
 // The surface is portaled, so the owner closes it on a pointer press outside.
-export default function ConfiguredPopover({ id, config, open, onClose, trigger, children }) {
+export default function ConfiguredPopover({ id, config, open, onClose, trigger, triggerStyle, children }) {
   const anchor = useRef(null);
   const surface = useRef(null);
   const close = useCallback((reason) => onClose?.(reason), [onClose]);
@@ -65,7 +65,7 @@ export default function ConfiguredPopover({ id, config, open, onClose, trigger, 
   }, [open, close]);
 
   return <>
-    <span ref={anchor} data-popover-trigger={id} style={{ ...fill, display: 'inline-flex' }}>{trigger}</span>
+    <span ref={anchor} data-popover-trigger={id} style={{ ...fill, display: 'inline-flex', ...triggerStyle }}>{trigger}</span>
     {/* UI — the portal's parent reference is the app viewport; children query this definite size. */}
     <Popper open={open} anchorEl={anchor.current} placement={config.portal.placement}
       style={{ zIndex: config.portal.zIndex, width: `${config.size.width}vw`, height: `${config.size.height}vh`, containerType: 'size' }}

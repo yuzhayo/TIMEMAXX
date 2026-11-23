@@ -102,15 +102,19 @@ latest explicit decisions take precedence over older examples and historical tes
   taskbar, and its right edge touches Frame's left edge: `[ Input ][ Frame ]`.
   Input renders the enabled baked section cards from `ui-control/view/sections/`:
   a language section, whose body hosts the global language dropdown
-  (English/Indonesian) that swaps the whole locale layout, and a code-generator
+  (English/Indonesian) that swaps the whole locale layout; a code-generator
   section, whose body hosts a value box (double-click copies it) beside a
-  Generate button that produces a 14-character base-24 code. The placeholder
-  chassis stays configured but disabled (`enabled: false`); card headers take
-  their height from configured `paddingY`. Cards share
-  `components/SectionCard.jsx` (header expand/collapse, auto-compact body).
-  A content-sized section hugs its card instead of reserving its bounds height.
-  It has no task content or data. Task content and generator behavior are
-  future explicit requests, not an implied work queue.
+  Generate button that produces a 14-character base-24 code; and a time section,
+  whose shared 24/12-hour dropdown formats a copyable value box, a popup
+  hour/minute picker beside it, two range bounds with their own pickers, and a
+  Generate button. The placeholder chassis stays configured but disabled
+  (`enabled: false`); card headers take their height from configured `paddingY`.
+  Cards share `components/SectionCard.jsx` (header expand/collapse, auto-compact
+  body); the language and time dropdowns share `components/ConfiguredSelect.jsx`,
+  and the time pickers use `components/ConfiguredPopover.jsx`. A content-sized
+  section hugs its card instead of reserving its bounds height. It has no task
+  content or data. Task content and generator behavior are future explicit
+  requests, not an implied work queue.
 - Startup and vertical maximize use the approved narrow configured width, full
   monitor work-area height excluding the taskbar, and right alignment. Restore
   returns to previous bounds. Native geometry is not photo or section-layout logic.
