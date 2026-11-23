@@ -269,7 +269,8 @@ No separate inspection framework/service is needed.
   and drawn without transform handles.
   The operator approved the current `sideVerified` position; calibration is now
   disabled and both text groups render only through the normal engine layers.
-  Its approved position is the Photoshop type-layer identity at x1165.73/y419.9;
+  Its approved position is the Photoshop type-layer position adjusted 1px left:
+  x1164.73/y419.9;
   do not reapply older runtime calibration offsets.
 - Photo transforms affect photo only; view transforms affect inspection only.
   Future stale-overlay rejection, clearing and accepted-revision consistency are

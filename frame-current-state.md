@@ -314,7 +314,8 @@ frame/
   calibration UI locks it without handles.
   The current `sideVerified` position is operator-approved. Calibration is now
   disabled; `sideCode` and `sideVerified` render as normal engine layers. The
-  approved sideVerified position is the Photoshop identity x1165.73/y419.9;
+  approved sideVerified position is x1164.73/y419.9 (Photoshop identity shifted
+  1px left);
   earlier runtime offsets are superseded and must not be reapplied.
 - Combined photo/overlay export, accepted revisions, stale-overlay rejection and
   combined Save still belong to a future background orchestrator. The optional

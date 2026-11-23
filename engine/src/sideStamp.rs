@@ -54,7 +54,7 @@ pub fn calculate(data: Option<&Value>, context: &Context) -> EngineResult<Vec<La
     let code_advance = _layout::text_width(&code_font, text_size, code)? * advance_scale;
     let code_origin_y = shield_y - gap;
     let reference_advance = _layout::text_width(&code_font, text_size, "NNADN3TM9DTTRH")? * advance_scale;
-    let verified_x = 1165.73 * frame_w / 1200.0;
+    let verified_x = 1164.73 * frame_w / 1200.0;
     let verified_y = 419.9 * frame_w / 1200.0 + reference_advance - code_advance;
     let verified_w = 35.27 * frame_w / 1200.0;
     let verified_h = 229.85 * frame_w / 1200.0;
