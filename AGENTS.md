@@ -223,10 +223,14 @@ No separate inspection framework/service is needed.
   `ui-control/code.json`, asks each child for its own calculation, orders layers
   by z, writes transparent 1200x1600 PNGs to `frame/.runtime/engine-layers/` and
   records missing input, missing children and child failures in `engine/log.json`
-  without crashing. Phase 1 children are `shield` (static mark) and `codeStamp`
-  (`sections.codeGenerator.code`). The bridge polls `code.json` by content hash
-  and pushes new layers to Frame on change, so a generated code updates the
-  display without a restart. Shield size (12×14 dp) and code text size (12 dp,
+  without crashing. The parent only reads JSON and rasterises; every decision
+  lives in a flat child: `shield`, `codeDivider`, `codeLabel`, `codeColon` and
+  `codeStamp`. Input only supplies `sections.codeGenerator.code`. The label child
+  generates the localized text itself. The label is `Photo Code`
+  (`i_photo_code`) or `Kode Foto` (APK template item 640) according to the
+  language selection in `ui-control/state.json`. The bridge polls both JSON files
+  by content hash and pushes new layers to Frame on change, so a generated code
+  or a language switch updates the display without a restart. Shield size (12×14 dp) and code text size (12 dp,
   RobotoCondensed-Regular) follow `timemark-web/src/templates/render.ts` and
   `core/theme.ts`, including the 8dp bottom anchor, 245dp row, 0.5dp divider and
   0.7 row alpha. Frame only carries those PNGs through

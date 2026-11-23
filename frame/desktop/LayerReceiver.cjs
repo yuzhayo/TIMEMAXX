@@ -36,14 +36,19 @@ function render({ root, runtime }) {
   return { ok: true, frame: manifest.frame, layers };
 }
 
-// LOGIC — polling: only re-run the engine when code.json content changes, so a
-// generated code is reflected in the frame without rebuilding or restarting.
+// LOGIC — polling: re-run the engine only when a watched JSON changes. Both the
+// generated code and the language selection are reflected without a restart.
 function pollLayers({ root, runtime }) {
-  const codePath = path.resolve(root, '..', 'ui-control', 'code.json');
-  const hash = digest(codePath);
-  if (hash === cachedHash && cachedResult?.ok) return { changed: false, result: cachedResult };
+  const engineRoot = path.resolve(root, '..', 'engine');
+  const engineConfig = JSON.parse(fs.readFileSync(path.join(engineRoot, 'config.json'), 'utf8'));
+  const watched = [engineConfig.input, engineConfig.language].filter(Boolean)
+    .map((value) => path.resolve(engineRoot, value));
+  const hash = createHash('sha256');
+  for (const file of watched) hash.update(digest(file));
+  const current = hash.digest('hex');
+  if (current === cachedHash && cachedResult?.ok) return { changed: false, result: cachedResult };
   const result = render({ root, runtime });
-  if (result.ok) { cachedHash = hash; cachedResult = result; }
+  if (result.ok) { cachedHash = current; cachedResult = result; }
   return { changed: result.ok, result };
 }
 

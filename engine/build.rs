@@ -16,7 +16,7 @@ fn main() {
             continue;
         }
         let name = path.file_stem().and_then(|value| value.to_str()).unwrap_or("").to_string();
-        if name.is_empty() || name == "lib" {
+        if name.is_empty() || name == "lib" || name.starts_with('_') {
             continue;
         }
         println!("cargo:rerun-if-changed={}", path.display());

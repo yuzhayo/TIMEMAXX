@@ -269,12 +269,15 @@ frame/
   visible only for issues; development inspection is off in normal use.
 - Missing/invalid Input is reported through Frame's existing Bottom Bar diagnostics;
   it does not prevent Frame startup or standalone export.
-- `engine/` now has one Rust parent (`src/lib.rs`) and flat children. Phase 1
-  children are `shield` and `codeStamp`; the parent globs them through `build.rs`,
-  reads `ui-control/code.json`, writes z-ordered transparent 1200x1600 PNGs and
-  logs missing input/children or child failures in `engine/log.json`. The bridge
-  polls `code.json` by content hash and pushes fresh layers on change, so a code
-  generated in Input appears in Frame immediately. Shield size, code font/size,
+- `engine/` now has one Rust parent (`src/lib.rs`) and flat children: `shield`,
+  `codeDivider`, `codeLabel`, `codeColon` and `codeStamp`. The parent only reads
+  JSON and rasterises; each child calculates its own geometry, text and
+  placement. Shared child-only helpers live in `_layout.rs` (skipped by the
+  glob). The parent writes z-ordered transparent 1200x1600 PNGs and logs missing
+  input/children or child failures in `engine/log.json`. Input only supplies the
+  code; the label child generates `Photo Code` or `Kode Foto` by language. The bridge polls both JSON files by content hash and
+  pushes fresh layers on change, so a generated code or language switch appears
+  in Frame immediately. Shield size, code font/size,
   row width, bottom anchor, divider and alpha are all transcribed from
   `render.ts`/`theme.ts` (12×14 dp shield, 12 dp RobotoCondensed text, 8dp margin,
   245dp row, 0.7 row alpha). Frame carries the PNGs

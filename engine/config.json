@@ -1,11 +1,13 @@
 {
   "schemaVersion": 1,
   "input": "../ui-control/code.json",
+  "language": "../ui-control/state.json",
   "outputDir": "../frame/.runtime/engine-layers",
   "log": "log.json",
   "frame": { "width": 1200, "height": 1600 },
   "assets": {
     "shield": "assets/shield.png",
-    "font": "assets/code.ttf"
+    "font": "assets/code.ttf",
+    "fontBold": "assets/codeBold.ttf"
   }
 }
