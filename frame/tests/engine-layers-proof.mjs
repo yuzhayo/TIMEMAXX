@@ -24,8 +24,8 @@ try {
   });
   const result = await page.evaluate(() => window.frameHost.layers());
   assert.equal(result.ok, true, 'Frame can ask the parent engine for layers');
-  assert.deepEqual(result.layers.map((layer) => layer.id), ['shield', 'codeStamp'],
-    'the engine returns exactly the discovered children, ordered by z');
+  assert.deepEqual(result.layers.map((layer) => layer.id), ['shield', 'codeDivider', 'codeStamp'],
+    'the engine returns the discovered calculations, ordered by z');
   assert.ok(result.frame.width === 1200 && result.frame.height === 1600, 'layers are 3:4 1200x1600');
   assert.ok(result.layers.every((layer) => layer.dataUrl.startsWith('data:image/png;base64,')),
     'each layer is a transparent PNG carried across the bridge');

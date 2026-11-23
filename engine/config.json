@@ -7,9 +7,5 @@
   "assets": {
     "shield": "assets/shield.png",
     "font": "assets/code.ttf"
-  },
-  "sections": {
-    "shield": { "x": 27, "y": 1433, "width": 40, "height": 47 },
-    "codeStamp": { "x": 80, "y": 1473, "size": 40, "color": [255, 255, 255, 180] }
   }
 }

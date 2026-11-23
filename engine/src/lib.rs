@@ -18,12 +18,36 @@ pub struct Child {
     pub id: &'static str,
     pub code_key: Option<&'static str>,
     pub z: i32,
-    pub calculate: fn(Option<&Value>, &Value) -> EngineResult<LayerSpec>,
+    pub calculate: fn(Option<&Value>, &Context) -> EngineResult<Vec<LayerSpec>>,
+}
+
+/// Exact photo-code row geometry transcribed from timemark-web.
+pub struct CodeRow {
+    pub x: f32,
+    pub top: f32,
+    pub width: f32,
+    pub row_h: f32,
+    pub divider_y: f32,
+    pub shield_x: f32,
+    pub shield_y: f32,
+    pub shield_w: f32,
+    pub shield_h: f32,
+    pub text_x: f32,
+    pub text_baseline: f32,
+    pub text_size: f32,
+}
+
+/// What every child receives from the parent. No file IO on the child side.
+pub struct Context<'a> {
+    pub manifest: &'a Path,
+    pub config: &'a Value,
+    pub row: CodeRow,
 }
 
 /// What a child decided to draw. The parent owns all rasterising and file IO.
 pub enum Paint {
-    Image { asset: &'static str, x: f32, y: f32, w: f32, h: f32 },
+    Image { asset: &'static str, x: f32, y: f32, w: f32, h: f32, alpha: f32 },
+    Rect { x: f32, y: f32, w: f32, h: f32, color: [u8; 4] },
     Text { text: String, font: &'static str, size: f32, color: [u8; 4], x: f32, y: f32 },
 }
 
@@ -52,6 +76,48 @@ pub fn number(config: &Value, key: &str) -> EngineResult<f32> {
     config.get(key).and_then(Value::as_f64)
         .map(|value| value as f32)
         .ok_or_else(|| format!("expected numeric {key}"))
+}
+
+/// Pixel metrics from the real font, matching draw.ts fontMetrics/baselineOffset.
+pub fn font_metrics(font_path: &Path, size: f32) -> EngineResult<(f32, f32)> {
+    let bytes = fs::read(font_path).map_err(|error| format!("font unreadable: {error}"))?;
+    let font = FontRef::try_from_slice(&bytes).map_err(|error| format!("font invalid: {error}"))?;
+    let scaled = font.as_scaled(PxScale::from(size));
+    Ok((scaled.ascent(), scaled.descent()))
+}
+
+/// LOGIC — render34 + drawPhotoCode + compose.ts anchoring, in one place:
+/// the stamp is anchored bottom-start with 8dp, and photoCodeView is its last row.
+pub fn code_row(config: &Value, manifest: &Path) -> EngineResult<CodeRow> {
+    let frame_w = number(&config["frame"], "width")?;
+    let frame_h = number(&config["frame"], "height")?;
+    let scale = frame_w / 360.0; // design surface is 360dp wide
+    let dp = |value: f32| value * scale;
+
+    let font = resolve(manifest, config["assets"]["font"].as_str().unwrap_or("assets/code.ttf"));
+    let text_size = dp(12.0); // TEXT.t12, values/dimens.xml
+    let (ascent, descent) = font_metrics(&font, text_size)?;
+    let line_h = ascent - descent;
+
+    let shield_w = dp(12.0); // render.ts:274
+    let shield_h = dp(14.0); // render.ts:275
+    let row_h = shield_h.max(line_h); // render.ts:279
+    let x = dp(8.0); // WATERMARK_MARGIN
+    let top = frame_h - dp(8.0) - row_h; // compositor anchors ink bottom at frame - 8dp
+    Ok(CodeRow {
+        x,
+        top,
+        width: dp(245.0), // render.ts:414 DIM.dp245
+        row_h,
+        divider_y: top - dp(12.0) - 0.5 * scale, // render.ts:269-271
+        shield_x: x,
+        shield_y: top,
+        shield_w,
+        shield_h,
+        text_x: x + shield_w + dp(4.0), // render.ts:282
+        text_baseline: top + (row_h - line_h) / 2.0 + ascent, // render.ts:280 + draw.ts:106
+        text_size,
+    })
 }
 
 /// Non-crashing diagnostics: identical issues are counted, not repeated.
@@ -90,6 +156,15 @@ impl Log {
     }
 }
 
+fn blend(pixel: &mut image::Rgba<u8>, color: [u8; 4]) {
+    let mix = color[3] as f32 / 255.0;
+    if mix == 0.0 { return; }
+    for channel in 0..3 {
+        pixel[channel] = (color[channel] as f32 * mix + pixel[channel] as f32 * (1.0 - mix)).round() as u8;
+    }
+    pixel[3] = (color[3] as u32 + pixel[3] as u32).min(255) as u8;
+}
+
 fn draw_text(image: &mut RgbaImage, text: &str, font_path: &Path, size: f32, color: [u8; 4], x: f32, y: f32) -> EngineResult<()> {
     let bytes = fs::read(font_path).map_err(|error| format!("font unreadable: {error}"))?;
     let font = FontRef::try_from_slice(&bytes).map_err(|error| format!("font invalid: {error}"))?;
@@ -106,7 +181,7 @@ fn draw_text(image: &mut RgbaImage, text: &str, font_path: &Path, size: f32, col
                 let px = gx as i32 + origin.x as i32;
                 let py = gy as i32 + origin.y as i32;
                 if px < 0 || py < 0 || px >= image.width() as i32 || py >= image.height() as i32 { return; }
-                let alpha = (coverage * 255.0).round().clamp(0.0, 255.0) as u8;
+                let alpha = (coverage * color[3] as f32).round().clamp(0.0, 255.0) as u8;
                 if alpha == 0 { return; }
                 let mix = alpha as f32 / 255.0;
                 let pixel = image.get_pixel_mut(px as u32, py as u32);
@@ -126,11 +201,25 @@ fn rasterize(spec: &LayerSpec, config: &Value, manifest: &Path) -> EngineResult<
     let height = number(&config["frame"], "height")? as u32;
     let mut canvas = RgbaImage::new(width, height);
     match &spec.paint {
-        Paint::Image { asset, x, y, w, h } => {
+        Paint::Image { asset, x, y, w, h, alpha } => {
             let path = resolve(manifest, asset);
             let source = image::open(&path).map_err(|error| format!("asset unreadable: {error}"))?.to_rgba8();
-            let scaled = imageops::resize(&source, *w as u32, *h as u32, imageops::FilterType::Lanczos3);
+            let mut scaled = imageops::resize(&source, *w as u32, *h as u32, imageops::FilterType::Lanczos3);
+            if *alpha < 1.0 {
+                for pixel in scaled.pixels_mut() {
+                    pixel[3] = (pixel[3] as f32 * alpha).round().clamp(0.0, 255.0) as u8;
+                }
+            }
             imageops::overlay(&mut canvas, &scaled, *x as i64, *y as i64);
+        }
+        Paint::Rect { x, y, w, h, color } => {
+            let x0 = x.max(0.0) as u32;
+            let y0 = y.max(0.0) as u32;
+            let x1 = (x + w).min(width as f32) as u32;
+            let y1 = (y + h).min(height as f32) as u32;
+            for py in y0..y1 {
+                for px in x0..x1 { blend(canvas.get_pixel_mut(px, py), *color); }
+            }
         }
         Paint::Text { text, font, size, color, x, y } => {
             let path = resolve(manifest, font);
@@ -153,7 +242,6 @@ fn run() -> EngineResult<Value> {
 
     let log_path = resolve(&manifest_dir, config["log"].as_str().unwrap_or("log.json"));
     let mut log = Log::new(log_path);
-
     let input_path = resolve(&manifest_dir, config["input"].as_str().unwrap_or("../ui-control/code.json"));
     let sections = match fs::read_to_string(&input_path) {
         Ok(text) => match serde_json::from_str::<Value>(&text) {
@@ -168,13 +256,25 @@ fn run() -> EngineResult<Value> {
         }
     };
 
-    let section_config = config.get("sections").cloned().unwrap_or_else(|| json!({}));
     let output = resolve(&manifest_dir, config["outputDir"].as_str().unwrap_or("../frame/.runtime/engine-layers"));
     if fs::create_dir_all(&output).is_err() {
         log.add("OUTPUT_UNWRITABLE", "-", "a writable output directory", &output.display().to_string(), "layers hidden; engine continues");
     }
     let frame_width = number(&config["frame"], "width").unwrap_or(1200.0) as u32;
     let frame_height = number(&config["frame"], "height").unwrap_or(1600.0) as u32;
+
+    let row = match code_row(&config, &manifest_dir) {
+        Ok(row) => row,
+        Err(error) => {
+            log.add("LAYOUT_INVALID", "-", "the reference code row", &error, "sections hidden; engine continues");
+            let placeholder = code_row_fallback(&config);
+            let manifest = json!({ "schemaVersion": 1, "frame": { "width": frame_width, "height": frame_height }, "layers": [] });
+            let _ = placeholder;
+            log.flush();
+            return Ok(manifest);
+        }
+    };
+    let context = Context { manifest: &manifest_dir, config: &config, row };
 
     let mut specs: Vec<LayerSpec> = Vec::new();
     for child in CHILDREN {
@@ -188,19 +288,12 @@ fn run() -> EngineResult<Value> {
                 }
             },
         };
-        let outcome = catch_unwind(AssertUnwindSafe(|| (child.calculate)(data, &section_config)));
-        let spec = match outcome {
-            Ok(Ok(spec)) => spec,
-            Ok(Err(error)) => {
-                log.add("CHILD_CALCULATION_FAILED", child.id, "a layer calculation", &error, "section hidden; siblings retained");
-                continue;
-            }
-            Err(_) => {
-                log.add("CHILD_PANICKED", child.id, "a panic-free calculation", "panic", "section hidden; siblings retained");
-                continue;
-            }
-        };
-        specs.push(spec);
+        let outcome = catch_unwind(AssertUnwindSafe(|| (child.calculate)(data, &context)));
+        match outcome {
+            Ok(Ok(mut items)) => specs.append(&mut items),
+            Ok(Err(error)) => log.add("CHILD_CALCULATION_FAILED", child.id, "a layer calculation", &error, "section hidden; siblings retained"),
+            Err(_) => log.add("CHILD_PANICKED", child.id, "a panic-free calculation", "panic", "section hidden; siblings retained"),
+        }
     }
     specs.sort_by_key(|spec| spec.z);
 
@@ -227,6 +320,14 @@ fn run() -> EngineResult<Value> {
     }
     log.flush();
     Ok(manifest)
+}
+
+fn code_row_fallback(config: &Value) -> CodeRow {
+    let width = number(&config["frame"], "width").unwrap_or(1200.0);
+    let height = number(&config["frame"], "height").unwrap_or(1600.0);
+    CodeRow { x: 27.0, top: height - 74.0, width: width - 54.0, row_h: 47.0,
+        divider_y: height - 92.0, shield_x: 27.0, shield_y: height - 74.0,
+        shield_w: 40.0, shield_h: 47.0, text_x: 80.0, text_baseline: height - 45.0, text_size: 40.0 }
 }
 
 fn main() {

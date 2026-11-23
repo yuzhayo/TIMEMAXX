@@ -274,9 +274,10 @@ frame/
   reads `ui-control/code.json`, writes z-ordered transparent 1200x1600 PNGs and
   logs missing input/children or child failures in `engine/log.json`. The bridge
   polls `code.json` by content hash and pushes fresh layers on change, so a code
-  generated in Input appears in Frame immediately. Shield size and code font/size
-  follow the TIMEMARK reference (12×14 dp shield, 12 dp RobotoCondensed text);
-  only the row's vertical position is still provisional. Frame carries the PNGs
+  generated in Input appears in Frame immediately. Shield size, code font/size,
+  row width, bottom anchor, divider and alpha are all transcribed from
+  `render.ts`/`theme.ts` (12×14 dp shield, 12 dp RobotoCondensed text, 8dp margin,
+  245dp row, 0.7 row alpha). Frame carries the PNGs
   through `desktop/LayerReceiver.cjs` and stacks them in `PreviewPainter` without
   interpreting stamp content. A child error or bad input hides only that section.
 - Combined photo/overlay export, accepted revisions, stale-overlay rejection and

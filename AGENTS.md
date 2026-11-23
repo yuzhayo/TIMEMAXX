@@ -228,8 +228,8 @@ No separate inspection framework/service is needed.
   and pushes new layers to Frame on change, so a generated code updates the
   display without a restart. Shield size (12×14 dp) and code text size (12 dp,
   RobotoCondensed-Regular) follow `timemark-web/src/templates/render.ts` and
-  `core/theme.ts`; the row's vertical position is still provisional until the
-  full template layout is ported. Frame only carries those PNGs through
+  `core/theme.ts`, including the 8dp bottom anchor, 245dp row, 0.5dp divider and
+  0.7 row alpha. Frame only carries those PNGs through
   `desktop/LayerReceiver.cjs` and stacks them in `PreviewPainter`; it interprets
   no stamp content. Combined export with layers remains deferred.
 - Photo transforms affect photo only; view transforms affect inspection only.
