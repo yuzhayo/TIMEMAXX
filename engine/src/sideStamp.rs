@@ -54,10 +54,8 @@ pub fn calculate(data: Option<&Value>, context: &Context) -> EngineResult<Vec<La
     let code_advance = _layout::text_width(&code_font, text_size, code)? * advance_scale;
     let code_origin_y = shield_y - gap;
     let reference_advance = _layout::text_width(&code_font, text_size, "NNADN3TM9DTTRH")? * advance_scale;
-    // Last operator-approved manual calibration, baked before disabling the
-    // helper so relaunches cannot return the text to identity.
-    let verified_x = (1165.73 - 1.3252054) * frame_w / 1200.0;
-    let verified_y = (419.9 - 6.6016433) * frame_w / 1200.0 + reference_advance - code_advance;
+    let verified_x = 1165.73 * frame_w / 1200.0;
+    let verified_y = 419.9 * frame_w / 1200.0 + reference_advance - code_advance;
     let verified_w = 35.27 * frame_w / 1200.0;
     let verified_h = 229.85 * frame_w / 1200.0;
     let shadow = || Some(SoftShadow { color: [0, 0, 0, 102], offset_x: 0.0,

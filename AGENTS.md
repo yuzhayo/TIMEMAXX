@@ -269,8 +269,8 @@ No separate inspection framework/service is needed.
   and drawn without transform handles.
   The operator approved the current `sideVerified` position; calibration is now
   disabled and both text groups render only through the normal engine layers.
-  Its final manual offset x=-1.3252054/y=-6.6016433 is baked into
-  `sideStamp.rs`; never reset it to identity on relaunch.
+  Its approved position is the Photoshop type-layer identity at x1165.73/y419.9;
+  do not reapply older runtime calibration offsets.
 - Photo transforms affect photo only; view transforms affect inspection only.
   Future stale-overlay rejection, clearing and accepted-revision consistency are
   orchestrator responsibilities. Photo replacement must not mutate its overlay.
