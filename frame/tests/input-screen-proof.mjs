@@ -412,7 +412,8 @@ try {
   const [, monthPart, yearPart] = beforeDate.split('/');
   await input.locator('[data-date-value]').click();
   await input.waitForSelector('[data-popover-surface]');
-  const cells = await input.locator('[data-date-cell]').count();
+  const cells = await input.locator('[data-date-calendar] [role="grid"] button').count();
+  assert.ok(cells >= 28 && cells <= 42, `MUI calendar shows a full month of ${cells} day buttons`);
   assert.ok(cells >= 28 && cells <= 31, `the calendar shows a full month of ${cells} days`);
   await input.screenshot({ path: path.join(artifacts, 'date-picker.png') });
   const widths = await input.evaluate(() => ({
@@ -421,7 +422,7 @@ try {
   }));
   assert.ok(Math.abs(widths.surface - widths.value) < 2,
     `the calendar popup matches the value box width (${widths.surface} vs ${widths.value})`);
-  await input.locator(`[data-date-cell$="-15"]`).click();
+  await input.locator('[data-date-calendar] [role="grid"] button').filter({ hasText: /^15$/ }).click();
   assert.equal(await dateValue(), `15/${monthPart}/${yearPart}`, 'picking a calendar cell writes DD/MM/YYYY');
   await input.keyboard.press('Escape');
   await copyAndWait(input, '[data-date-value]', `15/${monthPart}/${yearPart}`,

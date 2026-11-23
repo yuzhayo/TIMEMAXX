@@ -289,7 +289,7 @@ generic `ui-control/code.json` envelope, every time change auto-saved, double-cl
 24/12-hour dropdown, three editable value boxes where four typed digits
 normalize to HH:MM and double-click copies, a picker attached to each box
 (hidden scrollbars, mouse-wheel scrolling), range Generate, colon-only time
-display, a DD/MM/YYYY date box with a full-month calendar grid and locale
+display, a DD/MM/YYYY date box with MUI's full-month DateCalendar and locale
 day/month dropdowns offering Senin/Sen and Monday/Mon names, every date change
 auto-saved in `sections.date`, damaged state falling back to defaults), 40% width at Frame startup/minimum sizes, full work-area height and
 adjoining-left bounds, JSON-driven geometry/background, toggle parity during

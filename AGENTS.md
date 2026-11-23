@@ -108,8 +108,8 @@ latest explicit decisions take precedence over older examples and historical tes
   whose shared 24/12-hour dropdown formats three editable value boxes. Four
   typed digits normalize to HH:MM, double-click copies, and each box owns a
   popup hour/minute picker; Generate fills the main box from the two range
-  bounds; and a date section, whose DD/MM/YYYY value box opens a full-month
-  calendar grid on single click and copies on double-click, with day and month
+  bounds; and a date section, whose DD/MM/YYYY value box opens MUI's proven
+  DateCalendar (a full-month grid) on single click and copies on double-click, with day and month
   dropdowns offering full and short locale names (`Senin / Sen`, `Monday / Mon`,
   and the same for months). The placeholder chassis stays configured but disabled
   (`enabled: false`); card headers take their height from configured `paddingY`.

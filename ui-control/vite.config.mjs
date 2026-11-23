@@ -11,7 +11,7 @@ export default defineConfig({
     alias: {
       '@ui': fileURLToPath(new URL('../components', import.meta.url)),
       '@input': fileURLToPath(new URL('./', import.meta.url)),
-      ...Object.fromEntries(['react', 'react-dom', '@mui/material', '@mui/icons-material', '@emotion/react', '@emotion/styled']
+      ...Object.fromEntries(['react', 'react-dom', '@mui/material', '@mui/icons-material', '@mui/x-date-pickers', 'dayjs', '@emotion/react', '@emotion/styled']
         .map((name) => [name, fileURLToPath(new URL(`./node_modules/${name}`, import.meta.url))])),
     },
     dedupe: ['react', 'react-dom'],

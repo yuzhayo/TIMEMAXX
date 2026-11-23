@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import Box from '@mui/material/Box';
+import { DateCalendar, LocalizationProvider } from '@mui/x-date-pickers';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import dayjs from 'dayjs';
+import 'dayjs/locale/id';
 import SectionCard from '@ui/SectionCard.jsx';
 import ConfiguredPopover, { validatePopoverConfig } from '@ui/ConfiguredPopover.jsx';
 import ConfiguredSelect from '@ui/ConfiguredSelect.jsx';
 import { copyText } from '@ui/clipboard.mjs';
 import { configuredSx, part } from '@ui/appearance.mjs';
 import {
-  formatDate, isValidDateValue, isValidLabelMode, monthCells, monthName, parseDate,
-  shiftMonth, weekdayName,
+  formatDate, isValidDateValue, isValidLabelMode, monthName, parseDate, weekdayName,
 } from '@input/logic/DateValue.mjs';
 
 export const componentId = 'input.date';
@@ -17,57 +20,22 @@ export const partKeys = ['header', 'body', 'value', 'row', 'day', 'month', 'pick
 export const partConfigKeys = { picker: ['portal'] };
 export const stateKeys = [];
 
-const WEEKDAY_HEADERS = {
-  en: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-  id: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'],
-};
-
 const today = () => {
   const now = new Date();
   return formatDate({ day: now.getDate(), month: now.getMonth() + 1, year: now.getFullYear() });
 };
 
-// UI — a full-month calendar grid. Navigation moves the cursor month; picking
-// a cell writes one DD/MM/YYYY value back to the section owner.
-function Calendar({ config, value, locale, onPick }) {
-  const parsed = parseDate(value) ?? parseDate(today());
-  const [cursor, setCursor] = useState({ year: parsed.year, month: parsed.month });
-  useEffect(() => setCursor({ year: parsed.year, month: parsed.month }), [value]);
-  const cells = monthCells(cursor.year, cursor.month);
-  const headers = WEEKDAY_HEADERS[locale];
-  return <>
-    <Box sx={{ ...configuredSx(part(config, 'pickerNav')), width: '100%', flexShrink: 0 }}>
-      <Box component="button" type="button" data-date-prev aria-label="Previous month"
-        onClick={() => setCursor((current) => {
-          const next = parseDate(shiftMonth(formatDate({ day: 1, month: current.month, year: current.year }), -1));
-          return { year: next.year, month: next.month };
-        })}
-        sx={{ ...configuredSx(part(config, 'pickerNavButton')), cursor: 'pointer' }}>‹</Box>
-      <Box sx={{ ...configuredSx(part(config, 'pickerTitle')), flex: '1 1 auto', minWidth: 0 }}>
-        {`${monthName(cursor.month, locale)} ${cursor.year}`}
-      </Box>
-      <Box component="button" type="button" data-date-next aria-label="Next month"
-        onClick={() => setCursor((current) => {
-          const next = parseDate(shiftMonth(formatDate({ day: 1, month: current.month, year: current.year }), 1));
-          return { year: next.year, month: next.month };
-        })}
-        sx={{ ...configuredSx(part(config, 'pickerNavButton')), cursor: 'pointer' }}>›</Box>
-    </Box>
-    <Box sx={{ ...configuredSx(part(config, 'pickerWeekday')), width: '100%', flexShrink: 0 }}>
-      {headers.map((label, index) => <Box component="span" key={index} sx={{ flex: '1 1 0', minWidth: 0 }}>{label}</Box>)}
-    </Box>
-    <Box data-date-grid sx={{ ...configuredSx(part(config, 'pickerGrid')), width: '100%',
-      flex: '1 1 auto', minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
-      alignContent: 'start' }}>
-      {cells.map((day, index) => day === null
-        ? <Box key={`blank-${index}`} aria-hidden="true" />
-        : <Box component="button" type="button" key={day} data-date-cell={`${cursor.year}-${cursor.month}-${day}`}
-          className={parsed.year === cursor.year && parsed.month === cursor.month && parsed.day === day
-            ? 'Mui-selected' : undefined}
-          onClick={() => onPick(formatDate({ day, month: cursor.month, year: cursor.year }))}
-          sx={{ ...configuredSx(part(config, 'pickerCell')), cursor: 'pointer' }}>{day}</Box>)}
-    </Box>
-  </>;
+// UI — the calendar is MUI's proven DateCalendar, not a hand-built grid. It
+// lives in the shared popup; the section only supplies the DD/MM/YYYY value.
+function Calendar({ value, locale, onPick }) {
+  const parsed = parseDate(value);
+  return (
+    <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale={locale}>
+      <DateCalendar data-date-calendar
+        value={dayjs(`${parsed.year}-${parsed.month}-${parsed.day}`)}
+        onChange={(next) => { if (next?.isValid()) onPick(next.format('DD/MM/YYYY')); }} />
+    </LocalizationProvider>
+  );
 }
 
 // UI — one date card: the DD/MM/YYYY box owns its picker and copy command, and
@@ -110,7 +78,7 @@ export default function DateSection({ config, state, actions, resources }) {
           onClick={() => { clearTimeout(timer.current); timer.current = setTimeout(() => setOpen(true), 220); }}
           onDoubleClick={copy}
           sx={{ ...configuredSx(part(config, 'value')), width: '100%', minWidth: 0 }} />}>
-        <Calendar config={config} value={value} locale={locale} onPick={setValue} />
+        <Calendar value={value} locale={locale} onPick={setValue} />
       </ConfiguredPopover>
       <Box sx={{ ...configuredSx(part(config, 'row')), width: '100%', minWidth: 0 }}>
         <ConfiguredSelect config={config} partName="day" label="Day" value={dayMode} onChange={setDayMode}
