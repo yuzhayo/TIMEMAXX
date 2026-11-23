@@ -141,7 +141,7 @@ const checkInput = async (page, settings, name) => {
   assert.ok(Math.abs(controls.buttonPad - controls.stack * generatorConfig.parts.generate.geometry.paddingY / 100) < 1,
     'the button height comes from configured paddingY, not hardcoded pixels');
   // The time section: configured hour format, colon-only display and one
-  // proportional row height for the value box and its Time button.
+  // proportional row height for the value box and its picker trigger.
   const timeConfig = config.sections.find((section) => section.id === 'time');
   const hourFormat = await page.locator('[data-hour-format-select]').evaluate((element) => element.value);
   assert.ok(['12', '24'].includes(hourFormat), 'the time dropdown selects a supported hour format');
@@ -153,8 +153,8 @@ const checkInput = async (page, settings, name) => {
       return { text: element.value || element.textContent, height: element.getBoundingClientRect().height,
         pad: parseFloat(getComputedStyle(element).paddingTop) };
     };
-    return { main: read('[data-time-value="main"]'), from: read('[data-time-from]'), to: read('[data-time-to]'),
-      button: read('[data-time-open]'), stack: document.querySelector('[data-input-stack]').getBoundingClientRect().height,
+    return { main: read('[data-time-value="main"]'), from: read('[data-time-value="from"]'), to: read('[data-time-value="to"]'),
+      stack: document.querySelector('[data-input-stack]').getBoundingClientRect().height,
       popup: document.querySelectorAll('[data-popover-surface]').length };
   });
   assert.match(timeBoxes.main.text, timePattern, 'the main value box shows its configured time format');
@@ -164,15 +164,12 @@ const checkInput = async (page, settings, name) => {
     assert.ok(!value.includes('.'), 'a time mark never uses a dot');
   }
   assert.equal(timeBoxes.popup, 0, 'pickers stay closed until their trigger is used');
-  assert.ok(Math.abs(timeBoxes.main.height - timeBoxes.button.height) < 1, 'the value box and Time button share one row height');
   assert.ok(Math.abs(timeBoxes.from.height - timeBoxes.to.height) < 1, 'both range bounds share one row height');
-  for (const value of [timeBoxes.main, timeBoxes.button, timeBoxes.from, timeBoxes.to]) {
+  for (const value of [timeBoxes.main, timeBoxes.from, timeBoxes.to]) {
     assert.ok(value.height >= 30 && value.height <= 44, `a comfortable click target, measured ${value.height}`);
   }
   assert.ok(Math.abs(timeBoxes.main.pad - timeBoxes.stack * timeConfig.parts.value.geometry.paddingY / 100) < 1,
     'the time value height comes from configured paddingY, not hardcoded pixels');
-  assert.ok(Math.abs(timeBoxes.button.pad - timeBoxes.stack * timeConfig.parts.timeButton.geometry.paddingY / 100) < 1,
-    'the Time button height comes from configured paddingY, not hardcoded pixels');
   await page.screenshot({ path: path.join(artifacts, `${name}.png`) });
   await captureNative(page, name);
   if (name === 'startup') await captureNative(page, 'input-beside-frame', true);
@@ -284,13 +281,32 @@ try {
   assert.equal(await formatSelect.evaluate((element) => element.value), '12',
     'the seeded hour format is restored from state.json');
   assert.match(await timeValue(), /^(0[1-9]|1[0-2]):[0-5]\d (AM|PM)$/);
-  assert.equal(await input.locator('[data-time-from]').textContent(), '08:00 AM');
-  assert.equal(await input.locator('[data-time-to]').textContent(), '05:00 PM');
+  assert.equal(await input.locator('[data-time-value="from"]').evaluate((element) => element.value), '08:00 AM');
+  assert.equal(await input.locator('[data-time-value="to"]').evaluate((element) => element.value), '05:00 PM');
   await formatSelect.selectOption('24');
   await input.waitForFunction(() => /^\d{2}:\d{2}$/.test(document.querySelector('[data-time-value="main"]')?.value ?? ''));
-  assert.equal(await input.locator('[data-time-from]').textContent(), '08:00', 'the hour format change reaches every value box');
-  assert.equal(await input.locator('[data-time-to]').textContent(), '17:00');
-  await input.locator('[data-time-open]').click();
+  assert.equal(await input.locator('[data-time-value="from"]').evaluate((element) => element.value), '08:00', 'the hour format change reaches every value box');
+  assert.equal(await input.locator('[data-time-value="to"]').evaluate((element) => element.value), '17:00');
+  await input.locator('[data-time-value="main"]').fill('1430');
+  assert.equal(await timeValue(), '14:30', 'four typed digits normalize in the main value box');
+  await input.locator('[data-time-value="main"]').fill('2460');
+  assert.equal(await timeValue(), '14:30', 'an out-of-range entry keeps the accepted time');
+  await input.locator('[data-time-value="from"]').fill('0745');
+  assert.equal(await input.locator('[data-time-value="from"]').evaluate((element) => element.value), '07:45');
+  await input.locator('[data-time-value="to"]').fill('1615');
+  assert.equal(await input.locator('[data-time-value="to"]').evaluate((element) => element.value), '16:15');
+  await copyAndWait(input, '[data-time-value="main"]', '14:30',
+    'double-clicking the main time value box copies the displayed time');
+  await copyAndWait(input, '[data-time-value="from"]', '07:45',
+    'double-clicking the range start copies its displayed time');
+  await copyAndWait(input, '[data-time-value="to"]', '16:15',
+    'double-clicking the range end copies its displayed time');
+
+  // Every value box is its own picker trigger; no separate button or icon.
+  assert.equal(await input.locator('[data-popover-trigger]').count(), 3,
+    'the three value boxes are the only picker triggers');
+  await input.locator('[data-time-value="main"]').click();
+  await input.waitForSelector('[data-popover-surface]');
   await input.waitForSelector('[data-popover-surface]');
   assert.equal(await input.locator('[data-picker-hour] [data-time-option]').count(), 24, 'the picker lists 24 hours');
   assert.equal(await input.locator('[data-picker-minute] [data-time-option]').count(), 60, 'the picker lists 60 minutes');
@@ -314,29 +330,30 @@ try {
   const hourBefore = await hourColumn.evaluate((node) => node.scrollTop);
   const hourBox = await hourColumn.boundingBox();
   await input.mouse.move(hourBox.x + hourBox.width / 2, hourBox.y + hourBox.height / 2);
-  await input.mouse.wheel(0, 300);
-  await input.waitForFunction((previous) => document.querySelector('[data-picker-hour]')?.scrollTop > previous, hourBefore);
-  assert.ok(await hourColumn.evaluate((node) => node.scrollTop) > hourBefore,
+  const hourDelta = hourBefore > 10 ? -300 : 300;
+  await input.mouse.wheel(0, hourDelta);
+  await input.waitForFunction((previous) => document.querySelector('[data-picker-hour]')?.scrollTop !== previous, hourBefore);
+  assert.notEqual(await hourColumn.evaluate((node) => node.scrollTop), hourBefore,
     'the same wheel input scrolls the hour list');
   await input.locator('[data-time-option="hour-14"]').click();
   await input.locator('[data-time-option="minute-30"]').click();
-  assert.equal(await timeValue(), '14:30', 'the Time button popup updates the main value');
+  assert.equal(await timeValue(), '14:30', 'the main box picker updates its value');
   await input.keyboard.press('Escape');
   await input.waitForSelector('[data-popover-surface]', { state: 'detached' });
-  await copyAndWait(input, '[data-time-value="main"]', '14:30',
-    'double-clicking the time value box copies the displayed time');
-  await input.locator('[data-time-from]').click();
+  await input.locator('[data-time-value="from"]').click();
+  await input.waitForSelector('[data-popover-surface]');
   await input.locator('[data-time-option="hour-07"]').click();
   await input.locator('[data-time-option="minute-45"]').click();
   await input.keyboard.press('Escape');
-  assert.equal(await input.locator('[data-time-from]').textContent(), '07:45',
-    'the range start owns its own picker');
-  await input.locator('[data-time-to]').click();
+  assert.equal(await input.locator('[data-time-value="from"]').evaluate((element) => element.value), '07:45',
+    'the range start box owns its own picker');
+  await input.locator('[data-time-value="to"]').click();
+  await input.waitForSelector('[data-popover-surface]');
   await input.locator('[data-time-option="hour-16"]').click();
   await input.locator('[data-time-option="minute-15"]').click();
   await input.keyboard.press('Escape');
-  assert.equal(await input.locator('[data-time-to]').textContent(), '16:15',
-    'the range end owns its own picker');
+  assert.equal(await input.locator('[data-time-value="to"]').evaluate((element) => element.value), '16:15',
+    'the range end box owns its own picker');
   for (let draw = 0; draw < 20; draw++) {
     await input.locator('[data-time-generate]').click();
     const picked = await timeValue();
@@ -345,10 +362,10 @@ try {
   }
   await formatSelect.selectOption('12');
   await input.waitForFunction(() => /(AM|PM)$/.test(document.querySelector('[data-time-value="main"]')?.value ?? ''));
-  assert.equal(await input.locator('[data-time-from]').textContent(), '07:45 AM');
-  assert.equal(await input.locator('[data-time-to]').textContent(), '04:15 PM');
-  for (const selector of ['[data-time-value="main"]', '[data-time-from]', '[data-time-to]']) {
-    const shownTime = await input.locator(selector).evaluate((element) => element.value || element.textContent);
+  assert.equal(await input.locator('[data-time-value="from"]').evaluate((element) => element.value), '07:45 AM');
+  assert.equal(await input.locator('[data-time-value="to"]').evaluate((element) => element.value), '04:15 PM');
+  for (const attribute of ['main', 'from', 'to']) {
+    const shownTime = await input.locator(`[data-time-value="${attribute}"]`).evaluate((element) => element.value);
     assert.ok(!shownTime.includes('.'), 'the 12-hour display also keeps the colon separator');
   }
   persistedState = await readState();
@@ -381,7 +398,7 @@ try {
     'a reopened Input restores the generated code from code.json');
   assert.equal(await input.locator('[data-hour-format-select]').evaluate((element) => element.value), '12',
     'a reopened Input restores the hour format saved on the previous visit');
-  assert.equal(await input.locator('[data-time-from]').textContent(), '08:00 AM',
+  assert.equal(await input.locator('[data-time-value="from"]').evaluate((element) => element.value), '08:00 AM',
     'the restored 12-hour format reaches the reopened range boxes');
   assert.match(await input.locator('[data-time-value="main"]').evaluate((element) => element.value), /(AM|PM)$/);
   assert.notEqual(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()
@@ -499,11 +516,13 @@ try {
     'Generate replaces the value and stores it as one dynamic value, never a log',
     'value box and button share one config-driven, comfortable height',
     'time section reuses the language dropdown for a 24/12-hour format with 24 as the default',
-    'the Time button opens a popup picker with 24 hour and 60 minute choices',
+    'each value box is its own picker trigger; no separate button or icon',
     'the picker hides its scrollbar and mouse wheel scrolls both columns',
+    'four typed digits normalize to colon time in every value box',
+    'an out-of-range entry keeps the last accepted time',
+    'double-clicking any time value box copies its displayed text',
     'the range bounds own separate pickers and Generate stays inside their inclusive range',
-    'the time value box and Time button share one config-driven row height',
-    'double-clicking the time value copies its colon-separated display text',
+    'the three value boxes share the configured row height',
     'the hour format is saved as its own selection and restored on reopen',
     'every time display keeps a colon separator, including the 12-hour form',
     'damaged state never blocks Input and falls back to configured defaults',

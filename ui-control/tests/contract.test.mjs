@@ -6,7 +6,7 @@ import { createInputSession } from '../logic/InputSession.mjs';
 import { applyInputState, collectInputState } from '../logic/InputState.mjs';
 import { ALPHABET, LENGTH, MAX_ENCODABLE, decode, encode, isValidCode, newCode } from '../logic/CodeGenerator.mjs';
 import { DEFAULT_HOUR_FORMAT, HOUR_FORMATS, formatTime, fromMinutes, generateTime, isValidHourFormat,
-  normalizeRange, parseTime, renderTime, toMinutes } from '../logic/TimeValue.mjs';
+  normalizeRange, parseTime, renderTime, toMinutes, typeTimeDigits } from '../logic/TimeValue.mjs';
 import { createDiagnostics } from '../../components/LayoutDiagnostics.mjs';
 import { discoverComponents } from '../../components/ComponentDiscovery.mjs';
 
@@ -50,15 +50,16 @@ test('baseline mounts the enabled language, code-generator and time cards, keepi
   assert.ok(generator.parts.value.geometry.paddingY > 0 && generator.parts.generate.geometry.paddingY > 0,
     'control height comes from configured padding, not hardcoded pixels');
   assert.deepEqual(time.stateKeys, ['hourFormat'], 'the hour format is the only persisted time selection');
-  for (const name of ['select', 'row', 'value', 'timeButton', 'range', 'from', 'to', 'generate', 'picker']) {
+  for (const name of ['select', 'row', 'value', 'from', 'to', 'generate', 'picker']) {
     assert.ok(time.parts[name], `the time section resolves its ${name} part`);
   }
   assert.deepEqual(time.parts.select, language.parts.select, 'the format dropdown reuses the language dropdown part');
   assert.equal(time.parts.body.content.direction, 'column', 'the time body stacks format, value row, range row and Generate');
   assert.equal(time.parts.row.content.direction, 'row', 'the main value box sits beside the Time button');
   assert.equal(time.parts.range.content.direction, 'row', 'the two range bounds sit side by side');
-  assert.equal(time.parts.value.geometry.paddingY, time.parts.timeButton.geometry.paddingY,
-    'value box and Time button derive one proportional height from the same configured padding');
+  assert.ok(time.parts.value.geometry.paddingY > 0 && time.parts.from.geometry.paddingY > 0
+    && time.parts.to.geometry.paddingY > 0,
+  'all three value boxes derive their height from configured padding');
   assert.equal(time.parts.picker.portal.placement, 'bottom-start', 'the picker uses the shared popup placement contract');
   assert.ok(Number.isFinite(time.parts.picker.size.width) && Number.isFinite(time.parts.picker.size.height),
     'the popup size is explicit viewport percentages in JSON');
@@ -260,6 +261,13 @@ test('time values keep a colon separator and the reference 12/24-hour rules', ()
   assert.equal(generateTime('17:00', '08:00', () => 1), '08:01', 'a reversed range still generates inside its bounds');
   assert.equal(generateTime('08:00', '08:00', () => 99), '08:00', 'a one-minute range is stable');
   assert.equal(generateTime('bad', '17:00'), null, 'an invalid bound generates nothing');
+  assert.deepEqual(typeTimeDigits('1430'), { value: '14:30', draft: null }, 'four digits normalize to HH:MM');
+  assert.deepEqual(typeTimeDigits('14:30'), { value: '14:30', draft: null }, 'a displayed time re-normalizes');
+  assert.deepEqual(typeTimeDigits('02:30 PM'), { value: '02:30', draft: null }, 'an AM/PM display re-normalizes as 24-hour');
+  assert.deepEqual(typeTimeDigits('7'), { value: null, draft: '7' }, 'a short entry stays a live mask');
+  assert.deepEqual(typeTimeDigits('143'), { value: null, draft: '14:3' }, 'the mask keeps the colon after two digits');
+  assert.deepEqual(typeTimeDigits('2460'), { value: null, draft: null }, 'an out-of-range entry keeps the last accepted value');
+  assert.deepEqual(typeTimeDigits('ab1c2:3d4'), { value: '12:34', draft: null }, 'only digits are read');
   for (let index = 0; index < 500; index++) {
     const value = generateTime('08:00', '17:00');
     assert.ok(toMinutes(value) >= 480 && toMinutes(value) <= 1020, `${value} stays inside the range`);

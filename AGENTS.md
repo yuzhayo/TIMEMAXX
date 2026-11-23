@@ -105,9 +105,10 @@ latest explicit decisions take precedence over older examples and historical tes
   (English/Indonesian) that swaps the whole locale layout; a code-generator
   section, whose body hosts a value box (double-click copies it) beside a
   Generate button that produces a 14-character base-24 code; and a time section,
-  whose shared 24/12-hour dropdown formats a copyable value box, a popup
-  hour/minute picker beside it, two range bounds with their own pickers, and a
-  Generate button. The placeholder chassis stays configured but disabled
+  whose shared 24/12-hour dropdown formats three editable value boxes. Four
+  typed digits normalize to HH:MM, double-click copies, and each box owns a
+  popup hour/minute picker; Generate fills the main box from the two range
+  bounds. The placeholder chassis stays configured but disabled
   (`enabled: false`); card headers take their height from configured `paddingY`.
   Cards share `components/SectionCard.jsx` (header expand/collapse, auto-compact
   body); the language and time dropdowns share `components/ConfiguredSelect.jsx`,

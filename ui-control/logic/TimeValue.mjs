@@ -47,6 +47,18 @@ export function fromMinutes(minutes) {
   return formatTime(Math.floor(minutes / 60), minutes % 60);
 }
 
+// LOGIC — four typed digits normalize to HH:MM. A shorter entry is a live
+// mask; an incomplete or out-of-range entry keeps the last accepted value.
+export function typeTimeDigits(raw) {
+  const digits = String(raw ?? '').replace(/\D/g, '').slice(0, 4);
+  if (digits.length === 4) {
+    const parsed = parseTime(`${digits.slice(0, 2)}:${digits.slice(2)}`);
+    return parsed ? { value: formatTime(parsed.hour, parsed.minute), draft: null }
+      : { value: null, draft: null };
+  }
+  return { value: null, draft: digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits };
+}
+
 // UI — display only: the stored value stays 24-hour HH:MM. The 12-hour form
 // keeps the zero-padded hour and the AM/PM mark of the reference app.
 export function renderTime(value, format = DEFAULT_HOUR_FORMAT) {
