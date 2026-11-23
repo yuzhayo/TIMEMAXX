@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use serde_json::Value;
 
-use crate::{_layout, number, resolve, Child, Context, EngineResult, LayerSpec, Outline, Paint};
+use crate::{_layout, number, resolve, Child, Context, EngineResult, LayerSpec, Paint};
 
 const Z_SHIELD: i32 = 10;
 const Z_CODE: i32 = 11;
@@ -33,7 +33,7 @@ pub fn calculate(data: Option<&Value>, context: &Context) -> EngineResult<Vec<La
     // gap owns both relationships; the shield's frame anchor is independent of
     // text metrics and therefore invariant across every code length.
     let text_size = dp(9.0);
-    let gap = dp(4.0);
+    let gap = dp(2.8);
     // BottomToTopTextView's measured character chain occupies 1.2x the plain
     // ab_glyph advances at this export scale; this reproduces the shipped
     // per-character layout without scaling the glyphs themselves.
@@ -54,10 +54,6 @@ pub fn calculate(data: Option<&Value>, context: &Context) -> EngineResult<Vec<La
     let code_advance = _layout::text_width(&code_font, text_size, code)? * advance_scale;
     let code_origin_y = shield_y - gap;
     let verified_origin_y = code_origin_y - code_advance - gap;
-    // BottomToTopTextView.java draws every character twice: black50 STROKE at
-    // width 2, then the white fill. No shadow is used by the shipped widget.
-    let outline = || Some(Outline { color: [0, 0, 0, 128], width: 2.0 * frame_w / 1200.0 });
-
     Ok(vec![
         // UI — section 1: fixed anchor. This geometry never reads text width.
         LayerSpec {
@@ -79,7 +75,7 @@ pub fn calculate(data: Option<&Value>, context: &Context) -> EngineResult<Vec<La
             paint: Paint::VerticalText {
                 text: code.into(), font: code_font, size: text_size,
                 color: [255, 255, 255, 255], axis_x, origin_y: code_origin_y,
-                advance_scale, outline: outline(),
+                advance_scale, outline: None,
             },
         },
         // UI — section 3: follows the measured code advance at the same gap.
@@ -89,7 +85,7 @@ pub fn calculate(data: Option<&Value>, context: &Context) -> EngineResult<Vec<La
             paint: Paint::VerticalText {
                 text: "Timemark Verified".into(), font: verified_font, size: text_size,
                 color: [255, 255, 255, 255], axis_x, origin_y: verified_origin_y,
-                advance_scale, outline: outline(),
+                advance_scale, outline: None,
             },
         },
     ])
