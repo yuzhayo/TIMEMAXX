@@ -37,10 +37,11 @@ function TimePicker({ config, id, value, onPick, trigger, triggerStyle }) {
     ...configuredSx(part(config, 'pickerOption')), width: '100%', flexShrink: 0,
     cursor: 'pointer',
   });
-  // UI — the native scrollbar follows the configured column colors instead of
-  // the platform light theme; no new palette is introduced.
+  // UI — no visible scrollbar: the picker is a short, focused list. Wheel
+  // input is handled explicitly so scrolling never depends on a native bar.
   const columns = { ...configuredSx(column), flex: '1 1 0', minWidth: 0, overflowY: 'auto',
-    scrollbarWidth: 'thin', scrollbarColor: `${column.colors.border} ${column.colors.background}` };
+    scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } };
+  const wheel = (event) => { event.currentTarget.scrollTop += event.deltaY; };
 
   // UI — opening the popup centers the current hour/minute, so a picked value is
   // visible without hunting through 60 rows.
@@ -64,13 +65,13 @@ function TimePicker({ config, id, value, onPick, trigger, triggerStyle }) {
         <Box component="span" sx={{ flex: '1 1 0', minWidth: 0 }}>Minute</Box>
       </Box>
       <Box sx={{ ...configuredSx(part(config, 'pickerColumns')), width: '100%', flex: '1 1 auto', minHeight: 0 }}>
-        <Box ref={hours} data-picker-hour sx={columns}>
+        <Box ref={hours} data-picker-hour sx={columns} onWheel={wheel}>
           {HOURS.map((hour) => <Box component="button" type="button" key={hour} data-time-option={`hour-${pad(hour)}`}
             aria-label={`Hour ${pad(hour)}`} aria-pressed={hour === parsed.hour}
             className={hour === parsed.hour ? 'Mui-selected' : undefined}
             onClick={() => onPick(formatTime(hour, parsed.minute))} sx={option()}>{pad(hour)}</Box>)}
         </Box>
-        <Box ref={minutes} data-picker-minute sx={columns}>
+        <Box ref={minutes} data-picker-minute sx={columns} onWheel={wheel}>
           {MINUTES.map((minute) => <Box component="button" type="button" key={minute} data-time-option={`minute-${pad(minute)}`}
             aria-label={`Minute ${pad(minute)}`} aria-pressed={minute === parsed.minute}
             className={minute === parsed.minute ? 'Mui-selected' : undefined}

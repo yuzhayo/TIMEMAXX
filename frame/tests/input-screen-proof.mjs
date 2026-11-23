@@ -295,6 +295,29 @@ try {
   assert.equal(await input.locator('[data-picker-hour] [data-time-option]').count(), 24, 'the picker lists 24 hours');
   assert.equal(await input.locator('[data-picker-minute] [data-time-option]').count(), 60, 'the picker lists 60 minutes');
   await input.screenshot({ path: path.join(artifacts, 'time-picker.png') });
+  // The picker hides its scrollbar and scrolls through explicit wheel input.
+  const minuteColumn = input.locator('[data-picker-minute]');
+  const hidden = await minuteColumn.evaluate((node) => ({ css: getComputedStyle(node).scrollbarWidth,
+    gutter: node.offsetWidth - node.clientWidth }));
+  assert.equal(hidden.css, 'none', 'the picker does not render a native scrollbar');
+  const pickerBorder = config.sections.find((section) => section.id === 'time').parts.pickerColumn.geometry.borderWidth;
+  assert.equal(hidden.gutter, 2 * pickerBorder,
+    'only the configured border remains; no scrollbar gutter is reserved');
+  const column = await minuteColumn.boundingBox();
+  const beforeScroll = await minuteColumn.evaluate((node) => node.scrollTop);
+  await input.mouse.move(column.x + column.width / 2, column.y + column.height / 2);
+  await input.mouse.wheel(0, 400);
+  await input.waitForFunction((previous) => document.querySelector('[data-picker-minute]')?.scrollTop > previous, beforeScroll);
+  const afterWheel = await minuteColumn.evaluate((node) => node.scrollTop);
+  assert.ok(afterWheel > beforeScroll, `a mouse wheel scrolls the minute list (${beforeScroll} -> ${afterWheel})`);
+  const hourColumn = input.locator('[data-picker-hour]');
+  const hourBefore = await hourColumn.evaluate((node) => node.scrollTop);
+  const hourBox = await hourColumn.boundingBox();
+  await input.mouse.move(hourBox.x + hourBox.width / 2, hourBox.y + hourBox.height / 2);
+  await input.mouse.wheel(0, 300);
+  await input.waitForFunction((previous) => document.querySelector('[data-picker-hour]')?.scrollTop > previous, hourBefore);
+  assert.ok(await hourColumn.evaluate((node) => node.scrollTop) > hourBefore,
+    'the same wheel input scrolls the hour list');
   await input.locator('[data-time-option="hour-14"]').click();
   await input.locator('[data-time-option="minute-30"]').click();
   assert.equal(await timeValue(), '14:30', 'the Time button popup updates the main value');
@@ -477,6 +500,7 @@ try {
     'value box and button share one config-driven, comfortable height',
     'time section reuses the language dropdown for a 24/12-hour format with 24 as the default',
     'the Time button opens a popup picker with 24 hour and 60 minute choices',
+    'the picker hides its scrollbar and mouse wheel scrolls both columns',
     'the range bounds own separate pickers and Generate stays inside their inclusive range',
     'the time value box and Time button share one config-driven row height',
     'double-clicking the time value copies its colon-separated display text',

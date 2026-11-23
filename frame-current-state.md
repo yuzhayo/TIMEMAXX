@@ -286,8 +286,8 @@ the locale layout, the last selection restored from `ui-control/state.json` and
 saved per section, a generated code restored from `ui-control/code.json`,
 double-click copying, Generate replacing that one dynamic value, a shared
 24/12-hour dropdown, popup hour/minute pickers for the value and both range
-bounds, range Generate, colon-only time display, damaged state falling back to
-defaults), 40% width at Frame startup/minimum sizes, full work-area height and
+bounds (hidden scrollbars, mouse-wheel scrolling), range Generate, colon-only
+time display, damaged state falling back to defaults), 40% width at Frame startup/minimum sizes, full work-area height and
 adjoining-left bounds, JSON-driven geometry/background, toggle parity during
 rapid clicks, unchanged Frame state, failure isolation and parent-window cleanup.
 Artifacts stay in
