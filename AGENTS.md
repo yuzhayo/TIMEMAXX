@@ -265,6 +265,14 @@ No separate inspection framework/service is needed.
   `timemark-web` wordmark (`Timemark App` / `Authentic time, GPS`) is a different
   variant and must not be copied here. Visual parity remains pending operator
   approval.
+  `Pictures/TIMEMARK.png` is the operator's Photoshop export at 1200x1600,
+  72 DPI, not an application-original export. Keep the supplied logical type
+  boxes unchanged. Their visible glyph bounds are separate: title
+  x987..1180/y26..57 and subtitle approximately x989..1179/y80..99.
+  The child supplies those measured ink bounds to the generic renderer, which
+  converts em size into ab_glyph's height scale and rasterizes transformed
+  outlines directly at fractional coordinates. Never stretch an undersized
+  RGBA bitmap or infer a replacement font from this reference.
 - When `photoPreview.calibration.enabled` is true, Frame keeps `sideShield` locked
   in the normal layer stack and replaces only `sideCode` and `sideVerified` with
   independent Sketch-style calibration overlays. Each supports move, X/Y scale

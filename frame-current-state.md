@@ -328,6 +328,13 @@ frame/
   `timemark-web` wordmark (`Timemark App` / `Authentic time, GPS`) is a different
   variant and must not be copied here. Visual parity remains pending operator
   approval.
+  The operator's `Pictures/TIMEMARK.png` is a 1200x1600, 72-DPI Photoshop
+  export. Branding rendering now distinguishes its unchanged logical type
+  boxes from measured visible ink (title x987..1180/y26..57; subtitle about
+  x989..1179/y80..99). The generic renderer converts em size correctly and
+  rasterizes vector outlines directly instead of stretching a smaller bitmap.
+  The focused regression reproduces the old title's y31..57 error and checks
+  the corrected exported ink position/height, unchanged type data and colors.
 - Combined photo/overlay export, accepted revisions, stale-overlay rejection and
   combined Save still belong to a future background orchestrator. The optional
   Bottom Bar Info control and export-size UI remain out of scope.

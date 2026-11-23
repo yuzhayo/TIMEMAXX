@@ -10,7 +10,7 @@ use std::{
 };
 
 use ab_glyph::{Font, FontRef, Point, PxScale, ScaleFont};
-use image::{imageops, RgbaImage};
+use image::{imageops, Pixel, RgbaImage};
 use serde_json::{json, Value};
 
 // Children's shared calculation helpers. build.rs skips '_' files, so this is
@@ -58,6 +58,14 @@ pub struct TextRun {
     pub color: [u8; 4],
 }
 
+/// Visible glyph bounds supplied by a child, separate from the logical type box.
+pub struct TextInk {
+    pub x: f32,
+    pub y: f32,
+    pub w: f32,
+    pub h: f32,
+}
+
 /// A child's drawing decision. The parent owns all rasterising and file IO.
 pub enum Paint {
     Image { path: PathBuf, x: f32, y: f32, w: f32, h: f32, alpha: f32 },
@@ -65,7 +73,7 @@ pub enum Paint {
     Rect { x: f32, y: f32, w: f32, h: f32, color: [u8; 4] },
     Text { text: String, font: PathBuf, size: f32, color: [u8; 4], x: f32, y: f32 },
     FittedText { runs: Vec<TextRun>, font: PathBuf, size: f32, tracking: f32,
-        x: f32, y: f32, w: f32, h: f32, shadow: Option<SoftShadow> },
+        x: f32, y: f32, w: f32, h: f32, ink: TextInk, shadow: Option<SoftShadow> },
     RotatedText { text: String, font: PathBuf, size: f32, tracking: f32,
         color: [u8; 4], x: f32, y: f32, w: f32, h: f32, shadow: Option<SoftShadow> },
     VerticalText { text: String, font: PathBuf, size: f32, color: [u8; 4],
@@ -219,38 +227,61 @@ fn draw_rotated_text(image: &mut RgbaImage, spec: &Paint) -> EngineResult<()> {
 }
 
 fn draw_fitted_text(image: &mut RgbaImage, spec: &Paint) -> EngineResult<()> {
-    let Paint::FittedText { runs, font, size, tracking, x, y, w, h, shadow } = spec else { return Ok(()) };
+    let Paint::FittedText { runs, font, size, tracking, x, y, w, h, ink, shadow } = spec else { return Ok(()) };
+    if [*size, *w, *h, ink.w, ink.h].iter().any(|value| !value.is_finite() || *value <= 0.0)
+        || [*x, *y, *tracking, ink.x, ink.y].iter().any(|value| !value.is_finite())
+        || ink.x < *x || ink.y < *y || ink.x + ink.w > x + w || ink.y + ink.h > y + h {
+        return Err("invalid text box or ink bounds outside its type box".into());
+    }
     let bytes = fs::read(font).map_err(|error| format!("font unreadable: {error}"))?;
     let face = FontRef::try_from_slice(&bytes).map_err(|error| format!("font invalid: {error}"))?;
-    let scale = PxScale::from(*size); let scaled = face.as_scaled(scale);
+    // size is pixels per em (the child converts its document's points/DPI).
+    // PxScale::from(size) instead means ascent-minus-descent, shrinking glyphs.
+    let units_per_em = face.units_per_em().ok_or("font has no valid em units")?;
+    let natural_scale = PxScale::from(size * face.height_unscaled() / units_per_em);
+    let scaled = face.as_scaled(natural_scale);
+    let font_unit_px = size / units_per_em;
     let characters: Vec<(char, [u8; 4])> = runs.iter().flat_map(|run| run.text.chars().map(|character| (character, run.color))).collect();
     let tracking_px = *size * *tracking / 1000.0;
-    let advances: Vec<f32> = characters.iter().map(|(character, _)| scaled.h_advance(face.glyph_id(*character))).collect();
-    let total = advances.iter().sum::<f32>() + tracking_px * advances.len().saturating_sub(1) as f32;
-    let natural_width = total.ceil().max(1.0) as u32;
-    let target_width = w.round().max(1.0) as u32;
-    let target_height = h.round().max(1.0) as u32;
-    let baseline = (target_height as f32 - (scaled.ascent() - scaled.descent())) / 2.0 + scaled.ascent();
-    let mut horizontal = RgbaImage::new(natural_width, target_height); let mut pen = 0.0;
-    for (index, (character, color)) in characters.iter().enumerate() {
-        let glyph = face.glyph_id(*character).with_scale(scale);
-        let positioned = ab_glyph::Glyph { position: Point { x: pen, y: baseline }, ..glyph };
+    let mut pen = 0.0;
+    let mut placements = Vec::new();
+    let mut bounds = [f32::INFINITY, f32::INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY];
+    for (character, color) in characters {
+        let id = face.glyph_id(character);
+        placements.push((id, color, pen));
+        if let Some(outline) = face.outline(id) {
+            bounds[0] = bounds[0].min(pen + outline.bounds.min.x * font_unit_px);
+            bounds[1] = bounds[1].min(-outline.bounds.min.y * font_unit_px);
+            bounds[2] = bounds[2].max(pen + outline.bounds.max.x * font_unit_px);
+            bounds[3] = bounds[3].max(-outline.bounds.max.y * font_unit_px);
+        }
+        pen += scaled.h_advance(id) + tracking_px;
+    }
+    if !bounds.iter().all(|value| value.is_finite()) { return Err("text has no visible glyphs".into()); }
+    let fit_x = ink.w / (bounds[2] - bounds[0]);
+    let fit_y = ink.h / (bounds[3] - bounds[1]);
+    let scale = PxScale { x: natural_scale.x * fit_x, y: natural_scale.y * fit_y };
+    let baseline = ink.y - bounds[1] * fit_y;
+    let mut foreground = RgbaImage::new(image.width(), image.height());
+    // Rasterize the transformed curves once, at their fractional document
+    // coordinates. Do not stretch a small straight-RGBA bitmap: that blurred
+    // the stems, darkened their edges and discarded the type-layer bearings.
+    for (id, color, pen) in placements {
+        let positioned = id.with_scale_and_position(scale,
+            Point { x: ink.x + (pen - bounds[0]) * fit_x, y: baseline });
         if let Some(outline) = face.outline_glyph(positioned) {
             let origin = outline.px_bounds().min;
             outline.draw(|gx, gy, coverage| {
                 let px = gx as i32 + origin.x as i32;
                 let py = gy as i32 + origin.y as i32;
-                if px < 0 || py < 0 || px >= horizontal.width() as i32 || py >= horizontal.height() as i32 { return; }
-                let pixel = horizontal.get_pixel_mut(px as u32, py as u32);
-                pixel[0] = color[0]; pixel[1] = color[1]; pixel[2] = color[2];
-                pixel[3] = (coverage * color[3] as f32).round().clamp(0.0, 255.0) as u8;
+                if px < 0 || py < 0 || px >= foreground.width() as i32 || py >= foreground.height() as i32 { return; }
+                let alpha = (coverage * color[3] as f32).round().clamp(0.0, 255.0) as u8;
+                if alpha == 0 { return; }
+                foreground.get_pixel_mut(px as u32, py as u32)
+                    .blend(&image::Rgba([color[0], color[1], color[2], alpha]));
             });
         }
-        pen += advances[index] + tracking_px;
     }
-    let fitted = imageops::resize(&horizontal, target_width, target_height, imageops::FilterType::Lanczos3);
-    let mut foreground = RgbaImage::new(image.width(), image.height());
-    imageops::overlay(&mut foreground, &fitted, x.round() as i64, y.round() as i64);
     if let Some(shadow) = shadow { overlay_shadow(image, &foreground, shadow); }
     imageops::overlay(image, &foreground, 0, 0);
     Ok(())
