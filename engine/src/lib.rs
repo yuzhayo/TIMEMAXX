@@ -52,6 +52,8 @@ pub enum Paint {
     RotatedImage { path: PathBuf, x: f32, y: f32, w: f32, h: f32, alpha: f32 },
     Rect { x: f32, y: f32, w: f32, h: f32, color: [u8; 4] },
     Text { text: String, font: PathBuf, size: f32, color: [u8; 4], x: f32, y: f32 },
+    RotatedText { text: String, font: PathBuf, size: f32, tracking: f32,
+        color: [u8; 4], x: f32, y: f32, w: f32, h: f32 },
     VerticalText { text: String, font: PathBuf, size: f32, color: [u8; 4],
         axis_x: f32, origin_y: f32, advance_scale: f32, outline: Option<Outline> },
 }
@@ -145,6 +147,44 @@ fn draw_text(image: &mut RgbaImage, spec: &Paint) -> EngineResult<()> {
         }
         pen += scaled.h_advance(glyph_id);
     }
+    Ok(())
+}
+
+fn draw_rotated_text(image: &mut RgbaImage, spec: &Paint) -> EngineResult<()> {
+    let Paint::RotatedText { text, font, size, tracking, color, x, y, w, h } = spec else { return Ok(()) };
+    let bytes = fs::read(font).map_err(|error| format!("font unreadable: {error}"))?;
+    let face = FontRef::try_from_slice(&bytes).map_err(|error| format!("font invalid: {error}"))?;
+    let scale = PxScale::from(*size); let scaled = face.as_scaled(scale);
+    let advances: Vec<f32> = text.chars().map(|character| scaled.h_advance(face.glyph_id(character))).collect();
+    let tracking_px = *size * *tracking / 1000.0;
+    let total = advances.iter().sum::<f32>() + tracking_px * advances.len().saturating_sub(1) as f32;
+    let natural_width = total.ceil().max(1.0) as u32;
+    let target_width = h.round().max(1.0) as u32;
+    let target_height = w.round().max(1.0) as u32;
+    let baseline = (target_height as f32 - (scaled.ascent() - scaled.descent())) / 2.0 + scaled.ascent();
+    let mut pen = 0.0;
+    let mut horizontal = RgbaImage::new(natural_width, target_height);
+    for (index, character) in text.chars().enumerate() {
+        let glyph = face.glyph_id(character).with_scale(scale);
+        let positioned = ab_glyph::Glyph { position: Point { x: pen, y: baseline }, ..glyph };
+        if let Some(outline) = face.outline_glyph(positioned) {
+            let origin = outline.px_bounds().min;
+            outline.draw(|gx, gy, coverage| {
+                let px = gx as i32 + origin.x as i32;
+                let py = gy as i32 + origin.y as i32;
+                if px < 0 || py < 0 || px >= horizontal.width() as i32 || py >= horizontal.height() as i32 { return; }
+                let pixel = horizontal.get_pixel_mut(px as u32, py as u32);
+                pixel[0] = color[0]; pixel[1] = color[1]; pixel[2] = color[2];
+                pixel[3] = (coverage * color[3] as f32).round().clamp(0.0, 255.0) as u8;
+            });
+        }
+        pen += advances[index] + tracking_px;
+    }
+    // Photoshop's 31.31pt text metrics span the supplied 229.85px type box;
+    // normalize the font engine's natural advance to that authoritative box.
+    let fitted = imageops::resize(&horizontal, target_width, target_height, imageops::FilterType::Lanczos3);
+    let rotated = imageops::rotate270(&fitted);
+    imageops::overlay(image, &rotated, x.round() as i64, y.round() as i64);
     Ok(())
 }
 
@@ -249,6 +289,7 @@ fn rasterize(spec: &LayerSpec, config: &Value) -> EngineResult<RgbaImage> {
             }
         }
         Paint::Text { .. } => draw_text(&mut canvas, &spec.paint)?,
+        Paint::RotatedText { .. } => draw_rotated_text(&mut canvas, &spec.paint)?,
         Paint::VerticalText { .. } => draw_vertical_text(&mut canvas, &spec.paint)?,
     }
     Ok(canvas)

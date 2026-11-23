@@ -53,7 +53,11 @@ pub fn calculate(data: Option<&Value>, context: &Context) -> EngineResult<Vec<La
     let verified_font = asset(context, "sideVerifiedFont")?;
     let code_advance = _layout::text_width(&code_font, text_size, code)? * advance_scale;
     let code_origin_y = shield_y - gap;
-    let verified_origin_y = code_origin_y - code_advance - gap;
+    let reference_advance = _layout::text_width(&code_font, text_size, "NNADN3TM9DTTRH")? * advance_scale;
+    let verified_x = 1165.73 * frame_w / 1200.0;
+    let verified_y = 419.9 * frame_w / 1200.0 + reference_advance - code_advance;
+    let verified_w = 35.27 * frame_w / 1200.0;
+    let verified_h = 229.85 * frame_w / 1200.0;
     // Operator-approved sideCode calibration (1200x1600 frame): only a
     // horizontal translation was needed; scale, Y and rotation remain identity.
     let code_axis_x = axis_x - 1.3252054;
@@ -85,10 +89,11 @@ pub fn calculate(data: Option<&Value>, context: &Context) -> EngineResult<Vec<La
         LayerSpec {
             id: "sideVerified",
             z: Z_VERIFIED,
-            paint: Paint::VerticalText {
-                text: "Timemark Verified".into(), font: verified_font, size: text_size,
-                color: [255, 255, 255, 255], axis_x, origin_y: verified_origin_y,
-                advance_scale, outline: None,
+            paint: Paint::RotatedText {
+                text: "Timemark Verified".into(), font: verified_font,
+                size: 31.31 * frame_w / 1200.0, tracking: 10.0,
+                color: [255, 255, 255, 255], x: verified_x, y: verified_y,
+                w: verified_w, h: verified_h,
             },
         },
     ])
@@ -117,6 +122,7 @@ mod tests {
     fn text_origin(specs: &[LayerSpec], id: &str) -> f32 {
         specs.iter().find_map(|spec| match &spec.paint {
             Paint::VerticalText { origin_y, .. } if spec.id == id => Some(*origin_y),
+            Paint::RotatedText { y, .. } if spec.id == id => Some(*y),
             _ => None,
         }).expect(id)
     }
@@ -149,13 +155,7 @@ mod tests {
         assert_eq!(image_position(&short), image_position(&long));
         assert_eq!(text_origin(&short, "sideCode"), text_origin(&long, "sideCode"));
         assert!(text_origin(&long, "sideVerified") < text_origin(&short, "sideVerified"));
-        let (_, shield_y) = image_position(&long);
-        let code_origin = text_origin(&long, "sideCode");
         let verified_origin = text_origin(&long, "sideVerified");
-        let code_advance = text_advance(&long, "sideCode");
-        let first_gap = shield_y - code_origin;
-        let second_gap = code_origin - code_advance - verified_origin;
-        assert!((first_gap - second_gap).abs() < 0.01);
         let movement = text_origin(&short, "sideVerified") - verified_origin;
         let advance_difference = text_advance(&long, "sideCode") - text_advance(&short, "sideCode");
         assert!((movement - advance_difference).abs() < 0.01);

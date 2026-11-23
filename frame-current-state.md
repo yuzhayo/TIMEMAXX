@@ -286,9 +286,10 @@ frame/
   One additional flat child, `sideStamp.rs`, owns the complete right-edge chain
   and returns `sideShield`/`sideCode`/`sideVerified` at z10/z11/z12. Shield is the
   fixed anchor; one 2.8dp gap separates each relationship; code advance determines
-  only the Verified position. It transcribes `BottomToTopTextView`: 8x9dp rotated
-  anti-code icon; 9dp PT Mono code; 9dp Roboto Condensed Verified; per-character
-  bottom-to-top placement; plain white fill with no outline or shadow. Vertical
+  only the Verified Y. It transcribes `BottomToTopTextView` for the 9dp PT Mono
+  code. Verified follows the operator's Photoshop type-layer measurement:
+  x1165.73/y419.9/w35.27/h229.85, -90deg, Roboto Condensed Regular 31.31pt,
+  tracking 10 and 100% opacity/fill. Both use plain white with no outline/shadow. Vertical
   text is restored to the pre-black-line state; parity remains pending operator
   calibration and approval.
   The original 8x9dp icon is rendered at the observed 80% burnt-in scale;
