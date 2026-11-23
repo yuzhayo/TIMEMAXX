@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use serde_json::Value;
 
-use crate::{_layout, number, resolve, Child, Context, EngineResult, LayerSpec, Paint};
+use crate::{_layout, number, resolve, Child, Context, EngineResult, LayerSpec, Paint, SoftShadow};
 
 const Z_SHIELD: i32 = 10;
 const Z_CODE: i32 = 11;
@@ -58,6 +58,8 @@ pub fn calculate(data: Option<&Value>, context: &Context) -> EngineResult<Vec<La
     let verified_y = 419.9 * frame_w / 1200.0 + reference_advance - code_advance;
     let verified_w = 35.27 * frame_w / 1200.0;
     let verified_h = 229.85 * frame_w / 1200.0;
+    let shadow = || Some(SoftShadow { color: [0, 0, 0, 102], offset_x: 0.0,
+        offset_y: dp(1.5), blur: dp(3.5) });
     // Operator-approved sideCode calibration (1200x1600 frame): only a
     // horizontal translation was needed; scale, Y and rotation remain identity.
     let code_axis_x = axis_x - 1.3252054;
@@ -82,7 +84,7 @@ pub fn calculate(data: Option<&Value>, context: &Context) -> EngineResult<Vec<La
             paint: Paint::VerticalText {
                 text: code.into(), font: code_font, size: text_size,
                 color: [255, 255, 255, 255], axis_x: code_axis_x, origin_y: code_origin_y,
-                advance_scale, outline: None,
+                advance_scale, outline: None, shadow: shadow(),
             },
         },
         // UI — section 3: follows the measured code advance at the same gap.
@@ -93,7 +95,7 @@ pub fn calculate(data: Option<&Value>, context: &Context) -> EngineResult<Vec<La
                 text: "Timemark Verified".into(), font: verified_font,
                 size: 31.31 * frame_w / 1200.0, tracking: 10.0,
                 color: [255, 255, 255, 255], x: verified_x, y: verified_y,
-                w: verified_w, h: verified_h,
+                w: verified_w, h: verified_h, shadow: shadow(),
             },
         },
     ])

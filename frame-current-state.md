@@ -289,7 +289,8 @@ frame/
   only the Verified Y. It transcribes `BottomToTopTextView` for the 9dp PT Mono
   code. Verified follows the operator's Photoshop type-layer measurement:
   x1165.73/y419.9/w35.27/h229.85, -90deg, Roboto Condensed Regular 31.31pt,
-  tracking 10 and 100% opacity/fill. Both use plain white with no outline/shadow. Vertical
+  tracking 10 and 100% opacity/fill. Both use white with no outline plus a soft
+  black40 shadow (1.5dp Y offset, 3.5dp blur). Vertical
   text is restored to the pre-black-line state; parity remains pending operator
   calibration and approval.
   The original 8x9dp icon is rendered at the observed 80% burnt-in scale;

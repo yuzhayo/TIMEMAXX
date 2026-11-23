@@ -46,6 +46,13 @@ pub struct Outline {
     pub width: f32,
 }
 
+pub struct SoftShadow {
+    pub color: [u8; 4],
+    pub offset_x: f32,
+    pub offset_y: f32,
+    pub blur: f32,
+}
+
 /// A child's drawing decision. The parent owns all rasterising and file IO.
 pub enum Paint {
     Image { path: PathBuf, x: f32, y: f32, w: f32, h: f32, alpha: f32 },
@@ -53,9 +60,10 @@ pub enum Paint {
     Rect { x: f32, y: f32, w: f32, h: f32, color: [u8; 4] },
     Text { text: String, font: PathBuf, size: f32, color: [u8; 4], x: f32, y: f32 },
     RotatedText { text: String, font: PathBuf, size: f32, tracking: f32,
-        color: [u8; 4], x: f32, y: f32, w: f32, h: f32 },
+        color: [u8; 4], x: f32, y: f32, w: f32, h: f32, shadow: Option<SoftShadow> },
     VerticalText { text: String, font: PathBuf, size: f32, color: [u8; 4],
-        axis_x: f32, origin_y: f32, advance_scale: f32, outline: Option<Outline> },
+        axis_x: f32, origin_y: f32, advance_scale: f32, outline: Option<Outline>,
+        shadow: Option<SoftShadow> },
 }
 
 pub struct LayerSpec {
@@ -150,8 +158,20 @@ fn draw_text(image: &mut RgbaImage, spec: &Paint) -> EngineResult<()> {
     Ok(())
 }
 
+fn overlay_shadow(image: &mut RgbaImage, foreground: &RgbaImage, shadow: &SoftShadow) {
+    let mut layer = RgbaImage::new(image.width(), image.height());
+    for (x, y, pixel) in foreground.enumerate_pixels() {
+        if pixel[3] == 0 { continue; }
+        let target = layer.get_pixel_mut(x, y);
+        target[0] = shadow.color[0]; target[1] = shadow.color[1]; target[2] = shadow.color[2];
+        target[3] = (pixel[3] as f32 * shadow.color[3] as f32 / 255.0).round() as u8;
+    }
+    let blurred = imageops::blur(&layer, shadow.blur);
+    imageops::overlay(image, &blurred, shadow.offset_x.round() as i64, shadow.offset_y.round() as i64);
+}
+
 fn draw_rotated_text(image: &mut RgbaImage, spec: &Paint) -> EngineResult<()> {
-    let Paint::RotatedText { text, font, size, tracking, color, x, y, w, h } = spec else { return Ok(()) };
+    let Paint::RotatedText { text, font, size, tracking, color, x, y, w, h, shadow } = spec else { return Ok(()) };
     let bytes = fs::read(font).map_err(|error| format!("font unreadable: {error}"))?;
     let face = FontRef::try_from_slice(&bytes).map_err(|error| format!("font invalid: {error}"))?;
     let scale = PxScale::from(*size); let scaled = face.as_scaled(scale);
@@ -184,7 +204,10 @@ fn draw_rotated_text(image: &mut RgbaImage, spec: &Paint) -> EngineResult<()> {
     // normalize the font engine's natural advance to that authoritative box.
     let fitted = imageops::resize(&horizontal, target_width, target_height, imageops::FilterType::Lanczos3);
     let rotated = imageops::rotate270(&fitted);
-    imageops::overlay(image, &rotated, x.round() as i64, y.round() as i64);
+    let mut foreground = RgbaImage::new(image.width(), image.height());
+    imageops::overlay(&mut foreground, &rotated, x.round() as i64, y.round() as i64);
+    if let Some(shadow) = shadow { overlay_shadow(image, &foreground, shadow); }
+    imageops::overlay(image, &foreground, 0, 0);
     Ok(())
 }
 
@@ -227,7 +250,11 @@ fn draw_vertical_glyphs(image: &mut RgbaImage, text: &str, font: &Path, size: f3
 
 fn draw_vertical_text(image: &mut RgbaImage, spec: &Paint) -> EngineResult<()> {
     let Paint::VerticalText { text, font, size, color, axis_x, origin_y,
-        advance_scale, outline } = spec else { return Ok(()) };
+        advance_scale, outline, shadow } = spec else { return Ok(()) };
+    let mut foreground = RgbaImage::new(image.width(), image.height());
+    draw_vertical_glyphs(&mut foreground, text, font, *size, *color, *axis_x, *origin_y,
+        *advance_scale)?;
+    if let Some(shadow) = shadow { overlay_shadow(image, &foreground, shadow); }
     if let Some(outline) = outline {
         let mut mask = RgbaImage::new(image.width(), image.height());
         draw_vertical_glyphs(&mut mask, text, font, *size, [255, 255, 255, 255],
@@ -251,8 +278,8 @@ fn draw_vertical_text(image: &mut RgbaImage, spec: &Paint) -> EngineResult<()> {
         }
         imageops::overlay(image, &stroke, 0, 0);
     }
-    draw_vertical_glyphs(image, text, font, *size, *color, *axis_x, *origin_y,
-        *advance_scale)
+    imageops::overlay(image, &foreground, 0, 0);
+    Ok(())
 }
 
 fn rasterize(spec: &LayerSpec, config: &Value) -> EngineResult<RgbaImage> {

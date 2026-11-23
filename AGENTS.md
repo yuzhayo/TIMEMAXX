@@ -244,8 +244,9 @@ No separate inspection framework/service is needed.
   `Timemark Verified` type layer follows the operator's Photoshop measurement at
   1200x1600: x1165.73, y419.9, w35.27, h229.85, -90deg, Roboto Condensed Regular
   31.31pt, tracking 10, opacity/fill 100%. Its Y moves by the code-width delta.
-  Code reproduces the per-character bottom-to-top layout with plain white
-  fill: no outline and no shadow, as observed in the supplied export. The icon is the APK
+  Code reproduces the per-character bottom-to-top layout. Both vertical texts
+  use white fill with no outline plus the requested soft shadow: black40,
+  1.5dp Y offset and 3.5dp blur. The icon is the APK
   `anti_code_icon_small`, rotated -90; the burnt-in reference presents it at
   80% of its nominal 8x9dp XML box. Its measured strong-alpha bounds at
   1200x1600 are x1173..1189/y944..958. Vertical text rendering is reverted to
