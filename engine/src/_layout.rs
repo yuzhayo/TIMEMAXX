@@ -19,11 +19,12 @@ pub struct CodeRow {
     pub text_x: f32,
     pub text_baseline: f32,
     pub text_size: f32,
+    pub code_size: f32,
     pub scale: f32,
 }
 
 fn font(assets: &Assets, bold: bool) -> &Path {
-    if bold { &assets.font_bold } else { &assets.font }
+    if bold { &assets.label } else { &assets.font }
 }
 
 pub fn font_metrics(path: &Path, size: f32) -> EngineResult<(f32, f32)> {
@@ -44,33 +45,28 @@ pub fn text_width(path: &Path, size: f32, text: &str) -> EngineResult<f32> {
     }).sum())
 }
 
-/// render34 + drawPhotoCode + compose.ts anchoring, calculated by children.
-pub fn code_row(config: &Value, assets: &Assets) -> EngineResult<CodeRow> {
+/// Geometry measured directly from the operator's 1200x1600 reference export
+/// (WhatsApp Image 2026-11-23 at 20.01.06.jpeg), scaled by frame width. The
+/// shield is a fixed bottom-left anchor; text never moves it.
+pub fn code_row(config: &Value, _assets: &Assets) -> EngineResult<CodeRow> {
     let frame_w = number(&config["frame"], "width")?;
     let frame_h = number(&config["frame"], "height")?;
-    let scale = frame_w / 360.0;
-    let dp = |value: f32| value * scale;
-    let text_size = dp(12.0);
-    let (ascent, descent) = font_metrics(font(assets, false), text_size)?;
-    let line_h = ascent - descent;
-    let shield_w = dp(12.0);
-    let shield_h = dp(14.0);
-    let row_h = shield_h.max(line_h);
-    let x = dp(8.0);
-    let top = frame_h - dp(8.0) - row_h;
+    let k = frame_w / 1200.0;
+    let scale = k;
     Ok(CodeRow {
-        x,
-        top,
-        width: dp(245.0),
-        row_h,
-        divider_y: top - dp(12.0) - 0.5 * scale,
-        shield_x: x,
-        shield_y: top,
-        shield_w,
-        shield_h,
-        text_x: x + shield_w + dp(4.0),
-        text_baseline: top + (row_h - line_h) / 2.0 + ascent,
-        text_size,
+        x: 26.0 * k,
+        top: frame_h - 70.0 * k,
+        width: 529.0 * k,
+        row_h: 42.0 * k,
+        divider_y: 1509.0 * k,
+        shield_x: 26.0 * k,
+        shield_y: frame_h - 70.0 * k,
+        shield_w: 36.0 * k,
+        shield_h: 42.0 * k,
+        text_x: 75.0 * k,
+        text_baseline: frame_h - 34.0 * k,
+        text_size: 45.0 * k,
+        code_size: 41.5 * k,
         scale,
     })
 }
@@ -85,11 +81,11 @@ pub fn label_width(row: &CodeRow, assets: &Assets, language: &str) -> EngineResu
 }
 
 pub fn colon_x(row: &CodeRow, assets: &Assets, language: &str) -> EngineResult<f32> {
-    Ok(row.text_x + label_width(row, assets, language)?)
+    Ok(row.text_x + label_width(row, assets, language)? - 6.0 * row.scale)
 }
 
 pub fn code_x(row: &CodeRow, assets: &Assets, language: &str) -> EngineResult<f32> {
     Ok(colon_x(row, assets, language)?
         + text_width(font(assets, false), row.text_size, ":")?
-        + 2.0 * row.scale)
+        + 6.0 * row.scale)
 }

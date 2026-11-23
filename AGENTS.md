@@ -230,10 +230,11 @@ No separate inspection framework/service is needed.
   (`i_photo_code`) or `Kode Foto` (APK template item 640) according to the
   language selection in `ui-control/state.json`. The bridge polls both JSON files
   by content hash and pushes new layers to Frame on change, so a generated code
-  or a language switch updates the display without a restart. Shield size (12×14 dp) and code text size (12 dp,
-  RobotoCondensed-Regular) follow `timemark-web/src/templates/render.ts` and
-  `core/theme.ts`, including the 8dp bottom anchor, 245dp row, 0.5dp divider and
-  0.7 row alpha. Frame only carries those PNGs through
+  or a language switch updates the display without a restart. Geometry is
+  measured directly from the operator's 1200x1600 reference export, not from
+  `render.ts`: shield x26..61/y1530..1571, divider x26..554/y1509, label
+  x78..247/y1537..1565 and code x262..551/y1540..1565, using the APK's
+  Roboto-Regular face. Frame only carries those PNGs through
   `desktop/LayerReceiver.cjs` and stacks them in `PreviewPainter`; it interprets
   no stamp content. Combined export with layers remains deferred.
 - Photo transforms affect photo only; view transforms affect inspection only.

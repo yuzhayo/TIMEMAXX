@@ -22,7 +22,7 @@ pub mod _layout;
 pub struct Assets {
     pub shield: PathBuf,
     pub font: PathBuf,
-    pub font_bold: PathBuf,
+    pub label: PathBuf,
 }
 
 /// One discovered child. Its file declares identity, code.json key and z.
@@ -219,7 +219,7 @@ fn run() -> EngineResult<Value> {
     let assets = Assets {
         shield: resolve(&manifest_dir, config["assets"]["shield"].as_str().unwrap_or("assets/shield.png")),
         font: resolve(&manifest_dir, config["assets"]["font"].as_str().unwrap_or("assets/code.ttf")),
-        font_bold: resolve(&manifest_dir, config["assets"]["fontBold"].as_str().unwrap_or("assets/codeBold.ttf")),
+        label: resolve(&manifest_dir, config["assets"]["labelFont"].as_str().unwrap_or("assets/label.ttf")),
     };
     let language = read_language(&config, &manifest_dir, &mut log);
     let context = Context { config: &config, assets: &assets, language: &language };

@@ -277,10 +277,10 @@ frame/
   input/children or child failures in `engine/log.json`. Input only supplies the
   code; the label child generates `Photo Code` or `Kode Foto` by language. The bridge polls both JSON files by content hash and
   pushes fresh layers on change, so a generated code or language switch appears
-  in Frame immediately. Shield size, code font/size,
-  row width, bottom anchor, divider and alpha are all transcribed from
-  `render.ts`/`theme.ts` (12×14 dp shield, 12 dp RobotoCondensed text, 8dp margin,
-  245dp row, 0.7 row alpha). Frame carries the PNGs
+  in Frame immediately. Geometry is measured from the operator's 1200x1600
+  reference export: shield x26..61/y1530..1571, divider x26..554/y1509, label
+  x78..247/y1537..1565, code x262..551/y1540..1565, using the APK's
+  Roboto-Regular face. Frame carries the PNGs
   through `desktop/LayerReceiver.cjs` and stacks them in `PreviewPainter` without
   interpreting stamp content. A child error or bad input hides only that section.
 - Combined photo/overlay export, accepted revisions, stale-overlay rejection and

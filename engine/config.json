@@ -8,6 +8,6 @@
   "assets": {
     "shield": "assets/shield.png",
     "font": "assets/code.ttf",
-    "fontBold": "assets/codeBold.ttf"
+    "labelFont": "assets/label.ttf"
   }
 }
