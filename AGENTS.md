@@ -206,8 +206,8 @@ No separate inspection framework/service is needed.
   `hourFormat`) and `date` (`value`, `dayMode`, `monthMode`). Each bucket is replaced atomically after any change, never kept
   as a log; a future overlay reads `sections.time` and `sections.date` directly. Missing or
   damaged files never block Input and fall back to configured defaults. No
-  preview, Frame/file bridge, engine or overlay. `engine/` and overlay behavior
-  are not implemented.
+  preview, Frame/file bridge or engine code lives inside Input. Overlay
+  composition beyond the current transparent layers is not implemented here.
   Rapid toggles are serialized; closing Input leaves Frame alive. Bounds are
   recalculated when opening, not saved from manual coordinates or tied to photo state.
 - Future joint routing and composition belong to a background orchestrator with
@@ -217,11 +217,21 @@ No separate inspection framework/service is needed.
   display a finished combined preview supplied by that orchestrator without
   interpreting overlay content. Combined Save is coordinated there. Do not
   implement this integration until the user explicitly requests and approves it.
+- `engine/` is one Rust parent (`src/lib.rs`) plus flat children (`src/<section>.rs`).
+  `build.rs` globs the children into a generated registry: adding, editing or
+  removing a child never touches the parent. The parent alone reads
+  `ui-control/code.json`, asks each child for its own calculation, orders layers
+  by z, writes transparent 1200x1600 PNGs to `frame/.runtime/engine-layers/` and
+  records missing input, missing children and child failures in `engine/log.json`
+  without crashing. Phase 1 children are `shield` (static mark) and `codeStamp`
+  (`sections.codeGenerator.code`). Frame only carries those PNGs through
+  `desktop/LayerReceiver.cjs` and stacks them in `PreviewPainter`; it interprets
+  no stamp content. Combined export with layers remains deferred.
 - Photo transforms affect photo only; view transforms affect inspection only.
   Future stale-overlay rejection, clearing and accepted-revision consistency are
   orchestrator responsibilities. Photo replacement must not mutate its overlay.
-  Existing empty Frame layer skeletons are not active responsibilities or
-  authorization to add layer logic to Frame.
+  The Frame layer skeletons are now limited to the approved engine-to-frame
+  transport; adding stamp rules to Frame remains out of scope.
 
 ## Proof and discipline
 

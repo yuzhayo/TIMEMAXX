@@ -269,11 +269,16 @@ frame/
   visible only for issues; development inspection is off in normal use.
 - Missing/invalid Input is reported through Frame's existing Bottom Bar diagnostics;
   it does not prevent Frame startup or standalone export.
-- No `engine/` or overlay implementation exists. Combined photo/overlay routing,
-  accepted revisions, stale-overlay rejection and combined Save belong to a future
-  background orchestrator.
-- The orchestrator, optional Bottom Bar Info control, export-size UI, overlays,
-  notices, and layer integration are not implemented.
+- `engine/` now has one Rust parent (`src/lib.rs`) and flat children. Phase 1
+  children are `shield` and `codeStamp`; the parent globs them through `build.rs`,
+  reads `ui-control/code.json`, writes z-ordered transparent 1200x1600 PNGs and
+  logs missing input/children or child failures in `engine/log.json`. Frame
+  carries the PNGs through `desktop/LayerReceiver.cjs` and stacks them in
+  `PreviewPainter` without interpreting stamp content. A child error or bad input
+  hides only that section.
+- Combined photo/overlay export, accepted revisions, stale-overlay rejection and
+  combined Save still belong to a future background orchestrator. The optional
+  Bottom Bar Info control and export-size UI remain out of scope.
 - Future work starts only from a new explicit user request; empty skeleton files do
   not define a work queue.
 
@@ -296,6 +301,14 @@ adjoining-left bounds, JSON-driven geometry/background, toggle parity during
 rapid clicks, unchanged Frame state, failure isolation and parent-window cleanup.
 Artifacts stay in
 ignored `frame/.runtime/checks/input-screen/`.
+
+From `frame/`, `node tests/engine-layers-proof.mjs` checks that the running Frame
+can ask the parent engine for its current layer list, that the list contains the
+discovered `shield` and `codeStamp` children at 3:4 1200x1600 with PNG data, and
+captures `frame/.runtime/checks/engine-layers/frame-with-layers.png` as visual
+proof. Direct engine probes covered auto-registration of a temporary child, a
+panicking child and a missing `code.json`: each failure was logged in
+`engine/log.json` and only its own section disappeared.
 
 From `ui-control/`, `npm.cmd run test:contract` checks the enabled-card baseline
 config, window geometry, discovery contract, the per-section state rules

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "input": "../ui-control/code.json",
+  "outputDir": "../frame/.runtime/engine-layers",
+  "log": "log.json",
+  "frame": { "width": 1200, "height": 1600 },
+  "assets": {
+    "shield": "assets/shield.png",
+    "font": "assets/code.ttf"
+  },
+  "sections": {
+    "shield": { "x": 27, "y": 1433, "width": 120, "height": 140 },
+    "codeStamp": { "x": 170, "y": 1545, "size": 36, "color": [255, 255, 255, 255] }
+  }
+}

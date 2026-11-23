@@ -10,8 +10,23 @@ export class PreviewPainter {
     this.photo = null;
     this.document = null;
     this.source = null;
+    this.layers = [];
+    this.layerImages = [];
     this.observer = new ResizeObserver(() => this.safeDraw('preview-resize'));
     this.observer.observe(canvas.parentElement);
+  }
+
+  // LOGIC — transparent layers arrive from the engine as a list; this owner
+  // only stacks them by z. It never interprets what any section drew.
+  setLayers(layers) {
+    this.layers = [...(layers ?? [])].sort((a, b) => a.z - b.z);
+    this.layerImages = this.layers.map((layer) => {
+      const image = new Image();
+      image.onload = () => this.safeDraw('layer-load');
+      image.src = layer.dataUrl;
+      return image;
+    });
+    this.safeDraw('layer-set');
   }
 
   update(photo, document, view) {
@@ -65,14 +80,22 @@ export class PreviewPainter {
     context.clearRect(0, 0, width, height);
     context.fillStyle = `rgb(${this.output.matte.join(',')})`;
     context.fillRect(left, top, fw, fh);
-    if (!this.image || !this.photo || !this.document) return;
-    const transform = this.document;
+    if (this.image && this.photo && this.document) {
+      const transform = this.document;
+      context.save();
+      context.beginPath(); context.rect(left, top, fw, fh); context.clip();
+      context.translate(left + fw / 2 + transform.x * scale, top + fh / 2 + transform.y * scale);
+      context.rotate(transform.rotation * Math.PI / 180);
+      context.scale(transform.scale * scale, transform.scale * scale);
+      context.drawImage(this.image, -this.photo.width / 2, -this.photo.height / 2, this.photo.width, this.photo.height);
+      context.restore();
+    }
+    // LOGIC — engine layers are full-frame transparent images, already ordered.
     context.save();
     context.beginPath(); context.rect(left, top, fw, fh); context.clip();
-    context.translate(left + fw / 2 + transform.x * scale, top + fh / 2 + transform.y * scale);
-    context.rotate(transform.rotation * Math.PI / 180);
-    context.scale(transform.scale * scale, transform.scale * scale);
-    context.drawImage(this.image, -this.photo.width / 2, -this.photo.height / 2, this.photo.width, this.photo.height);
+    for (const layer of this.layerImages) {
+      if (layer.complete && layer.naturalWidth) context.drawImage(layer, left, top, fw, fh);
+    }
     context.restore();
   }
 
@@ -81,5 +104,5 @@ export class PreviewPainter {
     catch (error) { this.onError(error.message, operation); return false; }
   }
 
-  dispose() { this.observer.disconnect(); this.image = null; this.photo = null; }
+  dispose() { this.observer.disconnect(); this.image = null; this.photo = null; this.layers = []; this.layerImages = []; }
 }

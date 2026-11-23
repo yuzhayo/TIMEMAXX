@@ -23,14 +23,24 @@ if not "%BUILD_CODE%"=="0" (
   exit /b 1
 )
 
-echo [3/4] Closing running Frame...
+echo [3/5] Building parent engine...
+pushd "%ROOT%engine"
+call cargo build --release --bin engine-render
+set "ENGINE_CODE=%errorlevel%"
+popd
+if not "%ENGINE_CODE%"=="0" (
+  echo Engine build failed.
+  exit /b 1
+)
+
+echo [4/5] Closing running Frame...
 powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%rebuild-and-relaunch.ps1"
 if errorlevel 1 (
   echo Could not close the existing Frame. Relaunch aborted.
   exit /b 1
 )
 
-echo [4/4] Launching Frame with rebuilt renderer...
+echo [5/5] Launching Frame with rebuilt renderer...
 set "ELECTRON_CACHE=%FRAME%\.runtime\electron-cache"
 set "electron_config_cache=%ELECTRON_CACHE%"
 start "" "%ELECTRON%" "%FRAME%"

@@ -75,6 +75,20 @@ export default function PhotoPreview({ config, state, actions }) {
     }
     return () => { wheel?.dispose(); pointer?.dispose(); painter.current = null; instance.dispose(); };
   }, [config, state.output, actions]);
+  // LOGIC — Frame asks the parent engine for the current layer list. Returning
+  // to this window after editing Input refreshes it; an engine failure only
+  // hides layers, it never breaks the photo preview.
+  useEffect(() => {
+    let alive = true;
+    const refresh = () => {
+      window.frameHost?.layers?.().then((result) => {
+        if (alive && result?.ok) painter.current?.setLayers(result.layers ?? []);
+      }).catch(() => undefined);
+    };
+    refresh();
+    window.addEventListener('focus', refresh);
+    return () => { alive = false; window.removeEventListener('focus', refresh); };
+  }, [config, state.output]);
   useEffect(() => {
     const failureCalls = previewFailureCalls.current;
     try { painter.current?.update(state.photo, state.document, state.view); if (previewFailureCalls.current === failureCalls) previewFailure.current = null; }

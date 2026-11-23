@@ -6,6 +6,7 @@ const { createFrameWindow, bindWindowActions, frameAppId } = require('./FrameWin
 const { DiagnosticLog } = require('./DiagnosticLog.cjs');
 const { ImageWorker } = require('./ImageWorker.cjs');
 const { ImageFileDialogs } = require('./ImageFileDialogs.cjs');
+const { receiveLayers } = require('./LayerReceiver.cjs');
 
 // LOGIC — photo lifetime stays in Frame; the only Input link is its approved window toggle.
 const root = path.resolve(__dirname, '..');
@@ -51,6 +52,11 @@ app.whenReady().then(async () => {
       development: !app.isPackaged,
       inspectionRequested: !app.isPackaged && (process.argv.includes('--inspect-layout') || config.development?.inspectionEnabled === true),
     };
+  });
+  ipcMain.handle('frame:layers', (event) => {
+    if (!allowed(event)) return { ok: false, error: 'Unknown frame sender' };
+    try { return receiveLayers({ root, runtime }); }
+    catch (error) { return { ok: false, error: error.message }; }
   });
   ipcMain.handle('frame:diagnostics', (event, records) => {
     if (!allowed(event) || !Array.isArray(records)) return { ok: false, error: 'Unknown diagnostic sender or invalid records' };
