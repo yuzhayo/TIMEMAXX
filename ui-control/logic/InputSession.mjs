@@ -1,7 +1,8 @@
 // LOGIC — generic session state for a shell with no configured sections yet.
-export function createInputSession(plan, inspection = false) {
+// persisted carries validated per-section selections restored from state.json.
+export function createInputSession(plan, inspection = false, persisted = {}) {
   const listeners = new Set();
-  let state = { language: plan.initialLanguage, expanded: Object.fromEntries(plan.sections.map((node) => [node.id, node.expanded])), inspection };
+  let state = { language: persisted?.language ?? plan.initialLanguage, expanded: Object.fromEntries(plan.sections.map((node) => [node.id, node.expanded])), inspection };
   const publish = (next) => { state = next; for (const listener of listeners) listener(); };
   return {
     subscribe: (listener) => { listeners.add(listener); return () => listeners.delete(listener); },

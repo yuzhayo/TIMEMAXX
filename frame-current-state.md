@@ -242,10 +242,12 @@ frame/
 ## Current boundaries
 
 - Frame owns only standalone photo/window/file/export behavior.
-- `ui-control/` owns its native window, React/MUI renderer and config. `screen.cjs`
+- `ui-control/` owns its native window, React/MUI renderer, config and its own
+  per-section selection state. `screen.cjs`
   is its public window-only contract; Frame loads it only on a pencil click.
   Input owns its own locked dependencies and Vite build, with no Frame build
-  dependency. It has no sections, fields, language selector or task content.
+  dependency. It renders configured section cards (currently a language dropdown)
+  and has no task content or data.
 - Input is one non-modal frameless window: no native caption/buttons/title text or
   reserved Windows-Bar area. Pencil clicks alternate open/close, including rapid
   clicks. Closing Input leaves Frame running; closing Frame closes Input. Toggling
@@ -280,12 +282,14 @@ frame/
 pencil path: a frameless Input with the enabled shared section cards (header
 toggle, body mount, auto-compact below the configured slot, header height from
 configured paddingY, language dropdown swapping
-the locale layout), 40% width at Frame
+the locale layout, the last selection restored from `ui-control/state.json` and
+saved per section, damaged state falling back to defaults), 40% width at Frame
 startup/minimum sizes, full work-area height and adjoining-left bounds,
 JSON-driven geometry/background, toggle parity during rapid clicks, unchanged
 Frame state, failure isolation and parent-window cleanup. Artifacts stay in
 ignored `frame/.runtime/checks/input-screen/`.
 
 From `ui-control/`, `npm.cmd run test:contract` checks the enabled-card baseline
-config, window geometry and discovery contract. Dependencies, built renderer and
-local logs stay ignored there.
+config, window geometry, discovery contract and the per-section state rules
+(declared keys only, no invented fallback, disabled sections leaving no bucket).
+Dependencies, built renderer, `state.json` and local logs stay ignored there.

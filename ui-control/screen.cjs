@@ -22,6 +22,48 @@ function createInputScreen({ BrowserWindow, screen, parent, ipcMain, development
   let queue = Promise.resolve();
   let disposed = false;
   const log = new DiagnosticLog(path.join(__dirname, '.runtime/logs'));
+  // LOGIC — Input owns only its own per-section UI selections; state.json sits beside config.json.
+  const statePath = path.join(path.dirname(configPath), 'state.json');
+  let stateQueue = Promise.resolve();
+
+  const shape = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+  const validSections = (sections) => shape(sections) && Object.keys(sections).length <= 64
+    && Object.values(sections).every((bucket) => shape(bucket) && Object.keys(bucket).length <= 16);
+
+  // LOGIC — a missing file is a first run; an invalid one is reported and ignored,
+  // so damaged state never blocks Input from opening with its configured defaults.
+  const readState = () => {
+    let raw;
+    try {
+      raw = fs.readFileSync(statePath, 'utf8');
+    } catch (error) {
+      if (error.code !== 'ENOENT') log.write([{ code: 'INPUT_STATE_UNREADABLE', configPath: statePath, expected: 'readable state.json',
+        actual: error.message, action: 'state ignored; configured defaults apply', timestamp: new Date().toISOString() }]);
+      return {};
+    }
+    try {
+      const state = JSON.parse(raw);
+      if (state?.schemaVersion !== 1 || !validSections(state?.sections)) throw new Error('expected schemaVersion 1 and per-section selection objects');
+      return state.sections;
+    } catch (error) {
+      log.write([{ code: 'INPUT_STATE_INVALID', configPath: statePath, expected: 'schemaVersion 1 and per-section selection objects',
+        actual: error.message, action: 'state ignored; configured defaults apply', timestamp: new Date().toISOString() }]);
+      return {};
+    }
+  };
+
+  // LOGIC — serialize saves and replace atomically so a crash never leaves a half-written state.json.
+  const writeState = (sections) => {
+    const operation = stateQueue.then(() => {
+      fs.mkdirSync(path.dirname(statePath), { recursive: true });
+      const temporary = `${statePath}.tmp`;
+      fs.writeFileSync(temporary, JSON.stringify({ schemaVersion: 1, sections }, null, 2), 'utf8');
+      fs.renameSync(temporary, statePath);
+      return { ok: true };
+    });
+    stateQueue = operation.catch(() => undefined);
+    return operation.catch((error) => ({ ok: false, error: error.message }));
+  };
 
   const settings = () => {
     const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
@@ -49,7 +91,7 @@ function createInputScreen({ BrowserWindow, screen, parent, ipcMain, development
     const frame = parent.getBounds();
     const area = screen.getDisplayMatching(frame).workArea;
     const token = randomUUID();
-    const bootstrapChannel = `input:${token}:bootstrap`, diagnosticsChannel = `input:${token}:diagnostics`;
+    const bootstrapChannel = `input:${token}:bootstrap`, diagnosticsChannel = `input:${token}:diagnostics`, stateChannel = `input:${token}:state`;
     const created = new BrowserWindow({
       title: config.title, parent, modal: false, show: false,
       ...inputWindowBounds(frame, area, config), frame: config.frame, thickFrame: config.thickFrame,
@@ -64,13 +106,19 @@ function createInputScreen({ BrowserWindow, screen, parent, ipcMain, development
     created.on('page-title-updated', (event) => event.preventDefault());
     const allowed = (event) => event.sender === created.webContents && event.senderFrame === created.webContents.mainFrame;
     ipcMain.handle(bootstrapChannel, (event) => allowed(event)
-      ? { config: configuration, development, inspectionRequested: development && inspectionRequested, logPath: log.path } : null);
+      ? { config: configuration, state: readState(), development, inspectionRequested: development && inspectionRequested, logPath: log.path } : null);
     ipcMain.handle(diagnosticsChannel, (event, records) => {
       if (!allowed(event) || !Array.isArray(records) || records.length > 1000) return { ok: false, error: 'Unknown Input sender or invalid diagnostic records' };
       return log.write(records);
     });
+    ipcMain.handle(stateChannel, (event, sections) => {
+      if (!allowed(event) || !validSections(sections) || JSON.stringify(sections).length > 8192) {
+        return { ok: false, error: 'Unknown Input sender or invalid per-section state' };
+      }
+      return writeState(sections);
+    });
     created.once('closed', () => {
-      ipcMain.removeHandler(bootstrapChannel); ipcMain.removeHandler(diagnosticsChannel);
+      ipcMain.removeHandler(bootstrapChannel); ipcMain.removeHandler(diagnosticsChannel); ipcMain.removeHandler(stateChannel);
       if (window === created) window = null;
     });
     try {

@@ -8,6 +8,9 @@ export const componentId = 'input.language';
 export const partKeys = ['header', 'body', 'select'];
 export const partConfigKeys = {};
 
+// Persisted selections this section owns in state.json: one bucket per instance.
+export const stateKeys = ['language'];
+
 // UI — the shared card owns rendering; this section owns the global language
 // choice and routes it through the session command.
 export default function Language({ config, state, actions, languages }) {

@@ -1,3 +1,5 @@
 node_modules/
 view-built/
 .runtime/
+state.json
+state.json.tmp

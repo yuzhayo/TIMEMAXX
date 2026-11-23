@@ -78,7 +78,8 @@ const checkInput = async (page, settings, name) => {
   assert.equal(await page.locator('canvas, img, iframe').count(), 0);
   assert.deepEqual(await page.evaluate(() => ({ host: typeof window.frameHost, node: typeof require })),
     { host: 'undefined', node: 'undefined' });
-  assert.deepEqual(await page.evaluate(() => Object.keys(window.inputHost).sort()), ['bootstrap', 'diagnostics']);
+  assert.deepEqual(await page.evaluate(() => Object.keys(window.inputHost).sort()), ['bootstrap', 'diagnostics', 'state'],
+    'the bridge exposes only config, persisted selections and diagnostics');
   const native = await app.evaluate(async ({ BrowserWindow, screen }) => {
     const win = BrowserWindow.getAllWindows().find((item) => item.webContents.getURL().includes('/ui-control/view-built/index.html'));
     const preferences = win.webContents.getLastWebPreferences();
@@ -122,6 +123,9 @@ try {
   await frame.evaluate(() => window.frameDev.inspect(false));
   assert.equal(await inputCount(), 0, 'Input is not created at Frame startup');
   const before = await frame.evaluate(() => window.frameDev.snapshot());
+  // Seed the persisted state: the first open must restore this selection, not the config default.
+  const statePath = path.join(inputRoot, 'state.json');
+  await fs.writeFile(statePath, JSON.stringify({ schemaVersion: 1, sections: { language: { language: 'id' } } }, null, 2));
   const frameBounds = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getBounds());
   let [input] = await Promise.all([app.waitForEvent('window'), frame.click('#orphanEdit')]);
   await checkInput(input, config.window, 'startup');
@@ -153,21 +157,27 @@ try {
   await input.locator('[data-instance="language"] [data-section-header]').click();
   assert.equal((await cardGeometry()).expanded, 'true', 'second click expands the card again');
 
-  // The language section: its body hosts the global language dropdown.
+  // The language section: state.json restores the last choice and saves new ones.
   const select = input.locator('[data-instance="language"] [data-language-select]');
   assert.deepEqual(await select.locator('option').evaluateAll((options) => options.map((option) => option.value)),
     ['en', 'id'], 'the dropdown lists English and Indonesian');
-  assert.equal(await select.evaluate((element) => element.value), 'en');
-  const headerText = () => input.locator('[data-instance="language"] [data-section-header]').textContent();
-  await select.selectOption('id');
-  await input.waitForFunction(() => document.querySelector('[data-instance="language"] [data-section-header]')?.textContent === 'Bahasa');
-  assert.equal(await input.evaluate(() => document.querySelector('main').getAttribute('lang')), 'id',
-    'switching the dropdown swaps the whole locale layout');
-  assert.equal((await input.evaluate(() => window.inputDev.snapshot())).language, 'id');
+  assert.equal(await select.evaluate((element) => element.value), 'id', 'the seeded selection is restored from state.json');
+  assert.equal(await input.locator('[data-instance="language"] [data-section-header]').textContent(), 'Bahasa',
+    'the restored selection drives the whole locale layout');
+  assert.equal(await input.evaluate(() => document.querySelector('main').getAttribute('lang')), 'id');
+  const readState = async () => { try { return JSON.parse(await fs.readFile(statePath, 'utf8')); } catch { return null; } };
   await select.selectOption('en');
-  assert.equal(await headerText(), 'Language', 'switching back restores the English layout');
+  await input.waitForFunction(() => document.querySelector('[data-instance="language"] [data-section-header]')?.textContent === 'Language');
+  assert.equal((await input.evaluate(() => window.inputDev.snapshot())).language, 'en', 'the dropdown still owns the layout language');
   assert.equal((await input.evaluate(() => window.inputDev.snapshot())).expanded.language, true,
     'expand/collapse state survives a language switch');
+  let persistedState = await readState();
+  for (let attempt = 0; attempt < 50 && persistedState?.sections?.language?.language !== 'en'; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    persistedState = await readState();
+  }
+  assert.deepEqual(persistedState, { schemaVersion: 1, sections: { language: { language: 'en' } } },
+    'choosing a language saves one bucket for the language section');
 
   const firstId = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()
     .find((win) => win.webContents.getURL().includes('/ui-control/view-built/index.html')).id);
@@ -185,6 +195,8 @@ try {
   await frame.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   [input] = await Promise.all([app.waitForEvent('window'), frame.click('#orphanEdit')]);
   await checkInput(input, config.window, 'frame-minimum');
+  assert.equal(await input.locator('[data-instance="language"] [data-language-select]').evaluate((element) => element.value), 'en',
+    'a reopened Input restores the language saved on the previous visit');
   assert.notEqual(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()
     .find((win) => win.webContents.getURL().includes('/ui-control/view-built/index.html')).id), firstId);
   const minimumClosed = input.waitForEvent('close');
@@ -263,6 +275,15 @@ try {
   assert.deepEqual(records.map((issue) => issue.code), ['INPUT_SCREEN_TOGGLE_FAILED']);
   assert.deepEqual(errors, []);
   await captureNative(input, 'reopened');
+  // Damaged state must never block Input: the invalid selection is ignored, defaults apply.
+  await closeInput(input);
+  await fs.writeFile(statePath, JSON.stringify({ schemaVersion: 1, sections: { language: { language: 'xx' } } }));
+  [input] = await Promise.all([app.waitForEvent('window'), frame.click('#orphanEdit')]);
+  await input.waitForSelector('main[aria-label="Input"]');
+  assert.equal(await input.locator('[data-instance="language"] [data-language-select]').evaluate((element) => element.value), 'en',
+    'an invalid persisted selection falls back to the configured default');
+  assert.equal(await input.evaluate(() => document.querySelector('main').getAttribute('lang')), 'en');
+  await fs.writeFile(statePath, JSON.stringify({ schemaVersion: 1, sections: { language: { language: 'en' } } }, null, 2));
   const pencil = await frame.locator('#orphanEdit').evaluate((button) => {
     const box = button.getBoundingClientRect();
     return { fractionX: (box.x + box.width / 2) / innerWidth, fractionY: (box.y + box.height / 2) / innerHeight };
@@ -280,6 +301,10 @@ try {
     'header expands/collapses the card and mounts the body inside', 'card auto-compacts below its configured slot',
     'header height comes from configured paddingY on every card',
     'language section hosts a global English/Indonesian dropdown that swaps the locale layout',
+    'state.json restores the last chosen language on open',
+    'choosing a language saves one bucket for that section',
+    'a reopened Input restores the saved selection',
+    'damaged state never blocks Input and falls back to configured defaults',
     'expand/collapse state survives language switching',
     'scoped Input bootstrap and no Frame/file/data/preview bridge', 'rapid-click parity with one live window',
     '40% Frame width at startup/minimum', 'full work-area height', 'Input right edge touches Frame left edge',

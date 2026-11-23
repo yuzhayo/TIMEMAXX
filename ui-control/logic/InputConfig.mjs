@@ -108,7 +108,7 @@ export function validateInputConfig(raw, catalog, diagnostics) {
     if (entry?.validateConfig && !entry.validateConfig(node, (suffix, expected, actual) => report('INPUT_SECTION_OPTIONS_INVALID', `${path}.${suffix}`, expected, actual, { ...origin, filePath: entry.filePath }))) continue;
     if (!source.enabled) continue;
     if (!entry) { report('INPUT_COMPONENT_MISSING', path, 'discovered component in assigned folder', source.componentId, origin); continue; }
-    base.push({ ...node, Component: entry.Component, validateConfig: entry.validateConfig, filePath: entry.filePath, configPath: path });
+    base.push({ ...node, Component: entry.Component, validateConfig: entry.validateConfig, stateKeys: entry.stateKeys ?? [], filePath: entry.filePath, configPath: path });
   }
   const layouts = {};
   const identities = new Set(entries.filter((entry) => name(entry?.id)).map((entry) => entry.id));
@@ -131,11 +131,11 @@ export function validateInputConfig(raw, catalog, diagnostics) {
         || Object.keys(override).some((key) => !['label', 'bounds', 'colors', 'geometry', 'typography', 'content', 'states', 'parts', 'animation'].includes(key))) {
         report('INPUT_LOCALE_SECTION_INVALID', `${path}.sections.${id}`, 'label/placement/appearance only; identity remains stable', override, origin); continue;
       }
-      const { Component, validateConfig, ...data } = original;
+      const { Component, validateConfig, stateKeys, ...data } = original;
       const node = visual(mergeConfig(data, override), `${path}.sections.${id}`, origin);
       if (!node || !percent(node.bounds?.width) || !percent(node.bounds?.height)) continue;
       if (validateConfig && !validateConfig(node, (suffix, expected, actual) => report('INPUT_SECTION_OPTIONS_INVALID', `${path}.sections.${id}.${suffix}`, expected, actual, origin))) continue;
-      sections.push({ ...node, Component });
+      sections.push({ ...node, Component, stateKeys });
     }
     layouts[language.id] = { gapY: source.gapY, sections };
   }

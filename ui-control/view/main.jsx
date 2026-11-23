@@ -4,6 +4,7 @@ import { discoverComponents } from '@ui/ComponentDiscovery.mjs';
 import { createDiagnostics } from '@ui/LayoutDiagnostics.mjs';
 import { validateInputConfig } from '@input/logic/InputConfig.mjs';
 import { createInputSession } from '@input/logic/InputSession.mjs';
+import { applyInputState, collectInputState } from '@input/logic/InputState.mjs';
 import InputLayout from './layout/InputLayout.jsx';
 import './styles.css';
 
@@ -13,13 +14,26 @@ document.title = bootstrap.config.window.title;
 const diagnostics = createDiagnostics(window.inputHost.diagnostics);
 const catalog = await discoverComponents(import.meta.glob('./sections/**/*.jsx'), diagnostics, 'sections');
 const initialPlan = validateInputConfig(bootstrap.config, catalog, diagnostics);
-const session = createInputSession(initialPlan, bootstrap.development && (bootstrap.inspectionRequested || initialPlan.development?.enabled));
+const session = createInputSession(initialPlan, bootstrap.development && (bootstrap.inspectionRequested || initialPlan.development?.enabled),
+  applyInputState(bootstrap.state, initialPlan, diagnostics));
 let reconfigure;
+let currentPlan = initialPlan;
+let saved;
+
+// LOGIC — one owner persists the per-section selections; an unchanged snapshot is never rewritten.
+const persist = () => {
+  const snapshot = collectInputState(currentPlan, session.getSnapshot());
+  const encoded = JSON.stringify(snapshot);
+  if (encoded === saved) return;
+  saved = encoded;
+  window.inputHost.state?.save?.(snapshot.sections)?.catch?.(() => undefined);
+};
+session.subscribe(persist);
 
 // UI — the renderer entry only composes its generic layout and state owner.
 function InputApp() {
   const [plan, setPlan] = useState(initialPlan);
-  reconfigure = (raw) => setPlan(validateInputConfig(raw, catalog, diagnostics));
+  reconfigure = (raw) => { currentPlan = validateInputConfig(raw, catalog, diagnostics); setPlan(currentPlan); };
   return <InputLayout plan={plan} session={session} diagnostics={diagnostics} development={bootstrap.development} />;
 }
 

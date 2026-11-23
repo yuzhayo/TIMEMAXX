@@ -181,13 +181,18 @@ No separate inspection framework/service is needed.
   composition, clear/revision arbitration or combined export.
 - `ui-control/` owns a frameless window shell rendering its baked section cards
   (composed from shared `components/SectionCard.jsx`), its React/MUI renderer,
-  native geometry config and scoped config/diagnostic preload. It has no task
-  logic or data. `ui-control/config.json` owns
+  native geometry config, scoped config/state/diagnostic preload, and its own
+  per-section selection persistence. It has no task logic or data.
+  `ui-control/config.json` owns
   frame-relative width, work-area-relative height, adjoining-left placement,
   native-frame flags and background; computed native bounds use DIP. Its title is
   metadata only, never rendered. Input has its own build under `ui-control/`;
-  Frame does not build Input. No data persistence, preview, Frame/file bridge,
-  engine or overlay. `engine/` and overlay behavior are not implemented.
+  Frame does not build Input. `ui-control/state.json` holds only the last
+  selection made inside each section instance, one bucket per instance; a
+  discovered component declares what it persists through `stateKeys`. Missing or
+  damaged state never blocks Input and falls back to configured defaults. No
+  preview, Frame/file bridge, engine or overlay. `engine/` and overlay behavior
+  are not implemented.
   Rapid toggles are serialized; closing Input leaves Frame alive. Bounds are
   recalculated when opening, not saved from manual coordinates or tied to photo state.
 - Future joint routing and composition belong to a background orchestrator with
