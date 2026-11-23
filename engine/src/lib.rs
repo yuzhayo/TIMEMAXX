@@ -35,16 +35,25 @@ pub struct Child {
 
 /// Raw inputs handed to a child. No geometry and no text decisions here.
 pub struct Context<'a> {
+    pub root: &'a Path,
     pub config: &'a Value,
     pub assets: &'a Assets,
     pub language: &'a str,
 }
 
+pub struct Outline {
+    pub color: [u8; 4],
+    pub width: f32,
+}
+
 /// A child's drawing decision. The parent owns all rasterising and file IO.
 pub enum Paint {
     Image { path: PathBuf, x: f32, y: f32, w: f32, h: f32, alpha: f32 },
+    RotatedImage { path: PathBuf, x: f32, y: f32, w: f32, h: f32, alpha: f32 },
     Rect { x: f32, y: f32, w: f32, h: f32, color: [u8; 4] },
     Text { text: String, font: PathBuf, size: f32, color: [u8; 4], x: f32, y: f32 },
+    VerticalText { text: String, font: PathBuf, size: f32, color: [u8; 4],
+        axis_x: f32, origin_y: f32, advance_scale: f32, outline: Option<Outline> },
 }
 
 pub struct LayerSpec {
@@ -139,6 +148,70 @@ fn draw_text(image: &mut RgbaImage, spec: &Paint) -> EngineResult<()> {
     Ok(())
 }
 
+fn draw_vertical_glyphs(image: &mut RgbaImage, text: &str, font: &Path, size: f32,
+    color: [u8; 4], axis_x: f32, origin_y: f32, advance_scale: f32) -> EngineResult<()> {
+    let bytes = fs::read(font).map_err(|error| format!("font unreadable: {error}"))?;
+    let face = FontRef::try_from_slice(&bytes).map_err(|error| format!("font invalid: {error}"))?;
+    let scale = PxScale::from(size);
+    let scaled = face.as_scaled(scale);
+    let characters: Vec<char> = text.chars().collect();
+    let advances: Vec<f32> = characters.iter().map(|character| {
+        scaled.h_advance(face.glyph_id(*character)) * advance_scale
+    }).collect();
+    let mut cursor_y = origin_y - advances.first().copied().unwrap_or(0.0) / 2.0;
+    for (index, character) in characters.iter().enumerate() {
+        let glyph = face.glyph_id(*character).with_scale(scale);
+        let glyph_id = glyph.id;
+        let positioned = ab_glyph::Glyph { position: Point { x: -advances[index] / 2.0, y: 0.0 }, ..glyph };
+        if let Some(outline) = face.outline_glyph(positioned) {
+            let bounds = outline.px_bounds().min;
+            outline.draw(|gx, gy, coverage| {
+                let source_x = gx as f32 + bounds.x;
+                let source_y = gy as f32 + bounds.y;
+                let px = (axis_x + source_y).round() as i32;
+                let py = (cursor_y - source_x).round() as i32;
+                if px < 0 || py < 0 || px >= image.width() as i32 || py >= image.height() as i32 { return; }
+                let alpha = (coverage * color[3] as f32).round().clamp(0.0, 255.0) as u8;
+                if alpha == 0 { return; }
+                let pixel = image.get_pixel_mut(px as u32, py as u32);
+                pixel[0] = color[0]; pixel[1] = color[1]; pixel[2] = color[2];
+                pixel[3] = alpha.max(pixel[3]);
+            });
+        }
+        let next = advances.get(index + 1).copied().unwrap_or(0.0);
+        cursor_y -= (advances[index] + next) / 2.0;
+        let _ = glyph_id;
+    }
+    Ok(())
+}
+
+fn draw_vertical_text(image: &mut RgbaImage, spec: &Paint) -> EngineResult<()> {
+    let Paint::VerticalText { text, font, size, color, axis_x, origin_y, advance_scale, outline } = spec else { return Ok(()) };
+    if let Some(outline) = outline {
+        let mut mask = RgbaImage::new(image.width(), image.height());
+        draw_vertical_glyphs(&mut mask, text, font, *size, [255, 255, 255, 255], *axis_x, *origin_y, *advance_scale)?;
+        let radius = outline.width.ceil().max(1.0) as i32;
+        let mut stroke = RgbaImage::new(image.width(), image.height());
+        for (x, y, pixel) in mask.enumerate_pixels() {
+            if pixel[3] == 0 { continue; }
+            for dy in -radius..=radius {
+                for dx in -radius..=radius {
+                    if dx * dx + dy * dy > radius * radius { continue; }
+                    let px = x as i32 + dx;
+                    let py = y as i32 + dy;
+                    if px < 0 || py < 0 || px >= stroke.width() as i32 || py >= stroke.height() as i32 { continue; }
+                    let target = stroke.get_pixel_mut(px as u32, py as u32);
+                    target[0] = outline.color[0]; target[1] = outline.color[1]; target[2] = outline.color[2];
+                    let alpha = (pixel[3] as f32 * outline.color[3] as f32 / 255.0).round() as u8;
+                    target[3] = target[3].max(alpha);
+                }
+            }
+        }
+        imageops::overlay(image, &stroke, 0, 0);
+    }
+    draw_vertical_glyphs(image, text, font, *size, *color, *axis_x, *origin_y, *advance_scale)
+}
+
 fn rasterize(spec: &LayerSpec, config: &Value) -> EngineResult<RgbaImage> {
     let width = number(&config["frame"], "width")? as u32;
     let height = number(&config["frame"], "height")? as u32;
@@ -154,6 +227,17 @@ fn rasterize(spec: &LayerSpec, config: &Value) -> EngineResult<RgbaImage> {
             }
             imageops::overlay(&mut canvas, &scaled, *x as i64, *y as i64);
         }
+        Paint::RotatedImage { path, x, y, w, h, alpha } => {
+            let source = image::open(path).map_err(|error| format!("asset unreadable: {error}"))?.to_rgba8();
+            let sized = imageops::resize(&source, *w as u32, *h as u32, imageops::FilterType::Lanczos3);
+            let mut rotated = imageops::rotate270(&sized);
+            if *alpha < 1.0 {
+                for pixel in rotated.pixels_mut() {
+                    pixel[3] = (pixel[3] as f32 * alpha).round().clamp(0.0, 255.0) as u8;
+                }
+            }
+            imageops::overlay(&mut canvas, &rotated, *x as i64, *y as i64);
+        }
         Paint::Rect { x, y, w, h, color } => {
             for py in y.max(0.0) as u32..(y + h).min(height as f32) as u32 {
                 for px in x.max(0.0) as u32..(x + w).min(width as f32) as u32 {
@@ -162,6 +246,7 @@ fn rasterize(spec: &LayerSpec, config: &Value) -> EngineResult<RgbaImage> {
             }
         }
         Paint::Text { .. } => draw_text(&mut canvas, &spec.paint)?,
+        Paint::VerticalText { .. } => draw_vertical_text(&mut canvas, &spec.paint)?,
     }
     Ok(canvas)
 }
@@ -218,7 +303,7 @@ fn run() -> EngineResult<Value> {
         label: resolve(&manifest_dir, config["assets"]["labelFont"].as_str().unwrap_or("assets/label.ttf")),
     };
     let language = read_language(&config, &manifest_dir, &mut log);
-    let context = Context { config: &config, assets: &assets, language: &language };
+    let context = Context { root: &manifest_dir, config: &config, assets: &assets, language: &language };
 
     let output = resolve(&manifest_dir, config["outputDir"].as_str().unwrap_or("../frame/.runtime/engine-layers"));
     if fs::create_dir_all(&output).is_err() {

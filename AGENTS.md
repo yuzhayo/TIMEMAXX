@@ -237,6 +237,15 @@ No separate inspection framework/service is needed.
   RobotoCondensed-Regular label and colon, RobotoCondensed-Bold code. At the
   current test code the measured ink bounds are label x82..222, colon x228..232
   and code x244..538. Never claim visual parity before operator approval.
+  `sideStamp.rs` is one flat child that returns three independent layers:
+  `sideShield` z10, `sideCode` z11 and `sideVerified` z12. The child owns the
+  entire right-edge calculation: the shield is a fixed anchor; both relationships
+  use one 4dp gap; code advance is measured with 9dp PT Mono Regular; `Timemark
+  Verified` uses 9dp Roboto Condensed Regular and moves by exactly the code-width
+  delta. It reproduces `BottomToTopTextView`: per-character bottom-to-top layout,
+  white fill over a 2px black50 stroke, no shadow. The icon is the APK
+  `anti_code_icon_small`, 8x9dp, rotated -90. Visual parity remains pending
+  operator approval.
   Frame only carries those PNGs through
   `desktop/LayerReceiver.cjs` and stacks them in `PreviewPainter`; it interprets
   no stamp content. Combined export with layers remains deferred.

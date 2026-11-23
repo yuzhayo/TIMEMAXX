@@ -283,6 +283,14 @@ frame/
   RobotoCondensed-Regular label and colon, RobotoCondensed-Bold code. At the
   current test code the measured ink bounds are label x82..222, colon x228..232
   and code x244..538. Visual parity remains pending operator approval.
+  One additional flat child, `sideStamp.rs`, owns the complete right-edge chain
+  and returns `sideShield`/`sideCode`/`sideVerified` at z10/z11/z12. Shield is the
+  fixed anchor; one 4dp gap separates each relationship; code advance determines
+  only the Verified position. It transcribes `BottomToTopTextView`: 8x9dp rotated
+  anti-code icon; 9dp PT Mono code; 9dp Roboto Condensed Verified; per-character
+  bottom-to-top placement; white fill over a 2px black50 stroke and no shadow. A
+  focused two-length render proved byte-identical shield layers and equal
+  child-calculated gaps; visual parity remains pending operator approval.
   Frame carries the PNGs
   through `desktop/LayerReceiver.cjs` and stacks them in `PreviewPainter` without
   interpreting stamp content. A child error or bad input hides only that section.

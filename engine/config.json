@@ -8,6 +8,9 @@
   "assets": {
     "shield": "assets/shield.png",
     "font": "assets/code.ttf",
-    "labelFont": "assets/label.ttf"
+    "labelFont": "assets/label.ttf",
+    "sideShield": "assets/sideShield.png",
+    "sideCodeFont": "assets/sideCode.ttf",
+    "sideVerifiedFont": "assets/sideVerified.ttf"
   }
 }
