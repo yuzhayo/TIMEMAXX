@@ -415,6 +415,12 @@ try {
   const cells = await input.locator('[data-date-cell]').count();
   assert.ok(cells >= 28 && cells <= 31, `the calendar shows a full month of ${cells} days`);
   await input.screenshot({ path: path.join(artifacts, 'date-picker.png') });
+  const widths = await input.evaluate(() => ({
+    surface: document.querySelector('[data-popover-surface]').getBoundingClientRect().width,
+    value: document.querySelector('[data-date-value]').getBoundingClientRect().width,
+  }));
+  assert.ok(Math.abs(widths.surface - widths.value) < 2,
+    `the calendar popup matches the value box width (${widths.surface} vs ${widths.value})`);
   await input.locator(`[data-date-cell$="-15"]`).click();
   assert.equal(await dateValue(), `15/${monthPart}/${yearPart}`, 'picking a calendar cell writes DD/MM/YYYY');
   await input.keyboard.press('Escape');

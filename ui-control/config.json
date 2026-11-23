@@ -195,7 +195,7 @@
           "geometry": { "paddingX": 1.5, "paddingY": 0.6, "gap": 0, "radius": 4, "borderWidth": 1 },
           "content": { "direction": "row", "verticalAlign": "center", "horizontalAlign": "flex-start" },
           "states": { "focusVisible": { "colors": { "outline": "#ffc44d" }, "geometry": { "outlineWidth": 2 } } } },
-        "picker": { "preset": "base", "size": { "width": 60, "height": 22 },
+        "picker": { "preset": "base", "size": { "width": 88, "height": 22 },
           "colors": { "background": "#1d252f", "foreground": "#e4e9ef", "border": "#43505f" },
           "geometry": { "paddingX": 2, "paddingY": 2, "gap": 1.2, "radius": 6, "borderWidth": 1 },
           "content": { "direction": "column", "verticalAlign": "flex-start", "horizontalAlign": "stretch" },
