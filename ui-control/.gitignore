@@ -3,3 +3,5 @@ view-built/
 .runtime/
 state.json
 state.json.tmp
+code.json
+code.json.tmp

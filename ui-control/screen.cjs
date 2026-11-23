@@ -22,9 +22,11 @@ function createInputScreen({ BrowserWindow, screen, parent, ipcMain, development
   let queue = Promise.resolve();
   let disposed = false;
   const log = new DiagnosticLog(path.join(__dirname, '.runtime/logs'));
-  // LOGIC — Input owns only its own per-section UI selections; state.json sits beside config.json.
+  // LOGIC — Input owns only its own per-section UI selections and its generated
+  // code; both files sit beside config.json.
   const statePath = path.join(path.dirname(configPath), 'state.json');
-  let stateQueue = Promise.resolve();
+  const codePath = path.join(path.dirname(configPath), 'code.json');
+  let writeQueue = Promise.resolve();
 
   const shape = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
   const validSections = (sections) => shape(sections) && Object.keys(sections).length <= 64
@@ -52,16 +54,31 @@ function createInputScreen({ BrowserWindow, screen, parent, ipcMain, development
     }
   };
 
-  // LOGIC — serialize saves and replace atomically so a crash never leaves a half-written state.json.
-  const writeState = (sections) => {
-    const operation = stateQueue.then(() => {
-      fs.mkdirSync(path.dirname(statePath), { recursive: true });
-      const temporary = `${statePath}.tmp`;
-      fs.writeFileSync(temporary, JSON.stringify({ schemaVersion: 1, sections }, null, 2), 'utf8');
-      fs.renameSync(temporary, statePath);
+  // LOGIC — code.json holds one dynamic value, never a log of past codes. The shape
+  // check here is a transport guard; the format rules stay with the renderer's
+  // generator module, which also re-validates what it reads back.
+  const readCode = () => {
+    try {
+      const stored = JSON.parse(fs.readFileSync(codePath, 'utf8'));
+      return typeof stored?.code === 'string' ? stored.code : null;
+    } catch (error) {
+      if (error.code !== 'ENOENT') log.write([{ code: 'INPUT_CODE_UNREADABLE', configPath: codePath, expected: 'readable code.json',
+        actual: error.message, action: 'stored code ignored; a new one is generated', timestamp: new Date().toISOString() }]);
+      return null;
+    }
+  };
+
+  // LOGIC — serialize writes and replace atomically so a crash never leaves a
+  // half-written file behind.
+  const writeJson = (file, payload) => {
+    const operation = writeQueue.then(() => {
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      const temporary = `${file}.tmp`;
+      fs.writeFileSync(temporary, JSON.stringify(payload, null, 2), 'utf8');
+      fs.renameSync(temporary, file);
       return { ok: true };
     });
-    stateQueue = operation.catch(() => undefined);
+    writeQueue = operation.catch(() => undefined);
     return operation.catch((error) => ({ ok: false, error: error.message }));
   };
 
@@ -91,7 +108,8 @@ function createInputScreen({ BrowserWindow, screen, parent, ipcMain, development
     const frame = parent.getBounds();
     const area = screen.getDisplayMatching(frame).workArea;
     const token = randomUUID();
-    const bootstrapChannel = `input:${token}:bootstrap`, diagnosticsChannel = `input:${token}:diagnostics`, stateChannel = `input:${token}:state`;
+    const bootstrapChannel = `input:${token}:bootstrap`, diagnosticsChannel = `input:${token}:diagnostics`,
+      stateChannel = `input:${token}:state`, codeChannel = `input:${token}:code`;
     const created = new BrowserWindow({
       title: config.title, parent, modal: false, show: false,
       ...inputWindowBounds(frame, area, config), frame: config.frame, thickFrame: config.thickFrame,
@@ -106,7 +124,7 @@ function createInputScreen({ BrowserWindow, screen, parent, ipcMain, development
     created.on('page-title-updated', (event) => event.preventDefault());
     const allowed = (event) => event.sender === created.webContents && event.senderFrame === created.webContents.mainFrame;
     ipcMain.handle(bootstrapChannel, (event) => allowed(event)
-      ? { config: configuration, state: readState(), development, inspectionRequested: development && inspectionRequested, logPath: log.path } : null);
+      ? { config: configuration, state: readState(), code: readCode(), development, inspectionRequested: development && inspectionRequested, logPath: log.path } : null);
     ipcMain.handle(diagnosticsChannel, (event, records) => {
       if (!allowed(event) || !Array.isArray(records) || records.length > 1000) return { ok: false, error: 'Unknown Input sender or invalid diagnostic records' };
       return log.write(records);
@@ -115,10 +133,17 @@ function createInputScreen({ BrowserWindow, screen, parent, ipcMain, development
       if (!allowed(event) || !validSections(sections) || JSON.stringify(sections).length > 8192) {
         return { ok: false, error: 'Unknown Input sender or invalid per-section state' };
       }
-      return writeState(sections);
+      return writeJson(statePath, { schemaVersion: 1, sections });
+    });
+    ipcMain.handle(codeChannel, (event, code) => {
+      if (!allowed(event) || typeof code !== 'string' || !/^[A-Z0-9]{14}$/.test(code)) {
+        return { ok: false, error: 'Unknown Input sender or invalid generated code' };
+      }
+      return writeJson(codePath, { schemaVersion: 1, code });
     });
     created.once('closed', () => {
-      ipcMain.removeHandler(bootstrapChannel); ipcMain.removeHandler(diagnosticsChannel); ipcMain.removeHandler(stateChannel);
+      ipcMain.removeHandler(bootstrapChannel); ipcMain.removeHandler(diagnosticsChannel);
+      ipcMain.removeHandler(stateChannel); ipcMain.removeHandler(codeChannel);
       if (window === created) window = null;
     });
     try {

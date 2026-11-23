@@ -21,8 +21,8 @@ The active application currently provides:
 - Bottom Bar operation messages and structured local diagnostics;
 - development-only layout inspection;
 - toggling a frameless Input window from the pencil button; Input renders the
-  enabled shared section cards (a language dropdown; the placeholder chassis is
-  configured but disabled).
+  enabled shared section cards (a language dropdown and a code generator; the
+  placeholder chassis is configured but disabled).
 
 Frame has four configured sections, sixteen configured instances, and fifteen
 enabled instances.
@@ -242,12 +242,12 @@ frame/
 ## Current boundaries
 
 - Frame owns only standalone photo/window/file/export behavior.
-- `ui-control/` owns its native window, React/MUI renderer, config and its own
-  per-section selection state. `screen.cjs`
+- `ui-control/` owns its native window, React/MUI renderer, config, its own
+  per-section selection state and the generated code. `screen.cjs`
   is its public window-only contract; Frame loads it only on a pencil click.
   Input owns its own locked dependencies and Vite build, with no Frame build
-  dependency. It renders configured section cards (currently a language dropdown)
-  and has no task content or data.
+  dependency. It renders configured section cards (a language dropdown and a
+  code generator) and has no task content or data.
 - Input is one non-modal frameless window: no native caption/buttons/title text or
   reserved Windows-Bar area. Pencil clicks alternate open/close, including rapid
   clicks. Closing Input leaves Frame running; closing Frame closes Input. Toggling
@@ -283,13 +283,16 @@ pencil path: a frameless Input with the enabled shared section cards (header
 toggle, body mount, auto-compact below the configured slot, header height from
 configured paddingY, language dropdown swapping
 the locale layout, the last selection restored from `ui-control/state.json` and
-saved per section, damaged state falling back to defaults), 40% width at Frame
+saved per section, a generated code restored from `ui-control/code.json`,
+double-click copying, Generate replacing that one dynamic value, damaged state
+falling back to defaults), 40% width at Frame
 startup/minimum sizes, full work-area height and adjoining-left bounds,
 JSON-driven geometry/background, toggle parity during rapid clicks, unchanged
 Frame state, failure isolation and parent-window cleanup. Artifacts stay in
 ignored `frame/.runtime/checks/input-screen/`.
 
 From `ui-control/`, `npm.cmd run test:contract` checks the enabled-card baseline
-config, window geometry, discovery contract and the per-section state rules
-(declared keys only, no invented fallback, disabled sections leaving no bucket).
-Dependencies, built renderer, `state.json` and local logs stay ignored there.
+config, window geometry, discovery contract, the per-section state rules
+(declared keys only, no invented fallback, disabled sections leaving no bucket)
+and the ported 14-character base-24 generator rules. Dependencies, built
+renderer, `state.json`, `code.json` and local logs stay ignored there.

@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import { validateInputConfig } from '../logic/InputConfig.mjs';
 import { createInputSession } from '../logic/InputSession.mjs';
 import { applyInputState, collectInputState } from '../logic/InputState.mjs';
+import { ALPHABET, LENGTH, MAX_ENCODABLE, decode, encode, isValidCode, newCode } from '../logic/CodeGenerator.mjs';
 import { createDiagnostics } from '../../components/LayoutDiagnostics.mjs';
 import { discoverComponents } from '../../components/ComponentDiscovery.mjs';
 
@@ -13,36 +14,48 @@ const catalog = [
     folder: 'placeholder', filePath: 'placeholder/Placeholder.jsx', stateKeys: [] },
   { componentId: 'input.language', Component: function Language() {},
     folder: 'language', filePath: 'language/Language.jsx', stateKeys: ['language'] },
+  { componentId: 'input.code-generator', Component: function CodeGenerator() {},
+    folder: 'code-generator', filePath: 'code-generator/CodeGenerator.jsx', stateKeys: [] },
 ];
 const validate = (config = structuredClone(raw), entries = catalog) => {
   const diagnostics = createDiagnostics();
   return { plan: validateInputConfig(config, entries, diagnostics), issues: diagnostics.getSnapshot() };
 };
 
-test('baseline mounts only the enabled language card and keeps the placeholder chassis disabled', () => {
+test('baseline mounts the enabled language and code-generator cards, keeping the placeholder chassis disabled', () => {
   const { plan, issues } = validate();
   assert.deepEqual(issues, []);
-  assert.deepEqual(plan.sections.map((node) => node.id), ['language']);
-  assert.deepEqual(plan.sections.map((node) => node.componentId), ['input.language']);
-  assert.deepEqual(plan.sections.map((node) => node.folder), ['language']);
-  const node = plan.sections[0];
-  assert.equal(node.expanded, true);
-  assert.equal(node.sizing, 'content');
-  assert.equal(node.parts.header.geometry.paddingY, 4, 'header height comes from configured paddingY');
-  assert.ok(node.parts.body, 'language body part resolves');
-  assert.ok(node.parts.select, 'language select part resolves');
-  assert.deepEqual(node.stateKeys, ['language'], 'the persisted selection travels with the discovered component');
+  assert.deepEqual(plan.sections.map((node) => node.id), ['language', 'codeGenerator']);
+  assert.deepEqual(plan.sections.map((node) => node.componentId), ['input.language', 'input.code-generator']);
+  assert.deepEqual(plan.sections.map((node) => node.folder), ['language', 'code-generator']);
+  for (const node of plan.sections) {
+    assert.equal(node.expanded, true);
+    assert.equal(node.sizing, 'content');
+    assert.ok(node.parts.header.geometry.paddingY > 0, 'header height comes from configured paddingY');
+    assert.ok(node.parts.body, `${node.id} body part resolves`);
+  }
+  const [language, generator] = plan.sections;
+  assert.ok(language.parts.select, 'language select part resolves');
+  assert.deepEqual(language.stateKeys, ['language'], 'the persisted selection travels with the discovered component');
+  assert.ok(generator.parts.value, 'the code-generator value box resolves its own part');
+  assert.ok(generator.parts.generate, 'the code-generator button resolves its own part');
+  assert.deepEqual(generator.stateKeys, [], 'a generated code is an output, not a persisted selection');
+  assert.equal(generator.parts.body.content.direction, 'row', 'the body lays the value box beside the button');
+  assert.equal(generator.parts.body.content.verticalAlign, 'stretch', 'both controls share one row height');
+  assert.ok(generator.parts.value.geometry.paddingY > 0 && generator.parts.generate.geometry.paddingY > 0,
+    'control height comes from configured padding, not hardcoded pixels');
   assert.equal(raw.sections[0].id, 'placeholder');
   assert.equal(raw.sections[0].enabled, false, 'the placeholder chassis stays configured but disabled');
-  assert.deepEqual(raw.sections.map((section) => section.parts.header.geometry.paddingY), [4, 4],
-    'every card shares the raised header height');
+  assert.deepEqual(raw.sections.map((section) => section.parts.header.geometry.paddingY),
+    raw.sections.map(() => raw.sections[0].parts.header.geometry.paddingY),
+    'every card shares the same header height');
   assert.deepEqual(plan.languages.map((language) => [language.id, language.label]),
     [['en', 'English'], ['id', 'Indonesian']]);
   assert.equal(plan.initialLanguage, 'en');
   assert.deepEqual(plan.layouts.en.sections.map((node) => [node.id, node.label]),
-    [['language', 'Language']]);
+    [['language', 'Language'], ['codeGenerator', 'Code Generator']]);
   assert.deepEqual(plan.layouts.id.sections.map((node) => [node.id, node.label]),
-    [['language', 'Bahasa']]);
+    [['language', 'Bahasa'], ['codeGenerator', 'Generator Kode']]);
   assert.deepEqual(plan.layouts.id.sections[0].parts.select, plan.sections[0].parts.select);
 });
 
@@ -109,14 +122,14 @@ test('a configured section without an implementation is reported, never invented
   const config = structuredClone(raw);
   config.sections.push({ id: 'later', componentId: 'input.later', parentId: 'inputRoot', folder: 'later', enabled: true,
     expanded: true, bounds: { width: 100, height: 24 }, preset: 'root' });
-  config.layouts.en.order = ['placeholder', 'language', 'later'];
+  config.layouts.en.order = ['placeholder', 'language', 'codeGenerator', 'later'];
   config.layouts.en.sections.later = { label: 'Later' };
-  config.layouts.id.order = ['placeholder', 'language', 'later'];
+  config.layouts.id.order = ['placeholder', 'language', 'codeGenerator', 'later'];
   config.layouts.id.sections.later = { label: 'Terlambat' };
   const { plan, issues } = validate(config);
-  assert.deepEqual(plan.sections.map((node) => node.id), ['language']);
+  assert.deepEqual(plan.sections.map((node) => node.id), ['language', 'codeGenerator']);
   assert.ok(issues.some((issue) => issue.code === 'INPUT_COMPONENT_MISSING' && issue.instanceId === 'later'));
-  assert.deepEqual(plan.layouts.en.sections.map((node) => node.id), ['language']);
+  assert.deepEqual(plan.layouts.en.sections.map((node) => node.id), ['language', 'codeGenerator']);
   assert.equal(plan.initialLanguage, 'en');
 });
 
@@ -127,7 +140,7 @@ test('session owns language and expand/collapse state and rejects unknown change
   restored.dispose();
   assert.equal(createInputSession(plan).getSnapshot().language, 'en', 'without persisted state the configured default applies');
   const session = createInputSession(plan);
-  assert.deepEqual(session.getSnapshot().expanded, { language: true });
+  assert.deepEqual(session.getSnapshot().expanded, { language: true, codeGenerator: true });
   assert.equal(session.getSnapshot().language, 'en');
   let events = 0;
   session.subscribe(() => events++);
@@ -141,4 +154,43 @@ test('session owns language and expand/collapse state and rejects unknown change
   assert.equal(session.setLanguage('xx'), false);
   assert.equal(events, 2);
   session.dispose();
+});
+
+test('the ported generator keeps the reference format rules', () => {
+  assert.equal(ALPHABET, 'ABCDEGHKLMNPRTUWXY123469');
+  assert.equal(ALPHABET.length, 24);
+  assert.equal(LENGTH, 14);
+  assert.equal(MAX_ENCODABLE, 18406255107772514304n, '21 * 24^13, the reference cap');
+  assert.equal(21n * 24n ** 13n, MAX_ENCODABLE);
+  assert.equal(encode(12312059506235497154n), 'UBDCEAAU9R2PAC', 'the reference encode example');
+  assert.equal(decode('UBDCEAAU9R2PAC'), 12312059506235497154n, 'the reference decode example');
+  for (const sample of [0n, 1n, 12345678901234n, MAX_ENCODABLE - 1n]) {
+    assert.equal(decode(encode(sample)), sample, 'round-trip is exact');
+  }
+  assert.throws(() => encode(2n ** 64n), /unsigned 64-bit/);
+  assert.throws(() => encode(-1n), /unsigned 64-bit/);
+  assert.throws(() => decode('UBDCEAAU9R2PA'), /exactly 14/);
+  assert.throws(() => decode('UBDCEAAU9R2PAZ'), /unsupported symbol/);
+});
+
+test('generated codes satisfy all three rules and never lead with an unreachable symbol', () => {
+  for (let index = 0; index < 2000; index++) {
+    const code = newCode();
+    assert.equal(code.length, LENGTH);
+    assert.ok(isValidCode(code), `${code} must satisfy the format rules`);
+    assert.ok(!'469'.includes(code[0]), `${code} must not lead with an unreachable symbol`);
+    assert.ok(decode(code) < MAX_ENCODABLE);
+  }
+  // An injected source makes generation reproducible and proves the rejection path.
+  assert.equal(newCode(() => 0n), 'A'.repeat(14), 'zero encodes as the padded alphabet head');
+  assert.equal(newCode(() => MAX_ENCODABLE - 1n), `3${'9'.repeat(13)}`,
+    'the highest encodable value leads with index 20, never 4, 6 or 9');
+  const sequence = [MAX_ENCODABLE, 0n];
+  let drawn = 0;
+  assert.equal(newCode(() => sequence[drawn++]), 'A'.repeat(14), 'a draw at or above the cap is rejected');
+  assert.equal(drawn, 2, 'the rejected draw is retried, never encoded');
+  assert.equal(isValidCode('469AAAAAAAAAAA'), false, 'a leading 4, 6 or 9 is not a valid code');
+  assert.equal(isValidCode('ABCDEGHKLMNP'), false, '13 characters is not a code');
+  assert.equal(isValidCode('ABCDEGHKLMNPRF'), false, 'a symbol outside the alphabet is not a code');
+  assert.equal(isValidCode(null), false);
 });

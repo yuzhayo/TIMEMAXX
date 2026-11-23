@@ -33,12 +33,12 @@
       "content": { "direction": "column", "verticalAlign": "flex-start", "horizontalAlign": "stretch" },
       "parts": {
         "header": { "preset": "base", "colors": { "background": "transparent", "foreground": "#e4e9ef" },
-          "geometry": { "paddingX": 2, "paddingY": 4, "gap": 2, "radius": 0, "borderWidth": 0 },
+          "geometry": { "paddingX": 2, "paddingY": 0.81, "gap": 2, "radius": 0, "borderWidth": 0 },
           "content": { "direction": "row", "verticalAlign": "center", "horizontalAlign": "space-between" },
           "states": { "hover": { "colors": { "background": "#263141" } },
             "focusVisible": { "colors": { "outline": "#ffc44d" }, "geometry": { "outlineWidth": 2 } } } },
         "body": { "preset": "base", "colors": { "background": "#171c22", "foreground": "#e4e9ef" },
-          "geometry": { "paddingX": 2, "paddingY": 1.5, "gap": 2, "radius": 4, "borderWidth": 0 },
+          "geometry": { "paddingX": 2, "paddingY": 0.6, "gap": 2, "radius": 4, "borderWidth": 0 },
           "content": { "direction": "column", "verticalAlign": "flex-start", "horizontalAlign": "stretch", "overflow": "auto" } }
       }
     },
@@ -49,26 +49,57 @@
       "content": { "direction": "column", "verticalAlign": "flex-start", "horizontalAlign": "stretch" },
       "parts": {
         "header": { "preset": "base", "colors": { "background": "transparent", "foreground": "#e4e9ef" },
-          "geometry": { "paddingX": 2, "paddingY": 4, "gap": 2, "radius": 0, "borderWidth": 0 },
+          "geometry": { "paddingX": 2, "paddingY": 0.81, "gap": 2, "radius": 0, "borderWidth": 0 },
           "content": { "direction": "row", "verticalAlign": "center", "horizontalAlign": "space-between" },
           "states": { "hover": { "colors": { "background": "#263141" } },
             "focusVisible": { "colors": { "outline": "#ffc44d" }, "geometry": { "outlineWidth": 2 } } } },
         "body": { "preset": "base", "colors": { "background": "#171c22", "foreground": "#e4e9ef" },
-          "geometry": { "paddingX": 2, "paddingY": 1.5, "gap": 2, "radius": 4, "borderWidth": 0 },
+          "geometry": { "paddingX": 2, "paddingY": 0.6, "gap": 2, "radius": 4, "borderWidth": 0 },
           "content": { "direction": "column", "verticalAlign": "flex-start", "horizontalAlign": "stretch" } },
         "select": { "preset": "base", "colors": { "background": "#0f1319", "foreground": "#e4e9ef", "border": "#43505f" },
-          "geometry": { "paddingX": 1.5, "paddingY": 1, "gap": 0, "radius": 4, "borderWidth": 1 },
+          "geometry": { "paddingX": 1.5, "paddingY": 0.6, "gap": 0, "radius": 4, "borderWidth": 1 },
           "content": { "direction": "row", "verticalAlign": "center", "horizontalAlign": "flex-start" },
           "states": { "focusVisible": { "colors": { "outline": "#ffc44d" }, "geometry": { "outlineWidth": 2 } } } }
+      }
+    },
+    { "id": "codeGenerator", "componentId": "input.code-generator", "parentId": "inputRoot", "folder": "code-generator",
+      "enabled": true, "expanded": true, "sizing": "content", "bounds": { "width": 100, "height": 26 }, "preset": "base",
+      "colors": { "background": "#1d252f", "foreground": "#e4e9ef", "border": "#43505f" },
+      "geometry": { "paddingX": 0, "paddingY": 0, "gap": 0, "radius": 6, "borderWidth": 1 },
+      "content": { "direction": "column", "verticalAlign": "flex-start", "horizontalAlign": "stretch" },
+      "parts": {
+        "header": { "preset": "base", "colors": { "background": "transparent", "foreground": "#e4e9ef" },
+          "geometry": { "paddingX": 2, "paddingY": 0.81, "gap": 2, "radius": 0, "borderWidth": 0 },
+          "content": { "direction": "row", "verticalAlign": "center", "horizontalAlign": "space-between" },
+          "states": { "hover": { "colors": { "background": "#263141" } },
+            "focusVisible": { "colors": { "outline": "#ffc44d" }, "geometry": { "outlineWidth": 2 } } } },
+        "body": { "preset": "base", "colors": { "background": "#171c22", "foreground": "#e4e9ef" },
+          "geometry": { "paddingX": 2, "paddingY": 0.6, "gap": 2, "radius": 4, "borderWidth": 0 },
+          "content": { "direction": "row", "verticalAlign": "stretch", "horizontalAlign": "flex-start" } },
+        "value": { "preset": "base", "colors": { "background": "#0f1319", "foreground": "#ffc44d", "border": "#43505f", "outline": "#ffc44d" },
+          "geometry": { "paddingX": 2, "paddingY": 0.5, "gap": 0, "radius": 4, "borderWidth": 1, "fontSize": 15, "lineHeight": 1.5, "letterSpacing": 1 },
+          "typography": { "family": "Consolas, ui-monospace, monospace", "weight": 600 },
+          "content": { "direction": "row", "verticalAlign": "center", "horizontalAlign": "flex-start", "textAlign": "left" },
+          "states": { "selected": { "colors": { "background": "#233246", "border": "#ffc44d" } },
+            "focusVisible": { "colors": { "outline": "#ffc44d" }, "geometry": { "outlineWidth": 2 } } } },
+        "generate": { "preset": "base", "colors": { "background": "#ffc44d", "foreground": "#111418", "border": "#ffc44d" },
+          "geometry": { "paddingX": 3, "paddingY": 0.63, "gap": 0, "radius": 4, "borderWidth": 0, "fontSize": 14, "lineHeight": 1.5 },
+          "typography": { "family": "\"Segoe UI\", system-ui, sans-serif", "weight": 700 },
+          "content": { "direction": "row", "verticalAlign": "center", "horizontalAlign": "center" },
+          "states": { "hover": { "colors": { "background": "#ffd166" } },
+            "active": { "colors": { "background": "#e0a81f" } },
+            "focusVisible": { "colors": { "outline": "#ffc44d" }, "geometry": { "outlineWidth": 2 } } } }
       }
     }
   ],
   "languages": [{ "id": "en", "label": "English" }, { "id": "id", "label": "Indonesian" }],
   "layouts": {
-    "en": { "gapY": 1, "order": ["placeholder", "language"], "sections": {
-      "placeholder": { "label": "Placeholder" }, "language": { "label": "Language" } } },
-    "id": { "gapY": 1, "order": ["placeholder", "language"], "sections": {
-      "placeholder": { "label": "Placeholder" }, "language": { "label": "Bahasa" } } }
+    "en": { "gapY": 1, "order": ["placeholder", "language", "codeGenerator"], "sections": {
+      "placeholder": { "label": "Placeholder" }, "language": { "label": "Language" },
+      "codeGenerator": { "label": "Code Generator" } } },
+    "id": { "gapY": 1, "order": ["placeholder", "language", "codeGenerator"], "sections": {
+      "placeholder": { "label": "Placeholder" }, "language": { "label": "Bahasa" },
+      "codeGenerator": { "label": "Generator Kode" } } }
   },
   "initialLanguage": "en"
 }

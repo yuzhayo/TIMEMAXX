@@ -71,15 +71,15 @@ const checkInput = async (page, settings, name) => {
   await page.waitForSelector('main[aria-label="Input"]');
   await page.evaluate(() => window.inputDev?.inspect(false));
   await page.waitForFunction(() => document.querySelector('[data-input-stack]') !== null);
-  assert.equal(await page.locator('[data-section-card]').count(), 1, 'Input renders only the enabled language card');
-  assert.equal(await page.locator('[data-input-stack] > *').count(), 1, 'Input content area holds only configured section slots');
+  assert.equal(await page.locator('[data-section-card]').count(), 2, 'Input renders the enabled language and code-generator cards');
+  assert.equal(await page.locator('[data-input-stack] > *').count(), 2, 'Input content area holds only configured section slots');
   assert.equal(await page.locator('[data-instance="placeholder"]').count(), 0, 'the disabled placeholder chassis never mounts');
   assert.equal(await page.getByRole('combobox').count(), 1, 'the language section owns the only combobox');
   assert.equal(await page.locator('canvas, img, iframe').count(), 0);
   assert.deepEqual(await page.evaluate(() => ({ host: typeof window.frameHost, node: typeof require })),
     { host: 'undefined', node: 'undefined' });
-  assert.deepEqual(await page.evaluate(() => Object.keys(window.inputHost).sort()), ['bootstrap', 'diagnostics', 'state'],
-    'the bridge exposes only config, persisted selections and diagnostics');
+  assert.deepEqual(await page.evaluate(() => Object.keys(window.inputHost).sort()), ['bootstrap', 'code', 'diagnostics', 'state'],
+    'the bridge exposes only config, persisted selections, the generated code and diagnostics');
   const native = await app.evaluate(async ({ BrowserWindow, screen }) => {
     const win = BrowserWindow.getAllWindows().find((item) => item.webContents.getURL().includes('/ui-control/view-built/index.html'));
     const preferences = win.webContents.getLastWebPreferences();
@@ -110,6 +110,24 @@ const checkInput = async (page, settings, name) => {
   assert.deepEqual([geometry.width, geometry.height], geometry.viewport);
   assert.deepEqual(geometry.viewport, [native.bounds.width, native.bounds.height]);
   assert.deepEqual(geometry.scroll, geometry.viewport);
+  // The generated code stays format-valid and the two controls share one proportional height.
+  const shown = await page.locator('[data-code-value]').evaluate((element) => element.value);
+  assert.match(shown, /^[ABCDEGHKLMNPRTUWXY123469]{14}$/, 'the value box shows a format-valid code');
+  assert.ok(!'469'.includes(shown[0]), 'the code never leads with an unreachable symbol');
+  const generatorConfig = config.sections.find((section) => section.id === 'codeGenerator');
+  const controls = await page.evaluate(() => {
+    const box = document.querySelector('[data-code-value]');
+    const button = document.querySelector('[data-code-generate]');
+    return { box: box.getBoundingClientRect().height, button: button.getBoundingClientRect().height,
+      boxPad: parseFloat(getComputedStyle(box).paddingTop), buttonPad: parseFloat(getComputedStyle(button).paddingTop),
+      stack: document.querySelector('[data-input-stack]').getBoundingClientRect().height };
+  });
+  assert.ok(Math.abs(controls.box - controls.button) < 1, 'value box and button share one row height');
+  assert.ok(controls.box >= 30 && controls.box <= 44, `a comfortable click target, measured ${controls.box}`);
+  assert.ok(Math.abs(controls.boxPad - controls.stack * generatorConfig.parts.value.geometry.paddingY / 100) < 1,
+    'the value box height comes from configured paddingY, not hardcoded pixels');
+  assert.ok(Math.abs(controls.buttonPad - controls.stack * generatorConfig.parts.generate.geometry.paddingY / 100) < 1,
+    'the button height comes from configured paddingY, not hardcoded pixels');
   await page.screenshot({ path: path.join(artifacts, `${name}.png`) });
   await captureNative(page, name);
   if (name === 'startup') await captureNative(page, 'input-beside-frame', true);
@@ -125,13 +143,16 @@ try {
   const before = await frame.evaluate(() => window.frameDev.snapshot());
   // Seed the persisted state: the first open must restore this selection, not the config default.
   const statePath = path.join(inputRoot, 'state.json');
+  const codePath = path.join(inputRoot, 'code.json');
   await fs.writeFile(statePath, JSON.stringify({ schemaVersion: 1, sections: { language: { language: 'id' } } }, null, 2));
+  await fs.writeFile(codePath, JSON.stringify({ schemaVersion: 1, code: 'UBDCEAAU9R2PAC' }, null, 2));
   const frameBounds = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getBounds());
   let [input] = await Promise.all([app.waitForEvent('window'), frame.click('#orphanEdit')]);
   await checkInput(input, config.window, 'startup');
   assert.equal(await inputCount(), 1);
 
-  // The enabled language card: header toggles expand/collapse, body mounts inside, card stays compact.
+  // The enabled cards: header toggles expand/collapse, body mounts inside, and a
+  // content-sized slot hugs its card so sections stack tightly.
   const cardGeometry = () => input.evaluate(() => {
     const card = document.querySelector('[data-instance="language"] [data-section-card]');
     const body = document.querySelector('[data-instance="language"] [data-section-body]');
@@ -145,8 +166,15 @@ try {
   const open = await cardGeometry();
   assert.equal(open.expanded, 'true');
   assert.ok(open.body > 0, 'expanded body mounts inside the card');
-  assert.ok(open.card < open.slot, 'card auto-compacts below its configured slot');
-  assert.ok(Math.abs(open.headerPad - open.slot * 0.04) < 0.6,
+  assert.ok(Math.abs(open.slot - open.card) < 1, 'a content-sized slot hugs its card instead of reserving empty space');
+  const spacing = await input.evaluate(() => {
+    const cards = [...document.querySelectorAll('[data-section-card]')];
+    return { gap: cards[1].getBoundingClientRect().top - cards[0].getBoundingClientRect().bottom,
+      stack: document.querySelector('[data-input-stack]').getBoundingClientRect().height };
+  });
+  assert.ok(spacing.gap >= 0 && spacing.gap < spacing.stack * 0.05, 'sections stack tightly, separated only by the configured gap');
+  const headerPaddingY = config.sections.find((section) => section.id === 'language').parts.header.geometry.paddingY;
+  assert.ok(Math.abs(open.headerPad - spacing.stack * headerPaddingY / 100) < 1,
     'header height is driven by configured paddingY, not hardcoded');
   assert.ok(open.header > 36, 'the raised header is a comfortable target');
   await input.locator('[data-instance="language"] [data-section-header]').click();
@@ -179,6 +207,30 @@ try {
   assert.deepEqual(persistedState, { schemaVersion: 1, sections: { language: { language: 'en' } } },
     'choosing a language saves one bucket for the language section');
 
+  // The code generator: restore, double-click copy, generate and store one dynamic value.
+  const codeValue = () => input.locator('[data-code-value]').evaluate((element) => element.value);
+  const readCode = async () => { try { return JSON.parse(await fs.readFile(codePath, 'utf8')); } catch { return null; } };
+  assert.equal(await codeValue(), 'UBDCEAAU9R2PAC', 'the seeded code is restored from code.json');
+  await input.locator('[data-code-value]').dblclick();
+  assert.equal(await app.evaluate(({ clipboard }) => clipboard.readText()), 'UBDCEAAU9R2PAC',
+    'double-clicking the value box copies it');
+  await input.locator('[data-code-generate]').click();
+  const generated = await codeValue();
+  assert.notEqual(generated, 'UBDCEAAU9R2PAC', 'Generate replaces the value');
+  assert.match(generated, /^[ABCDEGHKLMNPRTUWXY123469]{14}$/, 'the generated code keeps the format rules');
+  let storedCode = await readCode();
+  for (let attempt = 0; attempt < 50 && storedCode?.code !== generated; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    storedCode = await readCode();
+  }
+  assert.deepEqual(storedCode, { schemaVersion: 1, code: generated },
+    'code.json keeps one dynamic value, never a log of old codes');
+  await input.locator('[data-code-generate]').click();
+  const second = await codeValue();
+  assert.notEqual(second, generated, 'each Generate produces a new value');
+  for (let attempt = 0; attempt < 50 && (await readCode())?.code !== second; attempt++) await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.deepEqual(Object.keys(await readCode()).sort(), ['code', 'schemaVersion'], 'a second generate overwrites, it does not append');
+
   const firstId = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()
     .find((win) => win.webContents.getURL().includes('/ui-control/view-built/index.html')).id);
   assert.deepEqual(await frame.evaluate(() => window.frameDev.snapshot()), before);
@@ -197,6 +249,8 @@ try {
   await checkInput(input, config.window, 'frame-minimum');
   assert.equal(await input.locator('[data-instance="language"] [data-language-select]').evaluate((element) => element.value), 'en',
     'a reopened Input restores the language saved on the previous visit');
+  assert.equal(await input.locator('[data-code-value]').evaluate((element) => element.value), second,
+    'a reopened Input restores the generated code from code.json');
   assert.notEqual(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()
     .find((win) => win.webContents.getURL().includes('/ui-control/view-built/index.html')).id), firstId);
   const minimumClosed = input.waitForEvent('close');
@@ -296,14 +350,19 @@ try {
   await Promise.all([inputClosed, frameClosed, processExited]);
   assert.equal(child.exitCode, 0);
   finished = true;
-  console.log(JSON.stringify({ pass: true, checked: ['real pencil toggles frameless Input with only the enabled language card',
+  console.log(JSON.stringify({ pass: true, checked: ['real pencil toggles frameless Input with the enabled language and code-generator cards',
     'the disabled placeholder chassis never mounts',
-    'header expands/collapses the card and mounts the body inside', 'card auto-compacts below its configured slot',
+    'header expands/collapses the card and mounts the body inside',
+    'a content-sized slot hugs its card and sections stack tightly',
     'header height comes from configured paddingY on every card',
     'language section hosts a global English/Indonesian dropdown that swaps the locale layout',
     'state.json restores the last chosen language on open',
     'choosing a language saves one bucket for that section',
     'a reopened Input restores the saved selection',
+    'code.json restores the generated code on open',
+    'double-clicking the value box copies it',
+    'Generate replaces the value and stores it as one dynamic value, never a log',
+    'value box and button share one config-driven, comfortable height',
     'damaged state never blocks Input and falls back to configured defaults',
     'expand/collapse state survives language switching',
     'scoped Input bootstrap and no Frame/file/data/preview bridge', 'rapid-click parity with one live window',

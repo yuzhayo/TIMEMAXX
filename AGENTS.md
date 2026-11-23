@@ -101,11 +101,14 @@ latest explicit decisions take precedence over older examples and historical tes
   current Frame width, height is the full current monitor work area excluding the
   taskbar, and its right edge touches Frame's left edge: `[ Input ][ Frame ]`.
   Input renders the enabled baked section cards from `ui-control/view/sections/`:
-  currently the language section, whose body hosts the global language dropdown
-  (English/Indonesian) that swaps the whole locale layout. The placeholder
+  a language section, whose body hosts the global language dropdown
+  (English/Indonesian) that swaps the whole locale layout, and a code-generator
+  section, whose body hosts a value box (double-click copies it) beside a
+  Generate button that produces a 14-character base-24 code. The placeholder
   chassis stays configured but disabled (`enabled: false`); card headers take
   their height from configured `paddingY`. Cards share
   `components/SectionCard.jsx` (header expand/collapse, auto-compact body).
+  A content-sized section hugs its card instead of reserving its bounds height.
   It has no task content or data. Task content and generator behavior are
   future explicit requests, not an implied work queue.
 - Startup and vertical maximize use the approved narrow configured width, full
@@ -189,8 +192,10 @@ No separate inspection framework/service is needed.
   metadata only, never rendered. Input has its own build under `ui-control/`;
   Frame does not build Input. `ui-control/state.json` holds only the last
   selection made inside each section instance, one bucket per instance; a
-  discovered component declares what it persists through `stateKeys`. Missing or
-  damaged state never blocks Input and falls back to configured defaults. No
+  discovered component declares what it persists through `stateKeys`. Generated
+  codes are an output, not a selection: `ui-control/code.json` holds one dynamic
+  value that each Generate replaces, never a log of past codes. Missing or
+  damaged files never block Input and fall back to configured defaults. No
   preview, Frame/file bridge, engine or overlay. `engine/` and overlay behavior
   are not implemented.
   Rapid toggles are serialized; closing Input leaves Frame alive. Bounds are
