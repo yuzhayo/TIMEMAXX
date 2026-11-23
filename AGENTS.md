@@ -258,6 +258,9 @@ No separate inspection framework/service is needed.
   to `frame/.runtime/measurements/side-stamp.json`; calibration never enters
   photo history or export. Agents must read those values after operator alignment
   rather than estimating text geometry.
+  Calibration text renders at 100% opacity. The selected outline and handles
+  appear on hover/interaction and auto-hide after 900ms of inactivity; hiding
+  controls never hides or changes the text itself.
   The operator approved `sideCode` with x=-1.3252054, y=0, scaleX/scaleY=1 and
   rotation=0; that translation now lives in `sideStamp.rs`. `sideCode` is locked
   and drawn without transform handles. Only `sideVerified` remains adjustable.

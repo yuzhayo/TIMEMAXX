@@ -37,7 +37,7 @@ export function validateConfig(config, report) {
   }
   if (config.calibration !== undefined) {
     const calibration = config.calibration;
-    const keys = ['enabled', 'lockedGroups', 'opacity', 'outline', 'selectedOutline', 'handleFill', 'handleStroke',
+    const keys = ['enabled', 'lockedGroups', 'opacity', 'autoHideMs', 'outline', 'selectedOutline', 'handleFill', 'handleStroke',
       'handleSize', 'rotationHandleOffset', 'lineWidth'];
     if (!calibration || typeof calibration !== 'object' || Array.isArray(calibration)) {
       report('calibration', 'configured calibration object', calibration); valid = false;
@@ -51,6 +51,9 @@ export function validateConfig(config, report) {
       }
       if (!Number.isFinite(calibration.opacity) || calibration.opacity <= 0 || calibration.opacity > 1) {
         report('calibration.opacity', 'number above 0 through 1', calibration.opacity); valid = false;
+      }
+      if (!Number.isFinite(calibration.autoHideMs) || calibration.autoHideMs < 0) {
+        report('calibration.autoHideMs', 'non-negative milliseconds', calibration.autoHideMs); valid = false;
       }
       for (const key of ['outline', 'selectedOutline', 'handleFill', 'handleStroke']) {
         if (typeof calibration[key] !== 'string' || !/^#[0-9a-f]{6}$/i.test(calibration[key])) {
