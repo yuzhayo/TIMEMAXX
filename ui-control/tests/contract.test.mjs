@@ -18,27 +18,30 @@ const validate = (config = structuredClone(raw), entries = catalog) => {
   return { plan: validateInputConfig(config, entries, diagnostics), issues: diagnostics.getSnapshot() };
 };
 
-test('baseline resolves the baked sections with their parts and locale layouts', () => {
+test('baseline mounts only the enabled language card and keeps the placeholder chassis disabled', () => {
   const { plan, issues } = validate();
   assert.deepEqual(issues, []);
-  assert.deepEqual(plan.sections.map((node) => node.id), ['placeholder', 'language']);
-  assert.deepEqual(plan.sections.map((node) => node.componentId), ['input.placeholder', 'input.language']);
-  assert.deepEqual(plan.sections.map((node) => node.folder), ['placeholder', 'language']);
-  for (const node of plan.sections) {
-    assert.equal(node.expanded, true);
-    assert.equal(node.sizing, 'content');
-    assert.ok(node.parts.header, `${node.id} header part resolves`);
-    assert.ok(node.parts.body, `${node.id} body part resolves`);
-  }
-  assert.ok(plan.sections[1].parts.select, 'language select part resolves');
+  assert.deepEqual(plan.sections.map((node) => node.id), ['language']);
+  assert.deepEqual(plan.sections.map((node) => node.componentId), ['input.language']);
+  assert.deepEqual(plan.sections.map((node) => node.folder), ['language']);
+  const node = plan.sections[0];
+  assert.equal(node.expanded, true);
+  assert.equal(node.sizing, 'content');
+  assert.equal(node.parts.header.geometry.paddingY, 4, 'header height comes from configured paddingY');
+  assert.ok(node.parts.body, 'language body part resolves');
+  assert.ok(node.parts.select, 'language select part resolves');
+  assert.equal(raw.sections[0].id, 'placeholder');
+  assert.equal(raw.sections[0].enabled, false, 'the placeholder chassis stays configured but disabled');
+  assert.deepEqual(raw.sections.map((section) => section.parts.header.geometry.paddingY), [4, 4],
+    'every card shares the raised header height');
   assert.deepEqual(plan.languages.map((language) => [language.id, language.label]),
     [['en', 'English'], ['id', 'Indonesian']]);
   assert.equal(plan.initialLanguage, 'en');
   assert.deepEqual(plan.layouts.en.sections.map((node) => [node.id, node.label]),
-    [['placeholder', 'Placeholder'], ['language', 'Language']]);
+    [['language', 'Language']]);
   assert.deepEqual(plan.layouts.id.sections.map((node) => [node.id, node.label]),
-    [['placeholder', 'Placeholder'], ['language', 'Bahasa']]);
-  assert.deepEqual(plan.layouts.id.sections[1].parts.select, plan.sections[1].parts.select);
+    [['language', 'Bahasa']]);
+  assert.deepEqual(plan.layouts.id.sections[0].parts.select, plan.sections[0].parts.select);
 });
 
 test('window contract still owns its native geometry', () => {
@@ -68,23 +71,23 @@ test('a configured section without an implementation is reported, never invented
   config.layouts.id.order = ['placeholder', 'language', 'later'];
   config.layouts.id.sections.later = { label: 'Terlambat' };
   const { plan, issues } = validate(config);
-  assert.deepEqual(plan.sections.map((node) => node.id), ['placeholder', 'language']);
+  assert.deepEqual(plan.sections.map((node) => node.id), ['language']);
   assert.ok(issues.some((issue) => issue.code === 'INPUT_COMPONENT_MISSING' && issue.instanceId === 'later'));
-  assert.deepEqual(plan.layouts.en.sections.map((node) => node.id), ['placeholder', 'language']);
+  assert.deepEqual(plan.layouts.en.sections.map((node) => node.id), ['language']);
   assert.equal(plan.initialLanguage, 'en');
 });
 
 test('session owns language and expand/collapse state and rejects unknown changes', () => {
   const { plan } = validate();
   const session = createInputSession(plan);
-  assert.deepEqual(session.getSnapshot().expanded, { placeholder: true, language: true });
+  assert.deepEqual(session.getSnapshot().expanded, { language: true });
   assert.equal(session.getSnapshot().language, 'en');
   let events = 0;
   session.subscribe(() => events++);
   assert.equal(session.setExpanded('language', false), true);
   assert.equal(session.getSnapshot().expanded.language, false);
   assert.equal(session.setExpanded('language', false), false);
-  assert.equal(session.setExpanded('missing', true), false);
+  assert.equal(session.setExpanded('placeholder', true), false, 'a disabled instance owns no session state');
   assert.equal(session.setLanguage('id'), true);
   assert.equal(session.getSnapshot().language, 'id');
   assert.equal(session.setLanguage('id'), false);

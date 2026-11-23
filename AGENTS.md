@@ -100,9 +100,11 @@ latest explicit decisions take precedence over older examples and historical tes
   title text or reserved Windows-Bar area. On each opening its width is 40% of
   current Frame width, height is the full current monitor work area excluding the
   taskbar, and its right edge touches Frame's left edge: `[ Input ][ Frame ]`.
-  Input renders baked section cards from `ui-control/view/sections/`: a
-  placeholder and a language section whose body hosts the global language
-  dropdown (English/Indonesian) that swaps the whole locale layout. Cards share
+  Input renders the enabled baked section cards from `ui-control/view/sections/`:
+  currently the language section, whose body hosts the global language dropdown
+  (English/Indonesian) that swaps the whole locale layout. The placeholder
+  chassis stays configured but disabled (`enabled: false`); card headers take
+  their height from configured `paddingY`. Cards share
   `components/SectionCard.jsx` (header expand/collapse, auto-compact body).
   It has no task content or data. Task content and generator behavior are
   future explicit requests, not an implied work queue.

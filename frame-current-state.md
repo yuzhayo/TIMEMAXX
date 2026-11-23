@@ -5,7 +5,7 @@
 `frame/` is a Windows/Electron photo-frame application. Its photo build, editing,
 preview and export remain standalone. The pencil button has one launch-only link
 to a frameless Input window owned by `ui-control/`; Input renders baked section
-cards — a placeholder and a language section whose dropdown selects the global
+cards — the enabled language section whose dropdown selects the global
 layout language (English/Indonesian) — with no task content, engine or data
 integration.
 
@@ -21,7 +21,8 @@ The active application currently provides:
 - Bottom Bar operation messages and structured local diagnostics;
 - development-only layout inspection;
 - toggling a frameless Input window from the pencil button; Input renders the
-  shared section cards (placeholder plus a language dropdown).
+  enabled shared section cards (a language dropdown; the placeholder chassis is
+  configured but disabled).
 
 Frame has four configured sections, sixteen configured instances, and fifteen
 enabled instances.
@@ -276,14 +277,15 @@ frame/
 ## Input screen verification
 
 `npm.cmd run test:input-screen` checks the window-only command and the real Electron
-pencil path: a frameless Input with the shared section cards (header toggle,
-body mount, auto-compact below the configured slot, language dropdown swapping
+pencil path: a frameless Input with the enabled shared section cards (header
+toggle, body mount, auto-compact below the configured slot, header height from
+configured paddingY, language dropdown swapping
 the locale layout), 40% width at Frame
 startup/minimum sizes, full work-area height and adjoining-left bounds,
 JSON-driven geometry/background, toggle parity during rapid clicks, unchanged
 Frame state, failure isolation and parent-window cleanup. Artifacts stay in
 ignored `frame/.runtime/checks/input-screen/`.
 
-From `ui-control/`, `npm.cmd run test:contract` checks the placeholder baseline
+From `ui-control/`, `npm.cmd run test:contract` checks the enabled-card baseline
 config, window geometry and discovery contract. Dependencies, built renderer and
 local logs stay ignored there.

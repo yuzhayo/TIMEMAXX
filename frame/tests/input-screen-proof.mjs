@@ -71,8 +71,9 @@ const checkInput = async (page, settings, name) => {
   await page.waitForSelector('main[aria-label="Input"]');
   await page.evaluate(() => window.inputDev?.inspect(false));
   await page.waitForFunction(() => document.querySelector('[data-input-stack]') !== null);
-  assert.equal(await page.locator('[data-section-card]').count(), 2, 'Input renders the placeholder and language cards');
-  assert.equal(await page.locator('[data-input-stack] > *').count(), 2, 'Input content area holds only configured section slots');
+  assert.equal(await page.locator('[data-section-card]').count(), 1, 'Input renders only the enabled language card');
+  assert.equal(await page.locator('[data-input-stack] > *').count(), 1, 'Input content area holds only configured section slots');
+  assert.equal(await page.locator('[data-instance="placeholder"]').count(), 0, 'the disabled placeholder chassis never mounts');
   assert.equal(await page.getByRole('combobox').count(), 1, 'the language section owns the only combobox');
   assert.equal(await page.locator('canvas, img, iframe').count(), 0);
   assert.deepEqual(await page.evaluate(() => ({ host: typeof window.frameHost, node: typeof require })),
@@ -126,24 +127,30 @@ try {
   await checkInput(input, config.window, 'startup');
   assert.equal(await inputCount(), 1);
 
-  // The baked placeholder: header toggles expand/collapse, body mounts inside, card stays compact.
+  // The enabled language card: header toggles expand/collapse, body mounts inside, card stays compact.
   const cardGeometry = () => input.evaluate(() => {
-    const card = document.querySelector('[data-instance="placeholder"] [data-section-card]');
-    const body = document.querySelector('[data-instance="placeholder"] [data-section-body]');
+    const card = document.querySelector('[data-instance="language"] [data-section-card]');
+    const body = document.querySelector('[data-instance="language"] [data-section-body]');
+    const header = document.querySelector('[data-instance="language"] [data-section-header]');
+    const style = getComputedStyle(header);
     return { slot: card.parentElement.getBoundingClientRect().height, card: card.getBoundingClientRect().height,
       body: body ? body.getBoundingClientRect().height : 0,
-      expanded: document.querySelector('[data-section-header]').getAttribute('aria-expanded') };
+      headerPad: parseFloat(style.paddingTop), header: header.getBoundingClientRect().height,
+      expanded: header.getAttribute('aria-expanded') };
   });
   const open = await cardGeometry();
   assert.equal(open.expanded, 'true');
   assert.ok(open.body > 0, 'expanded body mounts inside the card');
   assert.ok(open.card < open.slot, 'card auto-compacts below its configured slot');
-  await input.locator('[data-instance="placeholder"] [data-section-header]').click();
+  assert.ok(Math.abs(open.headerPad - open.slot * 0.04) < 0.6,
+    'header height is driven by configured paddingY, not hardcoded');
+  assert.ok(open.header > 36, 'the raised header is a comfortable target');
+  await input.locator('[data-instance="language"] [data-section-header]').click();
   const shut = await cardGeometry();
   assert.equal(shut.expanded, 'false', 'header click collapses the card');
   assert.equal(shut.body, 0, 'collapsed card removes the body');
   assert.ok(shut.card < open.card, 'collapsed card is shorter than expanded');
-  await input.locator('[data-instance="placeholder"] [data-section-header]').click();
+  await input.locator('[data-instance="language"] [data-section-header]').click();
   assert.equal((await cardGeometry()).expanded, 'true', 'second click expands the card again');
 
   // The language section: its body hosts the global language dropdown.
@@ -268,8 +275,10 @@ try {
   await Promise.all([inputClosed, frameClosed, processExited]);
   assert.equal(child.exitCode, 0);
   finished = true;
-  console.log(JSON.stringify({ pass: true, checked: ['real pencil toggles frameless Input with the baked placeholder card',
+  console.log(JSON.stringify({ pass: true, checked: ['real pencil toggles frameless Input with only the enabled language card',
+    'the disabled placeholder chassis never mounts',
     'header expands/collapses the card and mounts the body inside', 'card auto-compacts below its configured slot',
+    'header height comes from configured paddingY on every card',
     'language section hosts a global English/Indonesian dropdown that swaps the locale layout',
     'expand/collapse state survives language switching',
     'scoped Input bootstrap and no Frame/file/data/preview bridge', 'rapid-click parity with one live window',
