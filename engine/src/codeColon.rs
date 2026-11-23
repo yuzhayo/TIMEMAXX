@@ -13,7 +13,7 @@ pub fn calculate(_data: Option<&Value>, context: &Context) -> EngineResult<Vec<L
         z: 2,
         paint: Paint::Text {
             text: ":".into(),
-            font: context.assets.font.clone(),
+            font: context.assets.label.clone(),
             size: row.text_size,
             color: [255, 255, 255, 125],
             x: _layout::colon_x(&row, context.assets, context.language)?,

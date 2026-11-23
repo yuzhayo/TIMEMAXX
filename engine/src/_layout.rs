@@ -23,10 +23,6 @@ pub struct CodeRow {
     pub scale: f32,
 }
 
-fn font(assets: &Assets, bold: bool) -> &Path {
-    if bold { &assets.label } else { &assets.font }
-}
-
 pub fn font_metrics(path: &Path, size: f32) -> EngineResult<(f32, f32)> {
     let bytes = fs::read(path).map_err(|error| format!("font unreadable: {error}"))?;
     let face = FontRef::try_from_slice(&bytes).map_err(|error| format!("font invalid: {error}"))?;
@@ -63,10 +59,10 @@ pub fn code_row(config: &Value, _assets: &Assets) -> EngineResult<CodeRow> {
         shield_y: frame_h - 73.0 * k,
         shield_w: 36.0 * k,
         shield_h: 42.0 * k,
-        text_x: 79.0 * k,
+        text_x: 80.0 * k,
         text_baseline: frame_h - 40.0 * k,
-        text_size: 40.0 * k,
-        code_size: 40.0 * k,
+        text_size: 42.0 * k,
+        code_size: 43.0 * k,
         scale,
     })
 }
@@ -77,15 +73,15 @@ pub fn label_for(language: &str) -> &'static str {
 }
 
 pub fn label_width(row: &CodeRow, assets: &Assets, language: &str) -> EngineResult<f32> {
-    text_width(font(assets, true), row.text_size, label_for(language))
+    text_width(&assets.label, row.text_size, label_for(language))
 }
 
 pub fn colon_x(row: &CodeRow, assets: &Assets, language: &str) -> EngineResult<f32> {
-    Ok(row.text_x + label_width(row, assets, language)?)
+    Ok(row.text_x + label_width(row, assets, language)? + 2.0 * row.scale)
 }
 
 pub fn code_x(row: &CodeRow, assets: &Assets, language: &str) -> EngineResult<f32> {
     Ok(colon_x(row, assets, language)?
-        + text_width(font(assets, false), row.text_size, ":")?
-        + 2.0 * row.scale)
+        + text_width(&assets.label, row.text_size, ":")?
+        + 7.5 * row.scale)
 }

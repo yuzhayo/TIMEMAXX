@@ -233,9 +233,10 @@ No separate inspection framework/service is needed.
   or a language switch updates the display without a restart. Geometry is
   measured from the operator's Indonesian stacked export downscaled to
   1200x1600, not from `render.ts`: shield x31..66/y1527..1568, divider
-  x31..538/y1509. Photo-code typography follows `timemark-web` exactly:
-  RobotoCondensed-Bold label, RobotoCondensed-Regular colon and code, 12dp,
-  white70 under row alpha 0.7, with the code starting 2dp after the colon.
+  x31..538/y1509. The operator's original Indonesian export is authoritative:
+  RobotoCondensed-Regular label and colon, RobotoCondensed-Bold code. At the
+  current test code the measured ink bounds are label x82..222, colon x228..232
+  and code x244..538. Never claim visual parity before operator approval.
   Frame only carries those PNGs through
   `desktop/LayerReceiver.cjs` and stacks them in `PreviewPainter`; it interprets
   no stamp content. Combined export with layers remains deferred.
