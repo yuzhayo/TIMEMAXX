@@ -100,10 +100,12 @@ latest explicit decisions take precedence over older examples and historical tes
   title text or reserved Windows-Bar area. On each opening its width is 40% of
   current Frame width, height is the full current monitor work area excluding the
   taskbar, and its right edge touches Frame's left edge: `[ Input ][ Frame ]`.
-  Input renders one baked placeholder component: a header with expand/collapse
-  and an auto-compact body that is the attachment point for individual
-  components added later. It has no task content or data. Task content and
-  generator behavior are future explicit requests, not an implied work queue.
+  Input renders baked section cards from `ui-control/view/sections/`: a
+  placeholder and a language section whose body hosts the global language
+  dropdown (English/Indonesian) that swaps the whole locale layout. Cards share
+  `components/SectionCard.jsx` (header expand/collapse, auto-compact body).
+  It has no task content or data. Task content and generator behavior are
+  future explicit requests, not an implied work queue.
 - Startup and vertical maximize use the approved narrow configured width, full
   monitor work-area height excluding the taskbar, and right alignment. Restore
   returns to previous bounds. Native geometry is not photo or section-layout logic.
@@ -175,9 +177,10 @@ No separate inspection framework/service is needed.
   No Input internals, data integration, build dependencies or engine calls/launches.
   It does not interpret overlay settings or own overlay
   composition, clear/revision arbitration or combined export.
-- `ui-control/` owns a frameless window shell rendering the baked placeholder
-  component, its React/MUI renderer, native geometry config and scoped
-  config/diagnostic preload. It has no task logic or data. `ui-control/config.json` owns
+- `ui-control/` owns a frameless window shell rendering its baked section cards
+  (composed from shared `components/SectionCard.jsx`), its React/MUI renderer,
+  native geometry config and scoped config/diagnostic preload. It has no task
+  logic or data. `ui-control/config.json` owns
   frame-relative width, work-area-relative height, adjoining-left placement,
   native-frame flags and background; computed native bounds use DIP. Its title is
   metadata only, never rendered. Input has its own build under `ui-control/`;

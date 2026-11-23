@@ -4,10 +4,10 @@
 
 `frame/` is a Windows/Electron photo-frame application. Its photo build, editing,
 preview and export remain standalone. The pencil button has one launch-only link
-to a frameless Input window owned by `ui-control/`; Input renders one baked
-placeholder component — a header with expand/collapse and an auto-compact body
-that is the attachment point for individual components added later — with no
-task content, engine or data integration.
+to a frameless Input window owned by `ui-control/`; Input renders baked section
+cards — a placeholder and a language section whose dropdown selects the global
+layout language (English/Indonesian) — with no task content, engine or data
+integration.
 
 The active application currently provides:
 
@@ -21,7 +21,7 @@ The active application currently provides:
 - Bottom Bar operation messages and structured local diagnostics;
 - development-only layout inspection;
 - toggling a frameless Input window from the pencil button; Input renders the
-  baked placeholder card (header expand/collapse, auto-compact body).
+  shared section cards (placeholder plus a language dropdown).
 
 Frame has four configured sections, sixteen configured instances, and fifteen
 enabled instances.
@@ -276,8 +276,9 @@ frame/
 ## Input screen verification
 
 `npm.cmd run test:input-screen` checks the window-only command and the real Electron
-pencil path: a frameless Input with the baked placeholder card (header toggle,
-body mount, auto-compact below the configured slot), 40% width at Frame
+pencil path: a frameless Input with the shared section cards (header toggle,
+body mount, auto-compact below the configured slot, language dropdown swapping
+the locale layout), 40% width at Frame
 startup/minimum sizes, full work-area height and adjoining-left bounds,
 JSON-driven geometry/background, toggle parity during rapid clicks, unchanged
 Frame state, failure isolation and parent-window cleanup. Artifacts stay in

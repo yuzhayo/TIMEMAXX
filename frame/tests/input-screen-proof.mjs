@@ -71,9 +71,9 @@ const checkInput = async (page, settings, name) => {
   await page.waitForSelector('main[aria-label="Input"]');
   await page.evaluate(() => window.inputDev?.inspect(false));
   await page.waitForFunction(() => document.querySelector('[data-input-stack]') !== null);
-  assert.equal(await page.locator('[data-section-card]').count(), 1, 'Input renders exactly the baked placeholder card');
-  assert.equal(await page.locator('[data-input-stack] > *').count(), 1, 'Input content area holds only the placeholder slot');
-  assert.equal(await page.getByRole('combobox').count(), 0);
+  assert.equal(await page.locator('[data-section-card]').count(), 2, 'Input renders the placeholder and language cards');
+  assert.equal(await page.locator('[data-input-stack] > *').count(), 2, 'Input content area holds only configured section slots');
+  assert.equal(await page.getByRole('combobox').count(), 1, 'the language section owns the only combobox');
   assert.equal(await page.locator('canvas, img, iframe').count(), 0);
   assert.deepEqual(await page.evaluate(() => ({ host: typeof window.frameHost, node: typeof require })),
     { host: 'undefined', node: 'undefined' });
@@ -128,8 +128,8 @@ try {
 
   // The baked placeholder: header toggles expand/collapse, body mounts inside, card stays compact.
   const cardGeometry = () => input.evaluate(() => {
-    const card = document.querySelector('[data-section-card]');
-    const body = document.querySelector('[data-section-body]');
+    const card = document.querySelector('[data-instance="placeholder"] [data-section-card]');
+    const body = document.querySelector('[data-instance="placeholder"] [data-section-body]');
     return { slot: card.parentElement.getBoundingClientRect().height, card: card.getBoundingClientRect().height,
       body: body ? body.getBoundingClientRect().height : 0,
       expanded: document.querySelector('[data-section-header]').getAttribute('aria-expanded') };
@@ -138,13 +138,29 @@ try {
   assert.equal(open.expanded, 'true');
   assert.ok(open.body > 0, 'expanded body mounts inside the card');
   assert.ok(open.card < open.slot, 'card auto-compacts below its configured slot');
-  await input.locator('[data-section-header]').click();
+  await input.locator('[data-instance="placeholder"] [data-section-header]').click();
   const shut = await cardGeometry();
   assert.equal(shut.expanded, 'false', 'header click collapses the card');
   assert.equal(shut.body, 0, 'collapsed card removes the body');
   assert.ok(shut.card < open.card, 'collapsed card is shorter than expanded');
-  await input.locator('[data-section-header]').click();
+  await input.locator('[data-instance="placeholder"] [data-section-header]').click();
   assert.equal((await cardGeometry()).expanded, 'true', 'second click expands the card again');
+
+  // The language section: its body hosts the global language dropdown.
+  const select = input.locator('[data-instance="language"] [data-language-select]');
+  assert.deepEqual(await select.locator('option').evaluateAll((options) => options.map((option) => option.value)),
+    ['en', 'id'], 'the dropdown lists English and Indonesian');
+  assert.equal(await select.evaluate((element) => element.value), 'en');
+  const headerText = () => input.locator('[data-instance="language"] [data-section-header]').textContent();
+  await select.selectOption('id');
+  await input.waitForFunction(() => document.querySelector('[data-instance="language"] [data-section-header]')?.textContent === 'Bahasa');
+  assert.equal(await input.evaluate(() => document.querySelector('main').getAttribute('lang')), 'id',
+    'switching the dropdown swaps the whole locale layout');
+  assert.equal((await input.evaluate(() => window.inputDev.snapshot())).language, 'id');
+  await select.selectOption('en');
+  assert.equal(await headerText(), 'Language', 'switching back restores the English layout');
+  assert.equal((await input.evaluate(() => window.inputDev.snapshot())).expanded.language, true,
+    'expand/collapse state survives a language switch');
 
   const firstId = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()
     .find((win) => win.webContents.getURL().includes('/ui-control/view-built/index.html')).id);
@@ -254,6 +270,8 @@ try {
   finished = true;
   console.log(JSON.stringify({ pass: true, checked: ['real pencil toggles frameless Input with the baked placeholder card',
     'header expands/collapses the card and mounts the body inside', 'card auto-compacts below its configured slot',
+    'language section hosts a global English/Indonesian dropdown that swaps the locale layout',
+    'expand/collapse state survives language switching',
     'scoped Input bootstrap and no Frame/file/data/preview bridge', 'rapid-click parity with one live window',
     '40% Frame width at startup/minimum', 'full work-area height', 'Input right edge touches Frame left edge',
     'no native caption or Windows-Bar space', 'JSON geometry/background without sibling changes', 'isolated Input configuration failure',
