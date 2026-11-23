@@ -39,11 +39,14 @@ pub fn calculate(data: Option<&Value>, context: &Context) -> EngineResult<Vec<La
     // per-character layout without scaling the glyphs themselves.
     let advance_scale = 1.2;
     let axis_x = frame_w - dp(2.5); // measured right-edge baseline of the original export
-    let shield_source_w = dp(8.0);
-    let shield_source_h = dp(9.0);
+    // The APK drawable is 24x27px (nominal 8x9dp), while the burnt-in export
+    // presents it at 80% of that nominal box. Keep the original asset and apply
+    // the observed export scale here instead of resizing the bitmap itself.
+    let shield_source_w = dp(6.4);
+    let shield_source_h = dp(7.2);
     let shield_final_h = shield_source_w;
-    let shield_bottom = dp(290.0);
-    let shield_x = axis_x - dp(7.0);
+    let shield_bottom = dp(288.7);
+    let shield_x = axis_x - dp(6.25);
     let shield_y = shield_bottom - shield_final_h;
 
     let code_font = asset(context, "sideCodeFont")?;

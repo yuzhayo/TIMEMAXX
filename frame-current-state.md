@@ -288,8 +288,10 @@ frame/
   fixed anchor; one 4dp gap separates each relationship; code advance determines
   only the Verified position. It transcribes `BottomToTopTextView`: 8x9dp rotated
   anti-code icon; 9dp PT Mono code; 9dp Roboto Condensed Verified; per-character
-  bottom-to-top placement; white fill over a 2px black50 stroke and no shadow. A
-  focused two-length render proved byte-identical shield layers and equal
+  bottom-to-top placement; white fill over a 2px black50 stroke and no shadow.
+  The original 8x9dp icon is rendered at the observed 80% burnt-in scale;
+  strong-alpha bounds are x1173..1189/y944..958 at 1200x1600. A focused
+  two-length render proved byte-identical shield layers and equal
   child-calculated gaps; visual parity remains pending operator approval.
   Frame carries the PNGs
   through `desktop/LayerReceiver.cjs` and stacks them in `PreviewPainter` without

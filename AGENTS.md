@@ -244,8 +244,10 @@ No separate inspection framework/service is needed.
   Verified` uses 9dp Roboto Condensed Regular and moves by exactly the code-width
   delta. It reproduces `BottomToTopTextView`: per-character bottom-to-top layout,
   white fill over a 2px black50 stroke, no shadow. The icon is the APK
-  `anti_code_icon_small`, 8x9dp, rotated -90. Visual parity remains pending
-  operator approval.
+  `anti_code_icon_small`, rotated -90; the burnt-in reference presents it at
+  80% of its nominal 8x9dp XML box. Its measured strong-alpha bounds at
+  1200x1600 are x1173..1189/y944..958. Visual parity remains pending operator
+  approval.
   Frame only carries those PNGs through
   `desktop/LayerReceiver.cjs` and stacks them in `PreviewPainter`; it interprets
   no stamp content. Combined export with layers remains deferred.
