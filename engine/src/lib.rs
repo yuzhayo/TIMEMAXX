@@ -53,8 +53,7 @@ pub enum Paint {
     Rect { x: f32, y: f32, w: f32, h: f32, color: [u8; 4] },
     Text { text: String, font: PathBuf, size: f32, color: [u8; 4], x: f32, y: f32 },
     VerticalText { text: String, font: PathBuf, size: f32, color: [u8; 4],
-        axis_x: f32, origin_y: f32, advance_scale: f32, cross_scale: f32,
-        outline: Option<Outline> },
+        axis_x: f32, origin_y: f32, advance_scale: f32, outline: Option<Outline> },
 }
 
 pub struct LayerSpec {
@@ -150,8 +149,7 @@ fn draw_text(image: &mut RgbaImage, spec: &Paint) -> EngineResult<()> {
 }
 
 fn draw_vertical_glyphs(image: &mut RgbaImage, text: &str, font: &Path, size: f32,
-    color: [u8; 4], axis_x: f32, origin_y: f32, advance_scale: f32,
-    cross_scale: f32) -> EngineResult<()> {
+    color: [u8; 4], axis_x: f32, origin_y: f32, advance_scale: f32) -> EngineResult<()> {
     let bytes = fs::read(font).map_err(|error| format!("font unreadable: {error}"))?;
     let face = FontRef::try_from_slice(&bytes).map_err(|error| format!("font invalid: {error}"))?;
     let scale = PxScale::from(size);
@@ -170,7 +168,7 @@ fn draw_vertical_glyphs(image: &mut RgbaImage, text: &str, font: &Path, size: f3
             outline.draw(|gx, gy, coverage| {
                 let source_x = gx as f32 + bounds.x;
                 let source_y = gy as f32 + bounds.y;
-                let px = (axis_x + source_y * cross_scale).round() as i32;
+                let px = (axis_x + source_y).round() as i32;
                 let py = (cursor_y - source_x).round() as i32;
                 if px < 0 || py < 0 || px >= image.width() as i32 || py >= image.height() as i32 { return; }
                 let alpha = (coverage * color[3] as f32).round().clamp(0.0, 255.0) as u8;
@@ -189,11 +187,11 @@ fn draw_vertical_glyphs(image: &mut RgbaImage, text: &str, font: &Path, size: f3
 
 fn draw_vertical_text(image: &mut RgbaImage, spec: &Paint) -> EngineResult<()> {
     let Paint::VerticalText { text, font, size, color, axis_x, origin_y,
-        advance_scale, cross_scale, outline } = spec else { return Ok(()) };
+        advance_scale, outline } = spec else { return Ok(()) };
     if let Some(outline) = outline {
         let mut mask = RgbaImage::new(image.width(), image.height());
         draw_vertical_glyphs(&mut mask, text, font, *size, [255, 255, 255, 255],
-            *axis_x, *origin_y, *advance_scale, *cross_scale)?;
+            *axis_x, *origin_y, *advance_scale)?;
         let radius = outline.width.ceil().max(1.0) as i32;
         let mut stroke = RgbaImage::new(image.width(), image.height());
         for (x, y, pixel) in mask.enumerate_pixels() {
@@ -214,7 +212,7 @@ fn draw_vertical_text(image: &mut RgbaImage, spec: &Paint) -> EngineResult<()> {
         imageops::overlay(image, &stroke, 0, 0);
     }
     draw_vertical_glyphs(image, text, font, *size, *color, *axis_x, *origin_y,
-        *advance_scale, *cross_scale)
+        *advance_scale)
 }
 
 fn rasterize(spec: &LayerSpec, config: &Value) -> EngineResult<RgbaImage> {

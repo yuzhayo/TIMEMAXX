@@ -5,6 +5,8 @@ contextBridge.exposeInMainWorld('frameHost', {
   bootstrap: () => ipcRenderer.invoke('frame:bootstrap'),
   diagnostics: (records) => ipcRenderer.invoke('frame:diagnostics', records),
   layers: () => ipcRenderer.invoke('frame:layers'),
+  loadCalibration: () => ipcRenderer.invoke('frame:calibration-load'),
+  saveCalibration: (value) => ipcRenderer.invoke('frame:calibration-save', value),
   onLayersChanged: (callback) => {
     const listener = (_event, result) => callback(result);
     ipcRenderer.on('frame:layers-changed', listener);

@@ -285,12 +285,12 @@ frame/
   and code x244..538. Visual parity remains pending operator approval.
   One additional flat child, `sideStamp.rs`, owns the complete right-edge chain
   and returns `sideShield`/`sideCode`/`sideVerified` at z10/z11/z12. Shield is the
-  fixed anchor; one 2.5dp gap separates each relationship; code advance determines
+  fixed anchor; one 2.8dp gap separates each relationship; code advance determines
   only the Verified position. It transcribes `BottomToTopTextView`: 8x9dp rotated
   anti-code icon; 9dp PT Mono code; 9dp Roboto Condensed Verified; per-character
-  bottom-to-top placement; plain white fill with no outline or shadow. The test
-  code and sample each measure x1169..1192/y667..931; visual parity remains
-  pending operator approval.
+  bottom-to-top placement; plain white fill with no outline or shadow. Vertical
+  text is restored to the pre-black-line state; parity remains pending operator
+  calibration and approval.
   The original 8x9dp icon is rendered at the observed 80% burnt-in scale;
   strong-alpha bounds are x1173..1189/y944..958 at 1200x1600. A focused
   two-length render proved byte-identical shield layers and equal
@@ -298,6 +298,15 @@ frame/
   Frame carries the PNGs
   through `desktop/LayerReceiver.cjs` and stacks them in `PreviewPainter` without
   interpreting stamp content. A child error or bad input hides only that section.
+- Frame calibration mode keeps the approved `sideShield` locked in the normal
+  stack and presents `sideCode` and `sideVerified` as two independent free-
+  transform overlays. Drag moves a group; eight handles scale X/Y; the detached
+  handle rotates. Values use the 1200x1600 frame coordinate system and auto-save
+  to ignored `frame/.runtime/measurements/side-stamp.json`. They do not affect
+  photo history, Save or engine source until the operator completes alignment.
+  `sideCode` is now operator-approved: its x=-1.3252054 translation is applied in
+  `sideStamp.rs`, its saved calibration transform is reset to identity and the
+  calibration UI locks it without handles. Only `sideVerified` remains editable.
 - Combined photo/overlay export, accepted revisions, stale-overlay rejection and
   combined Save still belong to a future background orchestrator. The optional
   Bottom Bar Info control and export-size UI remain out of scope.

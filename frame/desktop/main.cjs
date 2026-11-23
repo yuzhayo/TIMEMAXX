@@ -7,6 +7,7 @@ const { DiagnosticLog } = require('./DiagnosticLog.cjs');
 const { ImageWorker } = require('./ImageWorker.cjs');
 const { ImageFileDialogs } = require('./ImageFileDialogs.cjs');
 const { receiveLayers, pollLayers } = require('./LayerReceiver.cjs');
+const { CalibrationStore } = require('./CalibrationStore.cjs');
 
 // LOGIC — photo lifetime stays in Frame; the only Input link is its approved window toggle.
 const root = path.resolve(__dirname, '..');
@@ -32,6 +33,7 @@ app.whenReady().then(async () => {
   const configPath = path.resolve(root, option('--config') ?? 'config.json');
   if (path.relative(root, configPath).startsWith('..') || path.isAbsolute(path.relative(root, configPath))) throw new Error('Config must stay inside frame');
   const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  const calibration = new CalibrationStore(runtime);
   const { nativeWindowValid, outputSettingsValid } = await import(pathToFileURL(path.join(root, 'view/layout/ConfigValidation.mjs')).href);
   if (!nativeWindowValid(config.window)) throw new Error('window: invalid native settings; no alternate geometry was invented');
   window = createFrameWindow(root, config.window);
@@ -57,6 +59,15 @@ app.whenReady().then(async () => {
   ipcMain.handle('frame:layers', (event) => {
     if (!allowed(event)) return { ok: false, error: 'Unknown frame sender' };
     try { return receiveLayers({ root, runtime }); }
+    catch (error) { return { ok: false, error: error.message }; }
+  });
+  ipcMain.handle('frame:calibration-load', (event) => {
+    if (!allowed(event)) return null;
+    return calibration.load();
+  });
+  ipcMain.handle('frame:calibration-save', (event, value) => {
+    if (!allowed(event)) return { ok: false, error: 'Unknown frame sender' };
+    try { return calibration.save(value); }
     catch (error) { return { ok: false, error: error.message }; }
   });
   ipcMain.handle('frame:diagnostics', (event, records) => {
